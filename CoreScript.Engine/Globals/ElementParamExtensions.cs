@@ -12,6 +12,37 @@ namespace CoreScript.Engine.Globals
     public static partial class ElementExtensions
     {
         /// <summary>
+        /// Does this element (or its type) declare a parameter with this name?
+        ///
+        /// ⚠⚠ WHY THIS EXISTS (2026-10-29 review). The reviewer noted that
+        /// <c>GetStr("Nonexistent Param")</c> warns and returns <c>""</c> while
+        /// <c>WhereParam</c> / <c>GroupByParam</c> / <c>SumParam</c> RAISE — "inconsistent".
+        /// It is deliberate, and the reason is structural rather than cosmetic:
+        ///
+        ///   * A COLLECTION guard can raise, because it asks "does ANY element in this set
+        ///     declare the name?" — one wrong name makes the whole aggregate silently zero,
+        ///     which is the false all-clear this engine must never give.
+        ///   * A single-element READ cannot, because absence per element is NORMAL in a mixed
+        ///     set. `WhereParam("Type Mark", …)` over Walls + Grids legitimately finds the
+        ///     parameter on some elements and not others: `_requireDeclaredParameter` passes
+        ///     on the first hit, and the per-element read must then tolerate the misses.
+        ///     Making `GetStr` throw would break that filter — a worse bug than the one it
+        ///     would fix.
+        ///
+        /// So the asymmetry stays, and this method is the missing half: a caller that WANTS to
+        /// probe now has a first-class way to ask instead of inferring from a blank string.
+        /// An undeclared name and an empty value are different answers; this tells them apart.
+        /// </summary>
+        public static bool HasParam(this Element e, string name)
+        {
+            if (e == null || string.IsNullOrEmpty(name)) return false;
+            // `Id` / `ElementId` are answered from the element itself, not from a declared
+            // parameter — GetStr/GetNum resolve them, so existence must agree.
+            if (_isElementIdName(name)) return true;
+            return _declaresParameter(e, name);
+        }
+
+        /// <summary>
         /// Gets the parameter value as a string.
         /// Smart: Resolves ElementId names, handles Strings, falls back to C# Properties (Reflection),
         /// and finally formatted ValueStrings.
@@ -56,6 +87,17 @@ namespace CoreScript.Engine.Globals
                 var bp = e.get_Parameter(bip);
                 if (bp != null && bp.HasValue) return FormatParamValue(e, bp);
             }
+
+            // 2b. "Id" is the element's own handle, not a parameter — and it is the handle every
+            //   caller already has (get_context, a .Select(e => new { e.Id }) table, the user's
+            //   message). ⚠ MEASURED LIVE 2026-10-28, operator-reported from the desktop REPL:
+            //   without this, GetStr("Id") fell through to step 3 below, matched the C# `Element.Id`
+            //   property, saw an ElementId and returned the element's NAME — "PC 150 Concrete
+            //   Masonry Units" for wall 359588. WhereParam("Id", "359588") then matched nothing and
+            //   reported 0 rows. A plausible wrong answer, not an error.
+            //   Deliberately AFTER the parameter and BuiltInParameter lookups: a project that really
+            //   declares a parameter called "Id" still wins, so nothing is shadowed.
+            if (_isElementIdName(name)) return e.Id.IntegerValue.ToString();
 
             // 3. Smart Fallback: Try C# Property via Reflection
             try
@@ -289,6 +331,108 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// True for the names that mean "this element's own Id" rather than a parameter name.
+        /// Both spellings are accepted: "Id" is what a person or a model writes, "ElementId" is
+        /// the Revit type they see in the API. GetStr/GetNum answer both from the element itself.
+        /// </summary>
+        internal static bool _isElementIdName(string name) =>
+            string.Equals(name, "Id", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "ElementId", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Can GetStr/GetNum answer this name for this element AT ALL — by any of the routes they
+        /// use, not only by a declared parameter? Mirrors their lookup chain: a declared parameter,
+        /// a BuiltInParameter enum name, a C# property, or a native property.
+        ///
+        /// ⚠⚠ THE GUARD MUST ASK THIS, NOT "IS IT A PARAMETER" (found before release, 2026-10-29).
+        ///   `WhereParam("Level", "Level 1")` is DOCUMENTED (EXTENSION_METHODS.md) and works: GetStr
+        ///   resolves "Level" through the Reference Level / Base Level / Base Constraint alias chain,
+        ///   and no element DECLARES a parameter literally called "Level". A guard that asked only
+        ///   about parameters would have turned a documented, working filter into a hard error —
+        ///   the guard would have been the bug. Same for "Name" and "Category" (native properties)
+        ///   and for BuiltInParameter names.
+        /// </summary>
+        private static bool _canResolveName(Element e, string name)
+        {
+            if (e == null || string.IsNullOrEmpty(name)) return false;
+            if (_declaresParameter(e, name)) return true;
+
+            // "Level" is a magic alias — see the note above.
+            if (name.Equals("Level", StringComparison.OrdinalIgnoreCase)) return true;
+
+            try
+            {
+                if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out _)) return true;
+                if (e.GetType().GetProperty(name,
+                        BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase) != null)
+                    return true;
+            }
+            catch { }
+
+            try
+            {
+                foreach (var np in e.NativeProperties())
+                {
+                    dynamic d = np;
+                    if (string.Equals((string)d.Property, name, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Refuse a filter whose parameter name NO element in the set declares.
+        ///
+        /// ⚠⚠ WHY THIS EXISTS (release review, 2026-10-28). `WhereParam("Nonexistent Param", "x")`
+        /// returned **0 — silently**. The only diagnostic was <c>GetStr</c>'s per-element warning,
+        /// and that is throttled by <c>_warnedParams</c>: it prints for the FIRST element carrying
+        /// a given bad name in a session, then stays quiet until the 25th. Measured live on
+        /// TestModel: the first call warned, and every later call returned a bare <c>0</c>. So the
+        /// caller could not tell "no element matches" from "that parameter does not exist" — and
+        /// the one warning it did get said "on this element" and named <c>GetStr</c>, while the
+        /// caller had asked about a whole collection.
+        ///
+        /// A typo must never look like an empty result. That is a false all-clear, which is the
+        /// one answer this engine is not allowed to give. The check short-circuits on the first
+        /// element that DOES declare the name, so the normal path costs one extra lookup.
+        /// </summary>
+        internal static void _requireDeclaredParameter(IReadOnlyList<Element> elements,
+                                                       string name, string caller)
+        {
+            // "Id" is a real filter even though no element DECLARES a parameter by that name —
+            // GetStr/GetNum answer it from the element itself. Without this the guard would
+            // reject the one filter an agent is most likely to reach for.
+            if (_isElementIdName(name)) return;
+
+            // Nothing to judge: an empty set cannot prove a name wrong, and the callers do their
+            // own argument validation for a null/blank name.
+            if (elements == null || elements.Count == 0 || string.IsNullOrEmpty(name)) return;
+
+            for (int i = 0; i < elements.Count; i++)
+                if (_canResolveName(elements[i], name))
+                    return;                       // some route answers it — a real filter
+
+            var cats = new List<string>();
+            for (int i = 0; i < elements.Count && cats.Count < 6; i++)
+            {
+                var c = elements[i]?.Category?.Name;
+                if (!string.IsNullOrEmpty(c) && !cats.Contains(c)) cats.Add(c);
+            }
+
+            var where = cats.Count > 0 ? " (" + string.Join(", ", cats) + ")" : "";
+            var hint = _closestParameterName(elements[0], name);
+            if (string.IsNullOrEmpty(hint))
+                hint = " Use .CombinedParams().Table() to list the real names.";
+
+            throw new InvalidOperationException(
+                $"{caller}: no parameter named \"{name}\" on any of the {elements.Count} "
+                + $"element(s){where}.{hint}");
+        }
+
+        /// <summary>
         /// Every parameter name this element or its TYPE declares, deduplicated. The type is
         /// included because GetStr/GetNum fall back to it — so its names are the real
         /// candidates, not just the instance's.
@@ -428,6 +572,13 @@ namespace CoreScript.Engine.Globals
                     return bp.AsDouble();
                 }
             }
+
+            // 2b. "Id" answered from the element itself — see the note in GetStr. This is the path
+            //   `WhereParam("Id", 359588)` takes: an int literal binds to the (name, double)
+            //   overload, which calls GetNum. Without this it reached the reflection fallback,
+            //   found `Element.Id` was an ElementId rather than a double/int, and returned 0.0 —
+            //   so a filter for one Id matched nothing and the pipeline read [9 → 0].
+            if (_isElementIdName(name)) return e.Id.IntegerValue;
 
             try
             {

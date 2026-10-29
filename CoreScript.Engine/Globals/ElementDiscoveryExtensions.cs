@@ -24,12 +24,31 @@ namespace CoreScript.Engine.Globals
         /// <para>The row already has the Parameter object. Reading it cannot miss, and it is
         /// what <c>GetVal</c> does anyway (AsValueString → AsString), minus the resolution.</para>
         /// </summary>
-        private static string _valueOf(Parameter p)
+        internal static string _valueOf(Parameter p, Element e = null)
         {
             if (p == null) return "-";
             var formatted = p.AsValueString();
             if (!string.IsNullOrEmpty(formatted)) return formatted;
-            if (p.StorageType == StorageType.String) return p.AsString() ?? "-";
+            if (p.StorageType == StorageType.String)
+            {
+                var raw = p.AsString();
+                if (!string.IsNullOrEmpty(raw)) return raw;
+            }
+
+            // ⚠⚠ SOME PARAMETERS REACH THE ELEMENT BUT STORE THEIR VALUE ON THE TYPE (2026-10-29).
+            //   `Type Name` and `Family Name` are in the element's OWN `Parameters` set, yet
+            //   `AsValueString()` and `AsString()` both return null for them — the value lives
+            //   on the type. So `InstanceParams` / `CombinedParams` printed "-" while
+            //   `e.GetStr("Type Name")` returned the real text, which the reviewer reported as
+            //   "the instance-scope Type Name and Family Name rows show -".
+            //   ⇒ Fall back to the name-resolving read, but ONLY when the direct read produced
+            //     nothing AND the name is declared — so a genuinely empty parameter still
+            //     reports "-" instead of being run through GetStr's spelling check.
+            if (e != null && e.HasParam(p.Definition.Name))
+            {
+                var byName = e.GetStr(p.Definition.Name);
+                if (!string.IsNullOrEmpty(byName)) return byName;
+            }
             return "-";
         }
 
@@ -48,10 +67,25 @@ namespace CoreScript.Engine.Globals
                 {
                     Name = p.Definition.Name,
                     BIP = ((InternalDefinition)p.Definition).BuiltInParameter.ToString(),
-                    Value = _valueOf(p)
+                    Value = _valueOf(p, e)
                 })
                 .OrderBy(x => x.Name));
         }
+
+        /// <summary>
+        /// True when this Parameter repeats a row already seen.
+        /// <para>⚠⚠ ONE DEFINITION OF "DUPLICATE", SHARED. `InstanceParams` / `TypeParams` /
+        /// `CombinedParams` and `Peek` all read the SAME <c>Element.Parameters</c> collection, so
+        /// they must agree about what a duplicate is — otherwise a caller sees duplicates in one
+        /// view and not the other and cannot tell which is right. That is exactly what happened:
+        /// the first fix deduped `InstanceParams` only, so `CombinedParams` came back clean while
+        /// `Peek` — which has its own loop — still listed `Category` and `Level` twice.</para>
+        /// <para>Keyed on name + storage + VALUE, never on the name alone: two different
+        /// parameters can share a display name, and collapsing those would turn a cosmetic
+        /// duplicate into a missing parameter.</para>
+        /// </summary>
+        internal static bool _isDuplicateParameterRow(HashSet<string> seen, Parameter p, string value)
+            => !seen.Add(p.Definition.Name + "\u0001" + p.StorageType + "\u0001" + value);
 
         /// <summary>
         /// Gets all instance parameters of the element (Name, Storage, Value).
@@ -61,14 +95,31 @@ namespace CoreScript.Engine.Globals
         {
             if (e == null) return new SchemaRows(null);
 
-            return new SchemaRows(e.Parameters.Cast<Parameter>()
-                .Select(p => new
-                {
-                    Name = p.Definition.Name,
-                    Storage = p.StorageType.ToString(),
-                    Value = _valueOf(p)
-                })
-                .OrderBy(x => x.Name));
+            // ⚠⚠ `e.Parameters` REALLY DOES CONTAIN DUPLICATES — this is Revit, not our loop.
+            //   Measured 2026-10-29 (second release review, door 359614): "Category" appeared
+            //   TWICE and "Level" twice, each pair with the same storage type AND the same value.
+            //   Revit surfaces a parameter twice when it is reachable both on the element and
+            //   through its type, and `Element.Parameters` does not de-duplicate. The reviewer
+            //   read the symptom as "CombinedParams lists Category and Level twice".
+            //
+            //   ⚠ DEDUPE ON THE WHOLE ROW, NEVER ON THE NAME. Two different parameters can share
+            //     a display name; collapsing on name alone would hide a real one and turn a
+            //     cosmetic complaint into a missing-parameter bug — the failure this whole
+            //     module exists to prevent.
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var rows = new List<(string Name, string Storage, string Value)>();
+            foreach (Parameter p in e.Parameters)
+            {
+                var name = p.Definition.Name;
+                var storage = p.StorageType.ToString();
+                var value = _valueOf(p, e);
+                if (_isDuplicateParameterRow(seen, p, value)) continue;
+                rows.Add((name, storage, value));
+            }
+
+            return new SchemaRows(rows
+                .OrderBy(r => r.Name)
+                .Select(r => (object)new { r.Name, r.Storage, r.Value }));
         }
 
         /// <summary>
@@ -128,7 +179,7 @@ namespace CoreScript.Engine.Globals
             foreach (Parameter p in e.Parameters)
             {
                 if (p == null || !p.HasValue) continue;
-                dict[p.Definition.Name] = _valueOf(p);             // ditto — see _valueOf
+                dict[p.Definition.Name] = _valueOf(p, e);             // ditto — see _valueOf
             }
 
             return dict;

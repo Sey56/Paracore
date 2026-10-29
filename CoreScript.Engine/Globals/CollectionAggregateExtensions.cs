@@ -27,8 +27,11 @@ namespace CoreScript.Engine.Globals
         public static double SumParam<T>(this IEnumerable<T> elements, string name, string unit = null, int decimals = -1)
             where T : Element
         {
+            var src = elements as IList<T> ?? elements.ToList();
+            _requireAnswerableName(src, name, "SumParam");
+
             var resolvedUnit = unit ?? InferUnit(name);
-            var rawSum = elements.Sum(e => e.GetNum(name));
+            var rawSum = src.Sum(e => e.GetNum(name));
             return rawSum.OutputUnit(resolvedUnit, decimals);
         }
 
@@ -50,6 +53,41 @@ namespace CoreScript.Engine.Globals
             return "m3"; // fallback
         }
 
+        /// <summary>
+        /// Refuse an aggregation whose parameter name NOTHING in the set can answer.
+        ///
+        /// ⚠⚠ WHY THIS EXISTS (2026-10-29, found while closing the release review). The guard
+        /// on <c>WhereParam</c> stopped a typo from looking like an empty result — but the same
+        /// typo on THIS file's methods still produced a confident wrong answer:
+        ///   · <c>GroupByParam("Nonexistent Param")</c> → ONE group, key <c>""</c>, count = the
+        ///     whole set. Measured live on TestModel: 9 walls came back as <c>1 group</c>.
+        ///   · <c>SumParam("Nonexistent Param")</c>     → <c>0</c> — a total, not an error.
+        ///   · <c>OrderByParam("Nonexistent Param")</c> → the list, unsorted, silently.
+        /// A caller reads each of those as data. "1 group" says every wall shares a value;
+        /// "0" says the total is zero. Both are false all-clears, which is the one answer this
+        /// engine is not allowed to give.
+        ///
+        /// The check is SKIPPED, never guessed, when the set is not uniformly Elements — the
+        /// reflection path for anonymous rows (<c>.Select(e =&gt; new { ... })</c>) has no Revit
+        /// parameter set to judge a name against.
+        /// </summary>
+        private static void _requireAnswerableName<T>(IEnumerable<T> elements, string name, string caller)
+            where T : class
+        {
+            if (elements == null || string.IsNullOrEmpty(name)) return;
+
+            var list = elements as IList<T> ?? elements.ToList();
+            if (list.Count == 0) return;
+
+            var els = new List<Element>(list.Count);
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] is Element el) els.Add(el);
+                else return;              // mixed or non-Revit rows — cannot judge
+            }
+            ElementExtensions._requireDeclaredParameter(els, name, caller);
+        }
+
         // ── SORTING ───────────────────────────────────────────────────────
 
         /// <summary>
@@ -61,6 +99,7 @@ namespace CoreScript.Engine.Globals
         {
             var list = elements.ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
+            _requireAnswerableName(list, name, "OrderByParam");
             bool isNumeric = IsNumericParamGeneric(list, name);
 
             return isNumeric
@@ -76,6 +115,7 @@ namespace CoreScript.Engine.Globals
         {
             var list = elements.ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
+            _requireAnswerableName(list, name, "OrderByParamDesc");
             bool isNumeric = IsNumericParamGeneric(list, name);
 
             return isNumeric
@@ -158,7 +198,10 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy)
             where T : class
         {
-            var results = elements
+            var list = elements.ToList();
+            _requireAnswerableName(list, groupBy, "GroupByParam");
+
+            var results = list
                 .GroupBy(e => GetStrGeneric(e, groupBy))
                 .OrderBy(g => g.Key)
                 .Select(g =>
@@ -178,7 +221,11 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy, string sum, string unit = "")
             where T : class
         {
-            var results = elements
+            var list = elements.ToList();
+            _requireAnswerableName(list, groupBy, "GroupByParam");
+            _requireAnswerableName(list, sum, "GroupByParam");
+
+            var results = list
                 .GroupBy(e => GetStrGeneric(e, groupBy))
                 .OrderBy(g => g.Key)
                 .Select(g =>

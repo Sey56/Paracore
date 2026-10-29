@@ -10,32 +10,70 @@ namespace CoreScript.Engine.Globals
     /// </summary>
     public static partial class ElementExtensions
     {
-        private static readonly HashSet<string> _warnedSetParams = new(StringComparer.OrdinalIgnoreCase);
-
-        private static void _warnUnknownSetParam(string name)
+        /// <summary>
+        /// "Wall 359588" / "Doors 359614" — enough for a caller to find the element it broke on.
+        /// </summary>
+        private static string _describeElement(Element e)
         {
-            if (string.IsNullOrEmpty(name)) return;
-            if (_warnedSetParams.Contains(name)) return;
-            _warnedSetParams.Add(name);
+            if (e == null) return "the element";
             try
             {
-                ScriptApi.Println($"⚠ SetVal(\"{name}\"): parameter not found on element or its type. "
-                    + "Check spelling or use .CombinedParams().Table() to discover available parameters.");
+                var cat = e.Category?.Name;
+                return string.IsNullOrEmpty(cat)
+                    ? $"element {e.Id.IntegerValue}"
+                    : $"{cat} {e.Id.IntegerValue}";
             }
-            catch { }
+            catch { return "the element"; }
         }
 
-        private static void _warnReadOnlyParam(string name)
+        /// <summary>
+        /// Refuse a write to a name that neither the element nor its type has.
+        ///
+        /// ⚠⚠ WHY THIS THROWS (2026-10-29, second release review). It used to print
+        /// <c>⚠ SetVal("…")</c> and RETURN. Two failures compounded: the message was throttled
+        /// by a one-shot-per-name-per-session set, and the enclosing transaction still reported
+        /// <c>✅ COMMITTED … modified 0</c>. So the caller got a green checkmark for a write that
+        /// never happened, and on the second call in a session not even the warning. A typo must
+        /// never look like a successful write — the same rule as the <c>WhereParam</c> guard.
+        /// </summary>
+        private static void _rejectUnknownSetParam(Element e, string name, string caller)
         {
-            if (string.IsNullOrEmpty(name)) return;
-            var key = "readonly_" + name;
-            if (_warnedSetParams.Contains(key)) return;
-            _warnedSetParams.Add(key);
-            try
-            {
-                ScriptApi.Println($"⚠ SetVal(\"{name}\"): parameter is read-only and cannot be modified.");
-            }
-            catch { }
+            var hint = _closestParameterName(e, name);
+            // ⚠ `hint` is ALREADY a complete fragment — ` Did you mean "Fire Rating"?` — which
+            //   is what _closestParameterName documents and what the other two call sites
+            //   (ElementParamExtensions lines 290 and 426) append verbatim. This caller wrapped
+            //   it a second time, so the agent was shown:
+            //     Did you mean " Did you mean "Fire Rating"?"?
+            //   Measured 2026-10-29 by spikes/probe_write_safety.py (P1a). The doc had the right
+            //   text all along; the code disagreed with it. Append, never re-wrap.
+            throw new InvalidOperationException(
+                $"{caller}(\"{name}\"): no parameter of that name on {_describeElement(e)} or its type."
+                + (string.IsNullOrEmpty(hint) ? "" : hint)
+                + " Use .CombinedParams().Table() to list the real names.");
+        }
+
+        /// <summary>
+        /// Refuse a write to a parameter Revit marks read-only.
+        ///
+        /// ⚠⚠ WHY THIS THROWS (2026-10-29, second release review). Measured live on TestModel:
+        /// <c>SetNum("Top Offset", 100, "mm")</c> on a wall whose Top Constraint is Unconnected
+        /// reported <c>✅ Transact "Set Top Offset" — COMMITTED · modified 0</c> and changed
+        /// nothing. The warning that was supposed to explain it is one-shot per name per session,
+        /// so a second attempt in the same session printed NOTHING AT ALL. The reviewer's words:
+        /// "a rejected write isn't an error … scripts that don't check the output will miss it".
+        ///
+        /// ⚠ CONSEQUENCE FOR BULK WRITES: <c>.SetParam()</c> over a collection runs inside one
+        /// transaction, so the first refusing element aborts the whole write. That is deliberate —
+        /// writing 6 of 9 walls and reporting success is the outcome this exists to prevent.
+        /// Narrow the collection (e.g. by the parameter that makes the rest read-only) instead.
+        /// </summary>
+        private static void _rejectReadOnlyParam(Element e, string name, string caller)
+        {
+            throw new InvalidOperationException(
+                $"{caller}(\"{name}\"): the parameter is READ-ONLY on {_describeElement(e)} and "
+                + "cannot be modified. Revit marks a parameter read-only when another value drives "
+                + "it — \"Top Offset\" on a wall whose Top Constraint is Unconnected is the usual "
+                + "case. Nothing was written.");
         }
 
         /// <summary>
@@ -194,6 +232,16 @@ namespace CoreScript.Engine.Globals
                         }
                         if (tp != null)
                         {
+                            // ⚠⚠ THIS IS THE EXACT WRITE THE ADVISORY EXISTS FOR, AND IT USED TO
+                            //   RETURN PAST IT (fixed 2026-10-29). The guard further down fires only
+                            //   when the INSTANCE lookup SUCCEEDED and the owner is a type. Here the
+                            //   instance lookup MISSED and we delegate to the type — a genuine
+                            //   document-wide write that reached no advisory at all.
+                            //   Measured by the release reviewer: SetVal("Fire Rating", …) on ONE
+                            //   wall changed all 4 walls of its type and SetVal("Absorptance", …)
+                            //   changed all 5, with no ⚠ on either. A data-safety promise that the
+                            //   fallback path silently skipped.
+                            _reportTypeWrite(e, name, tp);
                             type.SetNum(name, value, unit);
                             return;
                         }
@@ -202,14 +250,12 @@ namespace CoreScript.Engine.Globals
 
                 if (p == null)
                 {
-                    _warnUnknownSetParam(name);
-                    return;
+                    _rejectUnknownSetParam(e, name, "SetNum");
                 }
 
                 if (p.IsReadOnly)
                 {
-                    _warnReadOnlyParam(name);
-                    return;
+                    _rejectReadOnlyParam(e, name, "SetNum");
                 }
 
                 // ⚠⚠ THE TYPE-WRITE GUARD. `e.LookupParameter(name)` on an INSTANCE also finds the
@@ -272,6 +318,12 @@ namespace CoreScript.Engine.Globals
                         }
                         if (tp != null)
                         {
+                            // ⚠⚠ Same silent type write as in SetNum — the advisory below is
+                            //   unreachable from here because this returns first. Fixed 2026-10-29:
+                            //   the reviewer's SetVal("Fire Rating", …) on one wall rewrote all 4
+                            //   walls of its type, and SetVal("Absorptance", …) rewrote all 5, with
+                            //   no ⚠ on either call.
+                            _reportTypeWrite(e, name, tp);
                             type.SetVal(name, value);
                             return;
                         }
@@ -308,14 +360,12 @@ namespace CoreScript.Engine.Globals
                     }
                     catch { }
 
-                    _warnUnknownSetParam(name);
-                    return;
+                    _rejectUnknownSetParam(e, name, "SetVal");
                 }
 
                 if (p.IsReadOnly)
                 {
-                    _warnReadOnlyParam(name);
-                    return;
+                    _rejectReadOnlyParam(e, name, "SetVal");
                 }
 
                 // ⚠⚠ THE TYPE-WRITE GUARD — same trap as in SetNum: LookupParameter on an instance

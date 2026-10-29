@@ -117,7 +117,20 @@ GetElements("Walls").First().GetStr("Level")            // "02 - Ground Floor Pl
 
 **"Level" resolution**: GetStr("Level") works on ALL categories. Walls → NativeProperties LevelId, Structural Framing → "Reference Level", Columns → "Base Level", Doors/Windows/Rooms → built-in "Level" parameter. Uses category-specific fallback chain: Reference Level → Base Level → Base Constraint → Native LevelId.
 
-**Unknown parameters**: GetStr returns "" silently (safe for chained queries) but logs a one-time warning: `⚠ GetStr("BadParam"): parameter not found on element. Check spelling or use .CombinedParams().Table() to discover available parameters.`
+**Unknown parameters**: GetStr returns "" and logs a one-time warning: `⚠ GetStr("BadParam"): no parameter of that name on this element. … Check the spelling, or use .CombinedParams().Table() to see the real names.`
+
+⚠ **Reads return, collection filters RAISE — and that asymmetry is deliberate.** `WhereParam` /
+`GroupByParam` / `SumParam` / `OrderByParam` check the name against the whole set and throw, because
+one wrong name makes an aggregate silently zero — a false all-clear. A single-element read cannot do
+that: absence per element is NORMAL in a mixed set (`WhereParam("Type Mark", …)` over Walls + Grids
+legitimately finds the parameter on some elements and not others), so `GetStr` must tolerate the
+misses or the filter breaks. To tell **"undeclared"** from **"empty"**, ask:
+
+```csharp
+GetElements("Walls").First().HasParam("Fire Rating")    // true
+GetElements("Walls").First().HasParam("Fire Ratng")     // false — a typo, not an empty value
+GetElements("Walls").First().HasParam("Id")             // true — answered from the element itself
+```
 
 ### GetNum — parameter value as double
 
@@ -278,6 +291,72 @@ column.SetVal("Base Offset", -0.15, "m")       // converts from m
 ```
 
 When no unit is specified for a Double parameter, the handler defaults to the parameter's own display unit (via `GetUnitTypeId()`).
+
+### A write that cannot happen RAISES — it does not report success
+
+`SetNum` and `SetVal` refuse two cases with an `InvalidOperationException` instead of writing
+nothing and letting the transaction report success:
+
+```csharp
+wall.SetNum("Top Offset", 100, "mm")
+// wall's Top Constraint is Unconnected → Top Offset is read-only
+// InvalidOperationException: SetNum("Top Offset"): the parameter is READ-ONLY on Wall 359588
+// and cannot be modified. Revit marks a parameter read-only when another value drives it …
+// Nothing was written.
+
+wall.SetVal("Fire Ratng", "2 hr")
+// InvalidOperationException: SetVal("Fire Ratng"): no parameter of that name on Wall 359588
+// or its type. Did you mean "Fire Rating"? Use .CombinedParams().Table() to list the real names.
+```
+
+⚠ **Why this is an error and not a warning.** These used to print a one-shot `⚠` and return —
+and the enclosing transaction still reported `✅ COMMITTED · modified 0`. So a misspelled name or
+a read-only target produced a green checkmark for a write that never happened, and from the
+second attempt in a session, not even the warning. A rejected write is not a successful one.
+
+⚠ **Consequence for bulk writes.** `.SetParam()` over a collection runs in ONE transaction, so
+the first element that refuses aborts the whole write and nothing is applied. That is deliberate:
+writing 6 of 9 walls and reporting success is exactly the outcome this prevents. Narrow the
+collection first — e.g. filter to the elements where the parameter is writable — and retry.
+
+### A geometric write can cascade — read the transaction report
+
+`modified 23` for a single-element write is not a bug. Revit reports every element it had to
+recompute, and changing a wall's geometry moves what depends on it.
+
+Measured 2026-10-29 on TestModel: `SetNum("Base Offset", 200, "mm")` on ONE wall modified
+10 elements, created one internal element, and broke a room enclosure — `COOK 4` dropped from
+5.13 m² to 0 m², because the wall stopped bounding the room. The same write on `Comments`
+reported `modified 1`.
+
+⚠ So: **a `modified` count larger than the number of elements you passed is information, not
+noise.** Read it. After a geometric write, re-read what depends on the element — room areas,
+hosted doors, joins — instead of assuming only the element you named changed.
+
+### Revit dialogs raised during a call are answered by a watcher — and reported
+
+A Revit modal dialog blocks its UI thread, which would hang the call. A resident watcher answers
+the ones it is allowed to and records them; the tool result then carries:
+
+```
+⚠ REVIT SHOWED A DIALOG WHILE THIS CALL RAN — the watcher answered it to unblock you.
+   title   : Autodesk Revit 2025
+   message : …
+   buttons : OK, Cancel   ->   pressed: OK
+```
+
+What it will and will not do:
+
+- **Only inside a call.** Outside a Revit round-trip it touches nothing, so a dialog you opened
+  yourself is never answered.
+- **Never presses `Delete`.** A dialog offering OK + Delete is left for a person — discarding an
+  edit is the operator's decision, not the agent's.
+- **Some dialogs always go to the human** — sign-in, licensing, and anything it cannot classify
+  as a failure report.
+- Kill switch `PARACORE_WATCH_DIALOGS=0`; log `%APPDATA%\paracore-data\logs\DialogWatcher.txt`.
+
+⚠ If the report says a dialog was answered, **say so in your reply**. The user did not see it
+handled and did not choose the answer.
 
 ---
 
@@ -468,6 +547,43 @@ GetElements("Doors").WhereParam("Type", "starts", "Interior")
 GetElements("Walls").WhereParam("Type Name", "contains", "HCB")
 ```
 
+### WhereParam — by Id
+
+```csharp
+GetElements("Walls").WhereParam("Id", 359588)        // the wall with that Id
+GetElements("Walls").WhereParam("Id", "359588")      // same — the string form works too
+GetElements("Walls").WhereParam("Id", ">", 359590)   // numeric operators work
+```
+
+`"Id"` and `"ElementId"` are answered from the element itself, so they need no parameter —
+`GetStr("Id")` returns the Id as text and `GetNum("Id")` returns it as a number. A project that
+really declares a parameter called `Id` still wins, so nothing is shadowed.
+
+⚠ Before 2026-10-29 this did not work, and it failed **silently**: `GetStr("Id")` fell through to
+the C#-property fallback, matched `Element.Id`, converted the `ElementId` to the element's *name*,
+and `WhereParam("Id", "359588")` matched nothing — `[9 → 0]`, no error, no warning. `GetNum("Id")`
+returned `0.0` for the same reason, so `WhereParam("Id", 359588)` (the int literal) failed too.
+
+### A wrong parameter name now RAISES, it does not return zero
+
+Every method that takes a parameter name — `WhereParam`, `WhereTypeParam`, `GroupByParam`,
+`SumParam`, `OrderByParam`, `OrderByParamDesc` — checks the name against the set first:
+
+```csharp
+GetElements("Walls").WhereParam("Fire Ratng", "2 hr")
+// InvalidOperationException: WhereParam: no parameter named "Fire Ratng" on any of the
+// 9 element(s) (Walls). Did you mean "Fire Rating"?
+
+GetElements("Walls").GroupByParam("Nonexistent Param")
+// same class of error — NOT a one-row group table with an empty key
+```
+
+The distinction matters: `0` and `1 group` are both **answers**, so a typo used to be
+indistinguishable from a real empty result. Only a name that *nothing in the set can answer* raises —
+a real parameter with no matching rows still returns `0`, and every magic name (`Id`, `ElementId`,
+`Level`, `Name`, `Category`, `Type`) and type-level parameter (`Width`, `Type Mark`, `Family`) is
+accepted. `GroupByParam("Type", "Volume", "m3")`-style summing checks both names.
+
 ### WhereAnyParam
 
 ```csharp
@@ -563,6 +679,11 @@ GetElements("Structural Framing").SumParam("Volume", "m3")  // exact total in m3
 itself (95.2417 m² came back as 95.242). Pass a third argument only when you deliberately want
 a rounded number; round for display with `FormatUnit`/`FormatValueOnly`.
 
+⚠⚠ **A GROUPED sum still rounds — to 3 decimals.** `GroupByParam(groupBy, sum, unit)` applies
+`Math.Round(…, 3)` to each group's `Total`, so the group totals need not add up to the exact
+`SumParam` figure. Measured on TestModel: the groups give **95.241** against a `SumParam` total of
+**95.2417**. Carry the `SumParam` number when you need one figure for a BOQ, and say which you used.
+
 ---
 
 ## 12. Collection: Bulk Write
@@ -650,8 +771,19 @@ area.OutputUnit("mm", 2)             // 18289.50
 ```csharp
 value.FormatUnit("m2")               // "18.29 m²"
 value.FormatValueOnly("m2", 1)       // "18.3"
-value.RoundTo("mm")                  // round internal value to nearest mm
+value.RoundTo("mm")                  // 2 decimals OF mm — 37.63 mm comes back 37.63
+value.RoundTo("mm", 0)               // WHOLE mm — 37.63 mm comes back 38 mm
+value.RoundTo("m")                   // 2 decimals of m = centimetres
 ```
+
+⚠ **`decimals` counts decimals IN THE GIVEN UNIT, and the default is 2.** So `RoundTo("mm")`
+snaps to 0.01 mm, not to the nearest millimetre — this line used to say "round internal value to
+nearest mm", which was simply false and sent a caller looking for a rounding bug. Measured
+2026-10-29: `37.63 mm .RoundTo("mm")` → 37.63, `.RoundTo("mm", 0)` → 38.
+
+⚠ The default is 2 on purpose, and it is why this is a doc fix and not a code change: `RoundTo("m")`
+at 2 decimals gives centimetres, which is useful; at 0 decimals it would give whole METRES and
+throw the value away. Pass the precision you mean.
 
 ### Unit Type Resolution
 
@@ -736,6 +868,33 @@ the document is forbidden"*, which names neither the method nor the cause. `Rege
 You rarely need it: a committed transaction already regenerates, and `ExportImage` exports after the
 model has settled.
 
+⚠⚠ **RAW REVIT API WRITES ARE NOT AUTO-TRANSACTED — AND A FAILED ONE CAN STILL CHANGE THE MODEL.**
+
+The auto-transaction promise covers the Paracore methods (`.SetVal`, `.SetNum`, `.SetParam`,
+`.Delete()`, `.Hide()` …). It does NOT cover `Doc.Create.NewFamilyInstance(...)`,
+`Wall.Create(...)`, `ElementType.Duplicate(...)`, `ElementTransformUtils.MoveElement(...)` or any
+other call straight into the Revit API. Those need your own transaction:
+
+```csharp
+Transact("duplicate type", () => { wt.Duplicate("Copy"); });   // ✅
+var dup = wt.Duplicate("Copy");                                 // ❌ "outside of transaction"
+```
+
+MEASURED (2026-10-29, Revit 2025, on a 12 769-element model): the unwrapped call did not merely
+fail. `ElementType.Duplicate` **created the type** (it kept the source name and was unused) and
+*then* threw *"Attempt to modify the model outside of transaction"*. Five attempts left five types
+behind while every reply said the script had failed. A `TransactionGroup` cannot undo a write that
+was never inside a transaction, so the engine now says so explicitly:
+
+```
+↩ ROLLED BACK — the writes this script had committed inside a transaction were undone.
+⚠ BUT the call that failed ran OUTSIDE any transaction. Revit can apply part of such a
+  call and still throw, so THE MODEL MAY HAVE CHANGED. Verify before continuing …
+```
+
+Read that sentence as an instruction, not a disclaimer: re-query the thing you were changing. The
+same applies to a *successful* raw call — nothing about it is reversible by the envelope.
+
 ### Batches — one build stage, stamped and reversible
 
 ```csharp
@@ -808,12 +967,20 @@ Print(message)                // alias for Println — the legacy name, kept for
 SetExecutionTimeout(seconds)  // raise the script budget (default 10 s)
 ```
 
-⚠⚠ **`Pick()` HOLDS REVIT'S UI THREAD UNTIL THE USER ACTS.** Nothing else can run in Revit while
-it is pending, and on screen the only difference from an ordinary call is the status-bar sentence —
-which is why the default one is explicit. **Say what you are about to pick, in chat, BEFORE the
-call**; the agent cannot speak while the pick is blocking, and the user has no other cue. Press Esc
-to cancel (Revit raises `OperationCanceledException`). Prefer reading `Selection` when the user has
-already selected what they mean — that needs no interruption at all.
+⚠⚠ **`Pick()` HOLDS REVIT'S UI THREAD UNTIL THE USER ACTS — AND AN AGENT MUST NOT CALL IT.**
+(Operator ruling 2026-10-28 — `RETIRED.md` R11/N4.) Nothing else can run in Revit while it is
+pending, and on screen the only difference from an ordinary call is a status-bar sentence that
+appears **only while the pointer is already over Revit** and repaints on mouse movement. An operator
+reading the chat sees nothing, and the call blocks until Esc or the timeout. The old mitigation —
+"say what you are about to pick, in chat, first" — was measured and does not work: to be asked, the
+operator must already be looking at Revit, and if they are, they have already selected what they
+mean.
+
+⚠ **It stays live for HUMANS, which is what it was built for.** A gallery script the operator runs
+in Revit may call it, and the desktop app's playlist parameter picker drives the same gRPC path. To
+get an element mid-conversation, use the current `Selection`, a `WhereParam` / `WhereCategory`
+query, or an id the operator pasted — none of which interrupts anyone. Esc cancels (Revit raises
+`OperationCanceledException`).
 
 ⚠ `SetExecutionTimeout` — the default budget is **10 seconds** and the clock starts when the script
 does, so call it as the FIRST statement, not once the expensive work has already begun.
@@ -907,7 +1074,7 @@ The extraction is mechanical: it lists what the source declares, so it cannot fo
 
 ### A.1 Extension methods — `this`-receivers
 
-**119 declarations · 87 distinct names · 16 source files.**
+**120 declarations · 88 distinct names · 16 source files.**
 
 Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. The `this` on the first parameter is the test.
 
@@ -1017,6 +1184,7 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 
 | Method | Signature |
 | --- | --- |
+| `HasParam` | `bool HasParam(this Element e, string name)` |
 | `GetStr` | `string GetStr(this Element e, string name)` |
 | `GetStr` | `string GetStr(this Element e, string name, string unit, int decimals = 2)` |
 | `GetNum` | `double GetNum(this Element e, string name)` |

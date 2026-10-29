@@ -22,16 +22,40 @@ namespace CoreScript.Engine.Globals
         public static Element Peek(this Element e)
         {
             if (e == null) return e;
-            var snoopData = e.Parameters.Cast<Parameter>()
-                .OrderBy(p => p.Definition.Name)
-                .Select(p => new
+
+            // ⚠⚠ SAME DUPLICATE RULE AS InstanceParams — see ElementExtensions._isDuplicateParameterRow.
+            //   Peek reads `e.Parameters` directly because it carries NumericValue and UIValue,
+            //   which the schema rows do not, so it must apply the SHARED rule itself or it drifts.
+            //   Measured 2026-10-29: a door listed `Category` twice and `Level` twice HERE while
+            //   CombinedParams was already clean — the reviewer reported it as a CombinedParams
+            //   bug, then corrected it to a Peek bug. Fixing only InstanceParams moved the symptom
+            //   instead of removing it.
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var rows = new List<(string Parameter, string Storage, string StringValue, string NumericValue, string UIValue)>();
+            foreach (Parameter p in e.Parameters)
+            {
+                if (ElementExtensions._isDuplicateParameterRow(seen, p, ElementExtensions._valueOf(p, e)))
+                    continue;
+                rows.Add((
+                    p.Definition.Name,
+                    p.StorageType.ToString(),
+                    e.GetStr(p.Definition.Name),
+                    p.StorageType == StorageType.Double ? e.GetNum(p.Definition.Name).ToString("F4")
+                        : p.StorageType == StorageType.Integer ? e.GetInt(p.Definition.Name).ToString() : "-",
+                    p.AsValueString() ?? "-"));
+            }
+
+            var snoopData = rows
+                .OrderBy(r => r.Parameter)
+                .Select(r => (object)new
                 {
-                    Parameter = p.Definition.Name,
-                    Storage = p.StorageType.ToString(),
-                    StringValue = e.GetStr(p.Definition.Name),
-                    NumericValue = p.StorageType == StorageType.Double ? e.GetNum(p.Definition.Name).ToString("F4") : p.StorageType == StorageType.Integer ? e.GetInt(p.Definition.Name).ToString() : "-",
-                    UIValue = p.AsValueString() ?? "-"
+                    r.Parameter,
+                    r.Storage,
+                    r.StringValue,
+                    r.NumericValue,
+                    r.UIValue
                 });
+
             // ⚠ capExempt: this is a PARAMETER DUMP, not a data table. Cutting it after 50 rows
             //   would hide parameters from the agent, which then reports them as missing. Same
             //   reasoning as SchemaRows — see that type.

@@ -205,7 +205,9 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string value)
             where T : Element
         {
-            var list = elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)).ToList();
+            var src = elements as List<T> ?? elements.ToList();
+            ElementExtensions._requireDeclaredParameter(src, name, "WhereParam");
+            var list = src.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
             return list;
         }
@@ -216,8 +218,10 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, double value, string unit = "")
             where T : Element
         {
+            var src = elements as List<T> ?? elements.ToList();
+            ElementExtensions._requireDeclaredParameter(src, name, "WhereParam");
             var internalValue = string.IsNullOrEmpty(unit) ? value : value.InputUnit(unit);
-            var list = elements.Where(e => Math.Abs(e.GetNum(name) - internalValue) < 0.001).ToList();
+            var list = src.Where(e => Math.Abs(e.GetNum(name) - internalValue) < 0.001).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
             return list;
         }
@@ -228,16 +232,18 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, double value, string unit = "")
             where T : Element
         {
+            var src = elements as List<T> ?? elements.ToList();
+            ElementExtensions._requireDeclaredParameter(src, name, "WhereParam");
             var internalValue = string.IsNullOrEmpty(unit) ? value : value.InputUnit(unit);
             const double eps = 1e-9;
             var list = (op.ToLower() switch
             {
-                ">" => elements.Where(e => e.GetNum(name) > internalValue + eps),
-                "<" => elements.Where(e => e.GetNum(name) < internalValue - eps),
-                ">=" => elements.Where(e => e.GetNum(name) >= internalValue - eps),
-                "<=" => elements.Where(e => e.GetNum(name) <= internalValue + eps),
-                "!=" or "not" or "notequal" => elements.Where(e => Math.Abs(e.GetNum(name) - internalValue) >= 0.001),
-                _ => elements.Where(e => Math.Abs(e.GetNum(name) - internalValue) < 0.001),
+                ">" => src.Where(e => e.GetNum(name) > internalValue + eps),
+                "<" => src.Where(e => e.GetNum(name) < internalValue - eps),
+                ">=" => src.Where(e => e.GetNum(name) >= internalValue - eps),
+                "<=" => src.Where(e => e.GetNum(name) <= internalValue + eps),
+                "!=" or "not" or "notequal" => src.Where(e => Math.Abs(e.GetNum(name) - internalValue) >= 0.001),
+                _ => src.Where(e => Math.Abs(e.GetNum(name) - internalValue) < 0.001),
             }).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
             return list;
@@ -250,16 +256,18 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, string value)
             where T : Element
         {
+            var src = elements as List<T> ?? elements.ToList();
+            ElementExtensions._requireDeclaredParameter(src, name, "WhereParam");
             var list = (op.ToLower() switch
             {
-                "contains" => elements.Where(e => e.GetStr(name).Contains(value, StringComparison.OrdinalIgnoreCase)),
-                "starts" or "startswith" => elements.Where(e => e.GetStr(name).StartsWith(value, StringComparison.OrdinalIgnoreCase)),
-                "ends" or "endswith" => elements.Where(e => e.GetStr(name).EndsWith(value, StringComparison.OrdinalIgnoreCase)),
-                "!=" or "not" or "notequal" => elements.Where(e => !e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)),
-                "notcontains" => elements.Where(e => !e.GetStr(name).Contains(value, StringComparison.OrdinalIgnoreCase)),
-                "notstarts" => elements.Where(e => !e.GetStr(name).StartsWith(value, StringComparison.OrdinalIgnoreCase)),
-                "notends" => elements.Where(e => !e.GetStr(name).EndsWith(value, StringComparison.OrdinalIgnoreCase)),
-                _ => elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)),
+                "contains" => src.Where(e => e.GetStr(name).Contains(value, StringComparison.OrdinalIgnoreCase)),
+                "starts" or "startswith" => src.Where(e => e.GetStr(name).StartsWith(value, StringComparison.OrdinalIgnoreCase)),
+                "ends" or "endswith" => src.Where(e => e.GetStr(name).EndsWith(value, StringComparison.OrdinalIgnoreCase)),
+                "!=" or "not" or "notequal" => src.Where(e => !e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)),
+                "notcontains" => src.Where(e => !e.GetStr(name).Contains(value, StringComparison.OrdinalIgnoreCase)),
+                "notstarts" => src.Where(e => !e.GetStr(name).StartsWith(value, StringComparison.OrdinalIgnoreCase)),
+                "notends" => src.Where(e => !e.GetStr(name).EndsWith(value, StringComparison.OrdinalIgnoreCase)),
+                _ => src.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)),
             }).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
             return list;

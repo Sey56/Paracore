@@ -105,17 +105,57 @@ namespace CoreScript.Engine.Globals
                 //   ⚠ Still ambiguous: ExportImage resolves a name with FirstOrDefault, so with
                 //   two views called "Level 1" it exports whichever comes first. Listing the type
                 //   is what lets the caller notice.
-                var available = new FilteredElementCollector(Doc)
+                //
+                // ⚠⚠ TWO MORE DEFECTS FIXED HERE 2026-10-28 (release review). The list was every
+                //   non-template View, capped at ten:
+                //     • it offered views that CANNOT be exported. Measured on TestModel.rvt,
+                //       "Project View (ProjectBrowser)" and "System Browser (SystemBrowser)" were
+                //       both listed — neither is a drawable view, so following the hint fails;
+                //     • the cap of ten silently DROPPED "{3D}" — the very view the caller had
+                //       just exported successfully — because ten other views sorted ahead of it.
+                //       A truncated hint that does not SAY it is truncated reads as "your view is
+                //       not in this document".
+                //   ⇒ offer only drawable views, put the ACTIVE view first, and name what is not
+                //   shown instead of dropping it in silence.
+                static bool Exportable(View v)
+                {
+                    if (v == null || v.IsTemplate) return false;
+                    switch (v.ViewType)
+                    {
+                        // `View` subclasses with no drawable geometry — ImageExportOptions
+                        // cannot render them, so they must never appear as a suggestion.
+                        case ViewType.ProjectBrowser:
+                        case ViewType.SystemBrowser:
+                        case ViewType.Internal:
+                        case ViewType.Undefined:
+                            return false;
+                        default:
+                            return true;
+                    }
+                }
+
+                var activeId = Doc.ActiveView?.Id;
+                var ordered = new FilteredElementCollector(Doc)
                     .OfClass(typeof(View))
                     .Cast<View>()
-                    .Where(v => !v.IsTemplate)
-                    .Select(v => v.Name + " (" + v.ViewType + ")")
-                    .Distinct()
-                    .Take(10)
+                    .Where(Exportable)
+                    .OrderBy(v => activeId != null && v.Id == activeId ? 0 : 1)
+                    .ThenBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                var hint = available.Count > 0
-                    ? $" Known views include: {string.Join(", ", available)}."
+                const int showMax = 24;
+                var shown = ordered.Take(showMax)
+                                   .Select(v => v.Name + " (" + v.ViewType + ")")
+                                   .Distinct()
+                                   .ToList();
+                // ⚠ Count against what was actually CONSIDERED, not against `shown.Count` —
+                //   Distinct() can drop rows, and deriving `hidden` from the deduped list would
+                //   then report more views missing than there are.
+                var hidden = ordered.Count - Math.Min(ordered.Count, showMax);
+
+                var hint = shown.Count > 0
+                    ? $" Exportable views include: {string.Join(", ", shown)}."
+                        + (hidden > 0 ? $" … and {hidden} more not shown." : "")
                         + " Pass the name only — the part before the parenthesis."
                     : " This document has no exportable views.";
 
