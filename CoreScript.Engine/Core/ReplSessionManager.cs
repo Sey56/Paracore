@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp.Scripting;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Autodesk.Revit.DB;
 using CoreScript.Engine.Globals;
 using CoreScript.Engine.Context;
 using CoreScript.Engine.Logging;
@@ -49,6 +50,9 @@ namespace CoreScript.Engine.Core
 
         public static async Task<(bool isSuccess, string output, string error, List<string> structuredOutput)> ExecuteAsync(string code, string sessionId, ICoreScriptContext context, string licenseTier = "free")
         {
+            // ⚠ Declared OUTSIDE the try so the catch blocks can reach it. A failure must be
+            // able to say what it undid, and that answer only exists after the rollback.
+            ScriptRunScope runScope = null;
             try
             {
                 LicenseContext.Tier = licenseTier;
@@ -128,15 +132,52 @@ namespace CoreScript.Engine.Core
                 // Prepare script options
                 var imports = Rewriters.ScriptReferenceProvider.GetImports(includeRevitSelection: true);
                 var allRefs = coreRefs.Concat(revitRefs).ToList();
+                // ⚠ TRANSACTION GRANULARITY — the ACCURATE, line-numbered check, run on the
+                // REPL path too. It previously existed only on the tool path (CodeRunner), so
+                // the MCP agent — which comes through HERE — saw only the MCP-side regex,
+                // which warns whenever `foreach` and `.SetVal(` merely appear in the same
+                // snippet. MEASURED 2026-10-29: a read-only loop plus a single write AFTER it
+                // was reported as an unwrapped loop write — a false positive on correct code,
+                // which teaches an agent to ignore the warning that matters.
+                _ = TransactionGranularityAdvisory.Warn(context, code, sessionId);
+
                 var options = ScriptOptions.Default
                     .WithReferences(allRefs)
-                    .WithImports(imports);
+                    .WithImports(imports)
+                    // ⚠ WHY DEBUG INFO. A runtime exception's StackTrace carried NO file or
+                    // line — Roslyn scripting emits no debug information by default — so a
+                    // divide-by-zero reported "Attempted to divide by zero." and nothing else.
+                    // That directly contradicted the tool descriptions, which promise error
+                    // type, line number and suggested fix; only COMPILE errors had lines.
+                    // MEASURED before the fix (2026-10-29):
+                    //     STACK=[   at Submission#23.<<Initialize>>d__0.MoveNext()]
+                    // With sequence points emitted the frame reads `in script:line N`, and the
+                    // `#line 1 "script"` directive above makes N the USER's own line — the
+                    // same coordinate system DiagnosticMapper uses for compile errors.
+                    .WithEmitDebugInformation(true);
 
                 // Inject pipeline tracking for all LINQ methods — semantic guard
                 // first so name collisions that cannot accept tracking
                 // (void/string returns like List<T>.Reverse() / string.Join)
                 // are left untouched.
-                var syntaxTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(code);
+                //
+                // ⚠⚠ PARSE-KIND MATCH (2026-10-29). This MUST parse with
+                // SourceCodeKind.Script — the SAME kind SemanticTrackingGuard uses.
+                // Previously this used default (Regular) kind, which wraps bare
+                // top-level statements in error-recovery nodes whose SpanStart
+                // positions differ from the Script-kind tree the guard parses. The
+                // guard correctly identified StringBuilder.Append as "skip" via
+                // ShouldSkip, but the skip entry's (SpanStart, "Append") never matched
+                // the rewriter's node positions — so the rewriter wrapped it anyway
+                // and the user got CS0411 TrackEnumerable<T> on legal code.
+                //
+                // With both on Script kind, the guard's tree and the rewriter's tree
+                // have identical span positions for the same invocations, the skip set
+                // matches, and name collisions are correctly left unwrapped.
+                var syntaxTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(code,
+                    new Microsoft.CodeAnalysis.CSharp.CSharpParseOptions(
+                        languageVersion: Microsoft.CodeAnalysis.CSharp.LanguageVersion.Latest,
+                        kind: Microsoft.CodeAnalysis.SourceCodeKind.Script));
                 var replRoot = syntaxTree.GetRoot();
                 var skipCalls = Rewriters.SemanticTrackingGuard.ComputeSkipCalls(replRoot, imports, allRefs);
                 var pipelineRewriter = new Rewriters.PipelineTrackingRewriter(skipCalls);
@@ -174,6 +215,30 @@ namespace CoreScript.Engine.Core
                                   "#line 1 \"script\"" + Environment.NewLine +
                                   code;
 
+                // ── ALL-OR-NOTHING ENVELOPE ───────────────────────────────────────
+                // ⚠⚠ THE DEFECT THIS CLOSES (found by review, 2026-10-29). Each
+                // auto-transacting write commits ON ITS OWN. A script that wrote and then
+                // threw therefore reported FAILURE while leaving its earlier writes in the
+                // model — the caller is told "it did not run" and the model says otherwise.
+                // Measured: SetVal("Comments", …) followed by a throw left the comment on the
+                // door.
+                //
+                // A TransactionGroup is the all-or-nothing unit Revit gives us: it does not
+                // change the granularity of the writes inside (they still commit one by one,
+                // so an un-wrapped loop still costs N undo entries — that is a SEPARATE
+                // contract, guarded by TransactionGranularityAdvisory), it only makes the
+                // whole set reversible. Commit on success, roll back on failure.
+                //
+                // ⚠ READ-ONLY SCRIPTS ARE EXEMPT — with one honest exception. MightWrite() is a
+                // pre-filter over the source with comments and string literals blanked, so a
+                // query that merely MENTIONS a write verb (in a comment, a message, a parameter
+                // name) opens no group and reads stay bit-identical. What it cannot tell is
+                // whether a verb it does find is reachable: a snippet that names a write verb in
+                // a dead branch still opens a group, and that group commits empty. Opening one
+                // is harmless to the model, but it is not free to the user, so do not claim a
+                // query never opens a group.
+                runScope = ScriptRunScope.TryBegin(context.Doc, code, sessionId);
+
                 if (session == null)
                 {
                     // Intercept "vars" or "list" commands when no session exists
@@ -204,6 +269,7 @@ namespace CoreScript.Engine.Core
                         // Context is accessible via ScriptApi (using static) + ExecutionGlobals.SetContext.
                         var script = CSharpScript.Create(fullCode, options, assemblyLoader: loader);
                         var state = await script.RunAsync();
+                        runScope?.MarkSucceeded();
                         session = new ReplSession { State = state, Globals = globals, LastUsed = DateTime.UtcNow };
                     }
                     finally
@@ -283,6 +349,7 @@ namespace CoreScript.Engine.Core
                     try
                     {
                         session.State = await session.State.ContinueWithAsync(fullCode, options);
+                        runScope?.MarkSucceeded();
                     }
                     finally
                     {
@@ -421,6 +488,9 @@ namespace CoreScript.Engine.Core
                 // REWRITTEN submission, which is what MapReplDiagnostics needs to
                 // locate (and subtract) the injected wrapper prefixes.
                 LicenseContext.Reset();
+                // A compile error means NOTHING executed, so there is nothing to undo — but the
+                // envelope must still be CLOSED, or the next submission would nest inside it.
+                _ = runScope?.RollbackNow();
                 var mapped = DiagnosticMapper.MapReplDiagnostics(cex.Diagnostics, code, InjectedPreludeLines);
                 string message = mapped.Count > 0
                     ? string.Join(Environment.NewLine, mapped.Select(m => m.ToString()))
@@ -432,7 +502,77 @@ namespace CoreScript.Engine.Core
             {
                 LicenseContext.Reset();
                 FileLogger.LogError($"[REPL] Error: {ex.Message}");
-                return (false, string.Empty, ex.Message, new List<string>());
+
+                // ⚠ A runtime failure must name the line, because the tool descriptions say
+                // it does. `ex.Message` alone ("Attempted to divide by zero.") sends the
+                // caller hunting through a snippet it cannot see. See WithEmitDebugInformation
+                // above for why the frame only became available once debug info was emitted.
+                string where = DescribeRuntimeLocation(ex);
+                string message = string.IsNullOrEmpty(where)
+                    ? ex.Message
+                    : ex.Message + Environment.NewLine + where;
+
+                // ⚠ THE FAILURE MUST DESCRIBE THE MODEL, NOT JUST THE EXCEPTION. Undo whatever
+                // this script had already committed, and report the OUTCOME of that attempt —
+                // a rollback that FAILED is a partial edit, and must never be reported as a
+                // clean failure. The exception is passed in because ONE failure mode can defeat
+                // the envelope: a write attempted outside any transaction (see RollbackNow).
+                string undone = runScope?.RollbackNow(ex.Message) ?? string.Empty;
+                if (!string.IsNullOrEmpty(undone))
+                    message += Environment.NewLine + Environment.NewLine + undone;
+
+                FileLogger.LogError($"[REPL] Error location: {(string.IsNullOrEmpty(where) ? "<no script frame>" : where.Trim())}");
+                FileLogger.LogError($"[REPL] Rollback: {(string.IsNullOrEmpty(undone) ? "<nothing to undo>" : undone.Trim())}");
+                return (false, string.Empty, message, new List<string>());
+            }
+            finally
+            {
+                // Commits the envelope when the script SUCCEEDED. On the failure path this is
+                // a no-op: RollbackNow() has already finished and marked the scope closed.
+                runScope?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// The FIRST stack frame that names the user's script, rendered for a human, or
+        /// empty when the trace carries no script frame.
+        ///
+        /// <para>
+        /// ⚠ <b>First, not deepest.</b> Frames below the script are engine internals
+        /// (<c>ScriptApi</c>, <c>Tx</c>, <c>SetVal</c>) and name no line the caller wrote —
+        /// reporting one of those would be a line number that is technically real and
+        /// practically useless. The frame that matters is the caller's own call site.
+        /// </para>
+        /// <para>
+        /// ⚠ <b>Never throws.</b> This runs inside the failure path; an exception here would
+        /// replace the real error with a reporting error.
+        /// </para>
+        /// </summary>
+        private static string DescribeRuntimeLocation(Exception ex)
+        {
+            try
+            {
+                var trace = ex?.StackTrace;
+                if (string.IsNullOrEmpty(trace))
+                    return string.Empty;
+
+                foreach (var raw in trace.Split('\n'))
+                {
+                    var frame = raw.Trim();
+                    if (frame.Length == 0)
+                        continue;
+
+                    var m = System.Text.RegularExpressions.Regex.Match(
+                        frame, @"in\s+script\s*:\s*line\s+(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (m.Success)
+                        return "  at your line " + m.Groups[1].Value + " — the script stopped here.";
+                }
+
+                return string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
 
@@ -473,6 +613,263 @@ namespace CoreScript.Engine.Core
             }
         }
 
+        /// <summary>
+        /// The verbs that can change the model. Used ONLY as a cheap pre-filter so a
+        /// read-only submission never opens a TransactionGroup — a false NEGATIVE costs
+        /// atomicity (the behaviour before this existed), never correctness, because the
+        /// group only wraps; it does not perform the writes.
+        /// </summary>
+        private static readonly string[] WriteVerbs =
+        {
+            // Paracore methods (auto-transacted)
+            "SetVal", "SetNum", "SetParam", "SetTypeVal", "SetTypeNum",
+            "Delete(", "Hide(", "Unhide(", "Isolate(",
+            "Transact(", "NewType", "SwapSymbol",
+            // Raw Revit API write verbs — NOT auto-transacted, but they CAN change the
+            // model. If we miss one, MightWrite returns false, the TransactionGroup never
+            // opens, and RollbackNow never runs — so a failed raw-API write gets the raw
+            // exception with NO rollback sentence at all. That is worse than a false
+            // positive on MightWrite.
+            "Duplicate(", "Wall.Create(", "doc.Create.", "NewFamilyInstance(",
+            // ⚠ "Transaction(" covers `new Transaction(`, `new Autodesk.Revit.DB.Transaction(`
+            //   AND `new SubTransaction(` (which ends with it). The old entry was
+            //   "new Transaction", which missed every QUALIFIED form — and a script that
+            //   opened a raw qualified transaction around raw `p.Set(...)` calls matched no
+            //   verb at all, so it ran with no envelope. Measured 2026-10-29.
+            "Transaction(", "TransactionGroup(",
+            "MoveElement", "ChangeTypeId", "set_Parameter",
+        };
+
+        /// <summary>
+        /// Comment bodies and string/char literal CONTENTS, blanked with spaces so every
+        /// offset and line number survives. Mirrors <c>strip_code_noise</c> in
+        /// <c>mcp_core/tool_helpers.py</c>.
+        ///
+        /// <para>
+        /// ⚠⚠ WHY A SUBSTRING FILTER NEEDS THIS (2026-10-29). <see cref="WriteVerbs"/> is an
+        /// <c>IndexOf</c> scan over the raw source, so the WORD "SetVal" inside a comment or a
+        /// string opened a <c>TransactionGroup</c> with nothing in it. "A false positive only
+        /// costs an empty group" was the justification for erring wide, and it is still the
+        /// right trade for a real verb — but a verb in PROSE is not a false positive that buys
+        /// any safety, it is noise that opens and commits a group on a query.
+        /// </para>
+        /// </summary>
+        private static readonly System.Text.RegularExpressions.Regex _codeNoise =
+            new System.Text.RegularExpressions.Regex(
+                @"@""(?:[^""]|"""")*""|""(?:\\.|[^""\\\n])*""|'(?:\\.|[^'\\\n])*'|//[^\n]*|/\*.*?\*/",
+                System.Text.RegularExpressions.RegexOptions.Singleline |
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static string StripCodeNoise(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return code ?? string.Empty;
+            return _codeNoise.Replace(code, m =>
+                System.Text.RegularExpressions.Regex.Replace(m.Value, @"[^\n]", " "));
+        }
+
+        private static bool MightWrite(string code)
+        {
+            if (string.IsNullOrEmpty(code))
+                return false;
+            string scanned = StripCodeNoise(code);
+            for (int i = 0; i < WriteVerbs.Length; i++)
+            {
+                if (scanned.IndexOf(WriteVerbs[i], StringComparison.Ordinal) >= 0)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// ALL-OR-NOTHING envelope around ONE REPL submission.
+        ///
+        /// <para>
+        /// ⚠ <b>Why.</b> Each auto-transacting write commits on its own, so a script that
+        /// wrote and then threw reported FAILURE while leaving its earlier writes applied.
+        /// A <c>TransactionGroup</c> is Revit's all-or-nothing unit: the writes inside still
+        /// commit one by one (granularity is unchanged — see
+        /// <see cref="TransactionGranularityAdvisory"/>), but the set as a whole can be undone.
+        /// </para>
+        /// <para>
+        /// ⚠ <b>Every outcome is reported, including the bad ones.</b> A rollback that
+        /// returns anything other than <c>RolledBack</c> means the model may still hold part
+        /// of a failed script; saying "failed" without saying that would be the original
+        /// defect wearing a different hat.
+        /// </para>
+        /// </summary>
+        private sealed class ScriptRunScope : IDisposable
+        {
+            private readonly TransactionGroup _group;
+            private bool _succeeded;
+            private bool _closed;
+
+            private ScriptRunScope(TransactionGroup group) { _group = group; }
+
+            /// <summary>
+            /// Opens the envelope, or returns null when there is nothing to protect: no
+            /// document, no write verb in the source, or a group Revit refused to start.
+            /// A null scope is the pre-existing behaviour, which is why every use is `?.`.
+            /// </summary>
+            public static ScriptRunScope TryBegin(Autodesk.Revit.DB.Document doc, string userCode, string scriptName)
+            {
+#pragma warning disable CA1031 // An envelope that cannot start must not stop the script.
+                try
+                {
+                    if (doc == null || !MightWrite(userCode))
+                        return null;
+
+                    string name = "Paracore: " + (string.IsNullOrWhiteSpace(scriptName) ? "script" : scriptName.Trim());
+                    if (name.Length > 60) name = name.Substring(0, 60);
+
+                    var group = new TransactionGroup(doc, name);
+                    var status = group.Start();
+                    if (status != TransactionStatus.Started)
+                    {
+                        FileLogger.LogWarning($"[REPL] TransactionGroup refused to start ({status}) — running WITHOUT all-or-nothing protection.");
+                        group.Dispose();
+                        return null;
+                    }
+                    return new ScriptRunScope(group);
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogWarning($"[REPL] Could not open the all-or-nothing envelope: {ex.Message} — running without it.");
+                    return null;
+                }
+#pragma warning restore CA1031
+            }
+
+            public void MarkSucceeded() { _succeeded = true; }
+
+            /// <summary>
+            /// Rolls the envelope back and returns a sentence describing what really happened,
+            /// or an empty string when there was nothing to undo.
+            /// </summary>
+            /// <param name="failureMessage">
+            /// The exception message that ended the script, when there was one. ⚠ It is not
+            /// decoration: a write attempted OUTSIDE any transaction can be partly applied by
+            /// Revit and still throw, and no TransactionGroup can undo a write that was never in
+            /// a transaction. In that case the envelope is rolled back correctly and the model is
+            /// still changed — so the sentence must not claim otherwise.
+            /// </param>
+            public string RollbackNow(string failureMessage = null)
+            {
+                if (_closed || _group == null)
+                    return string.Empty;
+
+#pragma warning disable CA1031
+                try
+                {
+                    if (_group.GetStatus() != TransactionStatus.Started)
+                    {
+                        _closed = true;
+                        return string.Empty;
+                    }
+
+                    var status = _group.RollBack();
+                    _closed = true;
+
+                    if (status == TransactionStatus.RolledBack)
+                    {
+                        // ⚠⚠ MEASURED 2026-10-29 — THE CLAIM BELOW WAS FALSE.
+                        //
+                        //   var wt = (WallType)GetElements("WallTypes").First();
+                        //   var dup = wt.Duplicate("PC-PROBE-RB");   // <-- outside a transaction
+                        //   dup.Delete();
+                        //
+                        //   Reply: "Execution Failed: Attempt to modify the model outside of
+                        //           transaction. at your line 2" + "↩ ROLLED BACK … The model is
+                        //           unchanged."
+                        //   Measured: wall types 31 -> 32. The type WAS created. Revit applied
+                        //   part of a call it then refused, and `Duplicate` left the copy with
+                        //   the SOURCE name (397, 972330…972336 all "Exterior - Brick on Mtl.
+                        //   Stud", every one unused).
+                        //
+                        //   The rollback itself was not wrong — there was nothing of ours inside
+                        //   a transaction to undo. The SENTENCE was wrong, and a false all-clear
+                        //   is the one failure this project treats as unrecoverable: the caller
+                        //   stops looking.
+                        if (LooksLikeOutsideTransaction(failureMessage))
+                        {
+                            FileLogger.LogError("[REPL] Rolled back the envelope, but the failure was OUTSIDE a transaction — Revit may have applied part of it.");
+                            return "↩ ROLLED BACK — the writes this script had committed inside a transaction were undone."
+                                 + Environment.NewLine
+                                 + "⚠ BUT the call that failed ran OUTSIDE any transaction. Revit can apply part of such a"
+                                 + " call and still throw, so THE MODEL MAY HAVE CHANGED. Verify before continuing"
+                                 + " — and wrap raw Revit API writes in Transact(\"…\", () => …).";
+                        }
+
+                        FileLogger.Log("[REPL] Rolled back the failed script's committed writes.");
+                        return "↩ ROLLED BACK — the writes this script had already committed were undone. The model is unchanged.";
+                    }
+
+                    FileLogger.LogError($"[REPL] Rollback returned {status} (expected RolledBack) — THE MODEL MAY HOLD PART OF A FAILED SCRIPT.");
+                    return $"⚠ ROLLBACK INCOMPLETE (status {status}) — part of this failed script may still be applied to the model.";
+                }
+                catch (Exception ex)
+                {
+                    _closed = true;
+                    FileLogger.LogError($"[REPL] Rollback FAILED: {ex.Message}");
+                    return $"⚠ ROLLBACK FAILED ({ex.Message}) — this failed script's earlier writes may still be applied.";
+                }
+#pragma warning restore CA1031
+            }
+
+            /// <summary>
+            /// True when Revit refused a modification because no transaction was open.
+            ///
+            /// ⚠ Deliberately a MESSAGE test, not a type test: Revit raises plain
+            /// <see cref="Autodesk.Revit.Exceptions.ArgumentException"/>-family exceptions with
+            /// this wording, and the engine has no other signal that a call escaped the envelope.
+            /// A false positive costs one cautious sentence on a failure that was already a
+            /// failure; a false negative costs a false all-clear.
+            /// </summary>
+            private static bool LooksLikeOutsideTransaction(string message)
+            {
+                if (string.IsNullOrEmpty(message))
+                    return false;
+                return message.IndexOf("outside of transaction", StringComparison.OrdinalIgnoreCase) >= 0
+                    || message.IndexOf("outside a transaction", StringComparison.OrdinalIgnoreCase) >= 0
+                    || message.IndexOf("outside of a transaction", StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+
+            public void Dispose()
+            {
+                if (_group == null)
+                    return;
+
+                try
+                {
+                    if (!_closed)
+                    {
+                        if (_succeeded)
+                        {
+                            var status = _group.GetStatus() == TransactionStatus.Started
+                                ? _group.Commit()
+                                : _group.GetStatus();
+
+                            if (status != TransactionStatus.Committed)
+                                FileLogger.LogError($"[REPL] Envelope commit returned {status} — the script reported success but its writes may not all be committed.");
+                        }
+                        else
+                        {
+                            // Reached when the method returned without an exception but never
+                            // marked success (an early return). Undo, and never silently.
+                            _ = RollbackNow();
+                        }
+                        _closed = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError($"[REPL] Envelope close FAILED: {ex.Message}");
+                }
+                finally
+                {
+                    try { _group.Dispose(); } catch { /* disposing must never mask the outcome */ }
+                }
+            }
+        }
 
     }
 }

@@ -803,46 +803,10 @@ namespace CoreScript.Engine.Core
         /// </summary>
         private void WarnOnUnwrappedLoopWrites(string userCode, ICoreScriptContext context, string scriptName)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(userCode))
-                    return;
-
-                // Same reference set and imports the real compilation uses, from the one
-                // provider that owns them — otherwise the guard would resolve different
-                // symbols than the compiler and could report a call that does not exist.
-                var imports = ScriptReferenceProvider.GetImports(includeRevitSelection: false);
-                var refs = ScriptReferenceProvider.GetCoreReferences("CodeRunner");
-                refs.AddRange(ScriptReferenceProvider.GetRevitReferences("CodeRunner"));
-
-                var findings = TransactionLoopGuard.Analyze(userCode, imports, refs);
-                if (findings.Count == 0)
-                    return;
-
-                const int maxShown = 10;
-                var lines = findings
-                    .Take(maxShown)
-                    .Select(f => $"  line {f.Line}:{f.Column} — {f.Call}() inside {f.LoopKind}");
-
-                context.Println(
-                    $"⚠️ TRANSACTION GRANULARITY — {findings.Count} write(s) sit inside a loop with no " +
-                    "enclosing Transact(). Each iteration opens its OWN transaction, so N elements cost " +
-                    "N undo entries, and the undo stack can run out before you can get back to where you " +
-                    "started. Wrap the WHOLE loop in ONE Transact(...) — a Transact() placed INSIDE the " +
-                    "loop is the mistake:" + Environment.NewLine +
-                    string.Join(Environment.NewLine, lines) +
-                    (findings.Count > maxShown
-                        ? Environment.NewLine + $"  … and {findings.Count - maxShown} more."
-                        : string.Empty));
-
-                FileLogger.LogWarning(
-                    $"[CodeRunner] Transaction granularity: {findings.Count} unwrapped loop write(s) in '{scriptName}'.");
-            }
-            catch (Exception ex)
-            {
-                // Advisory only. A broken analysis must never break a run.
-                FileLogger.LogWarning($"[CodeRunner] Transaction granularity check failed: {ex.Message}");
-            }
+            // ⚠ The rule, the analysis and the WORDING all live in ONE place —
+            // TransactionGranularityAdvisory — because the tool path and the REPL path both
+            // need them, and a rule stated twice drifts. Do not re-inline this.
+            _ = TransactionGranularityAdvisory.Warn(context, userCode, scriptName);
         }
 
         public ExecutionResult ExecuteBinary(byte[] assemblyBytes, string parametersJson, ICoreScriptContext context)
