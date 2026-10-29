@@ -323,6 +323,15 @@ def main():
         "Bar", "View", "Document", "CurveLoop", "NewFamilyInstance",
         "API",                                  # "raw API (...)" — English, not a method
         "Skip", "Take", "First", "FirstOrDefault", "Any",  # System.Linq, not ours
+        # 2026-10-29 — read in its sentences before being excused:
+        #   catalog.md:50        `GetElements<FamilySymbol>("Doors")` — a generic TYPE argument
+        #   parameter-access     "`fi.Symbol` … returns **`FamilySymbol`**" — a return TYPE
+        #   identity-orientation "`fi.Symbol` → FamilySymbol (on a FamilyInstance ONLY)"
+        # It is a Revit CLASS, never called with parentheses, so it cannot be a method the
+        # engine is missing. ⚠ This entry was already owed: the catalog line predates this
+        # change, so the gate had been blocking on a name it had simply not classified —
+        # a stale red, which is worse than a green lie because nobody re-reads it.
+        "FamilySymbol",
     }
     real_phantom = [n for n in phantom if n not in PROSE_WORDS]
     ok = not real_phantom and not stale_emitted

@@ -16,8 +16,19 @@ see into the compressed PKG at all (it returns 0 for text that IS present — ve
       this script did exactly that.) For a module, open the PYZ, extract the module's code
       object, and probe it for a SENTINEL string that only the current source contains.
 
-    the rule — an exe is STALE if it carries a version of a file that has since changed.
+    the rule — an exe is STALE if ANY of these holds:
+        * it carries a version of a file that has since changed (data: byte-compared;
+          module: sentinel-probed — a sentinel survives a body rewrite, so this is the
+          weak half, which is why the two rules below exist);
+        * the exe is OLDER than the newest `mcp_core/*.py` — a build that predates the
+          source cannot contain it, and that needs only two mtimes;
+        * `dist/` holds a build the installed copy has never received.
     a file that is NOT in the exe is not a dependency, and is reported as "not bundled".
+
+⚠ ALL THREE FAIL, NONE OF THEM WARN (2026-10-29). The third was a bare `print` until then:
+  it said "built but never installed" and returned PASS, so this gate reported GREEN while
+  the installed `paracore-gen.exe` was 22 minutes older than `dist/` — during a release.
+  The second rule did not exist, so four servers passed while built 22 h before the core.
 
 ⚠ An empty scan FAILS: no exes, an unreadable archive, or a TOC too small to trust means the
 reader did not work — not that everything is current.
@@ -118,7 +129,13 @@ TRACKED = [
         #   every round-5 dialog-watcher string, while this literal was absent from all five.
         #   ⇒ A sentinel must be a string the COMPILER emits, not text the SOURCE shows.
         #   This string is the Watcher block added in round 5; it is a plain constant.
-        "PARACORE DIALOG WATCHER",
+        # ⚠ RETARGETED 2026-10-28 (Pick removal): `pick_object` is retired from every agent
+        #   surface and `COMMON_RULES` now carries the ban. "PARACORE DIALOG WATCHER" is
+        #   untouched by that edit and would still pass, so it cannot prove a Pick-removal
+        #   build — the same failure this row has already had twice. This sentence lives in
+        #   the ban block and nowhere else, and `COMMON_RULES` is a single triple-quoted
+        #   constant, so the compiler emits it as one string the scanner can see.
+        "NEVER ASK THE USER TO CLICK FOR YOU",
     ),
     (
         "forge_server.py",
@@ -225,6 +242,32 @@ def check(exe: str) -> tuple[bool, list[str]]:
     print(f"{name}")
     print(f"  installed : {describe(exe)}")
 
+    # ── the build cannot be older than the core it is supposed to contain ──────────────
+    # ⚠⚠ ADDED 2026-10-29. NOTHING compared the exe's BUILD TIME to the core it bundles, so
+    #   four of the five servers passed this gate — family (10-28 07:39), model (07:40),
+    #   takeoff (07:47), forge (07:54) — while `mcp_core/tools.py` had been rewritten at
+    #   05:43 the NEXT day and `tool_helpers.py` at 04:48. The sentinel check cannot see
+    #   that: a sentinel is a string that SURVIVES a body rewrite, so a stale build keeps
+    #   passing it. A build that predates the source cannot contain the source, and that
+    #   needs no archive reading and no sentinel — only two mtimes.
+    try:
+        core_sources = [p for p in glob.glob(os.path.join(CORE, "*.py")) if os.path.isfile(p)]
+        if not core_sources:
+            # An empty scan must FAIL: the gate has lost its subject, so it proves nothing.
+            problems.append(f"{name}: no core sources under {CORE} — cannot date the build")
+            print("  ⚠ no core sources found — this check lost its subject")
+        else:
+            newest = max(core_sources, key=os.path.getmtime)
+            lag = os.path.getmtime(exe) - os.path.getmtime(newest)
+            if lag < -120:                       # 120 s absorbs build/copy clock skew
+                problems.append(
+                    f"{name}: build predates the core by {-lag / 3600:.1f} h "
+                    f"(newest {os.path.basename(newest)})")
+                print(f"  ⚠ built BEFORE {os.path.basename(newest)} "
+                      f"({-lag / 3600:.1f} h older) — it cannot contain the current core")
+    except OSError as exc:  # noqa: BLE001
+        problems.append(f"{name}: could not date the build against the core ({exc})")
+
     dist = dist_for(exe)
     if dist:
         print(f"  dist/     : {describe(dist)}")
@@ -234,6 +277,14 @@ def check(exe: str) -> tuple[bool, list[str]]:
         size_differs = os.path.getsize(dist) != os.path.getsize(exe)
         newer_by = os.path.getmtime(dist) - os.path.getmtime(exe)
         if size_differs or newer_by > 120:
+            # ⚠⚠ THIS WAS A PRINT, NOT A FAILURE (fixed 2026-10-29). It announced
+            #   "built but never installed" and then returned PASS — so the one gate whose
+            #   whole job is "the exe on disk is the build you made" reported GREEN while the
+            #   installed paracore-gen.exe was a build 22 minutes older than dist/, which is
+            #   precisely the state during a release. A gate that says the word and does not
+            #   set the flag has a failure mode of its own (rule 3).
+            problems.append(
+                f"{name}: dist/ differs from the installed copy — built but never installed")
             print("              ⚠ the dist build differs from the installed copy — built but never installed")
 
     try:
@@ -290,8 +341,17 @@ def check(exe: str) -> tuple[bool, list[str]]:
         # ⚠ "stale" is a fact about this file; "rebuild" is not always the fix. `dist/` may
         #   already hold a current build, in which case only an install is needed — so the
         #   verdict states the finding and leaves the action to the reader.
-        print(f"  => {'STALE — this copy must be replaced' if stale else 'current'}\n")
-        return stale == 0, problems
+        # ⚠ `problems` now carries findings that are NOT "this bundled file is stale" — a build
+        #   that was never installed, or one that predates the core. Printing "current" beside a
+        #   recorded problem is the same false all-clear this whole file exists to prevent.
+        if stale:
+            verdict = "STALE — this copy must be replaced"
+        elif problems:
+            verdict = "NOT THE BUILD ON DISK — see the ⚠ above"
+        else:
+            verdict = "current"
+        print(f"  => {verdict}\n")
+        return stale == 0 and not problems, problems
     finally:
         if pyz_path:
             try:
