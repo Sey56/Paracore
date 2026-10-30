@@ -27,7 +27,18 @@
       "args": [],
       "runs": "auto",
       "timeout": 60,
-      "protects": "`paracore/mcp/` holds the WIRE CONTRACT and nothing else. The shared MCP framework moved to its own public repo (paracore-mcp-core) on 2026-10-30, because this repo is the free MIT platform and was carrying the shared code of four PAID products. ⚠ A text scan cannot defend this — the defect is a FILE that exists — so the gate asserts the directory's CONTENTS against a whitelist. An absent or empty directory FAILS.",
+      "protects": "`paracore/mcp/` holds the WIRE CONTRACT and nothing else — grpc_client.py, utils.py and the generated corescript_pb2*, beside protos/corescript.proto. The shared MCP framework lives in `paracore-mcp-core/`, which is PUBLIC MIT, so anything committed here is public immediately. ⚠ A text scan cannot defend this — the defect is a FILE that exists — so the gate asserts the directory's CONTENTS against a whitelist. An absent or empty directory FAILS.",
+      "known_red": null
+    },
+    {
+      "id": "forbidden-paths",
+      "path": "paracore/scripts/check-forbidden-paths.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 120,
+      "protects": "No external project is nested in `paracore/`, and the key drop at `rap-auth-server/` holds only the PUBLIC key. ⚠ These folders are IGNORED by .gitignore, so `git status` never mentions them — and build-frontend.ps1 robocopies the repo with /E, so an ignored folder still ships inside the desktop bundle. A folder that cannot be committed can still be shipped.",
       "known_red": null
     },
     {
@@ -234,7 +245,6 @@
       "protects": "Every gallery script obeys the pack file policy, and the policy's own canaries still fire.",
       "known_red": null
     },
-
     {
       "id": "baseline",
       "path": "paracore/.repl/baseline.py",

@@ -2,12 +2,11 @@
 """
 THE BOUNDARY GATE — `paracore/mcp/` may hold ONLY the wire contract.
 
-⚠⚠ WHY THIS EXISTS. `mcp_core/` (5,311 lines of MCP server framework) used to live here. It
-moved to its own PUBLIC repo, `paracore-mcp-core/`, on 2026-10-30, because this repo is the
-free MIT engine and it was carrying the shared code of four PAID products. A directory that
-"used to hold the shared core" is an invitation: the next person who needs a helper for two
-MCPs adds it here — where it is MIT and public the moment it is committed — and nobody
-reviewing a paid product would think to look.
+⚠⚠ WHY THIS EXISTS. The shared MCP framework lives in its own PUBLIC repo,
+`paracore-mcp-core/`, and NOT here — this repo is the generic engine, and the framework is shared by
+five MCP servers. A directory that "used to hold the shared core" is an invitation: the next person
+who needs a helper for two MCPs adds it here — where it is MIT and public the moment it is committed
+— and nobody reviewing the other products would think to look.
 
 ⚠⚠ A TEXT SCAN CANNOT DEFEND THIS. `check-retired-refs.py` can only flag a path somebody
 wrote down; the defect is a FILE THAT EXISTS. So this gate asserts the directory's CONTENTS
@@ -85,8 +84,8 @@ def main() -> int:
         print("  This directory is the WIRE CONTRACT only — grpc_client.py, utils.py and the")
         print("  generated corescript_pb2*.py, beside protos/corescript.proto which makes them.")
         print("  ⚠ Shared MCP-server code belongs in `paracore-mcp-core/mcp_core/`, which is")
-        print("    PUBLIC MIT. Anything committed HERE is MIT and public immediately, and this")
-        print("    repo is the free platform — it must not carry a paid product's framework.")
+        print("    PUBLIC MIT. Anything committed HERE is MIT and public immediately, so this")
+        print("    repo must not carry framework code its owner keeps private.")
         print("  ⚠ If the file is legitimate wire-contract code, add it to ALLOWED_FILES and")
         print("    say why in the commit message. Do not widen the rule to make a file pass.")
         return 1
