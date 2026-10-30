@@ -217,8 +217,8 @@
       "protects": "WORKSPACE_MAP.md matches what is actually on disk and what the remotes actually hold. A map nothing checks is a map that lies.",
       "known_red": {
         "id": "F5",
-        "why": "paracore-business and paracore-gallery are each 1 commit ahead of origin. The commits made on 2026-10-27 exist only on this machine.",
-        "remedy": "Push the two repos, or confirm the commits are meant to stay local.",
+        "why": "paracore-business and paracore-gallery are each 1 commit ahead of origin (the 2026-10-27 commits), and paracore-ecosystem is now 2 ahead (the 2026-10-30 MCP-core split). All of it exists only on this machine.",
+        "remedy": "Push the three repos, or confirm the commits are meant to stay local.",
         "blocked_by": "Pushing is the user's call; nothing was pushed when the 2026-10-27 commits were made.",
         "owner": "user"
       }
