@@ -39,6 +39,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# ⚠⚠ The shared MCP core left this repo on 2026-10-30 (its own repo: `paracore-mcp-core`).
+#   The dialog watcher is CORE-OWNED, so its default path comes from the one locator rather
+#   than a `<repo>/mcp/mcp_core` path that now holds nothing — a missing watcher would make
+#   this gate compare the consent dialog against an empty label set and pass.
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from mcp_core_locator import CORE as CORE_DIR  # noqa: E402
+
 # The ONLY TaskDialogCommonButtons member that emits no button. Every other member
 # is a label the watcher recognises (Ok/Yes -> KEEP, Cancel/No/Close -> KEEP/DISCARD).
 NO_BUTTON = "None"
@@ -120,7 +128,7 @@ def effective_title(source):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cs", default=str(ROOT / "Paracore.Addin" / "Services" / "SessionGate.cs"))
-    ap.add_argument("--watcher", default=str(ROOT / "mcp" / "mcp_core" / "dialog_watcher.py"))
+    ap.add_argument("--watcher", default=str(Path(CORE_DIR) / "dialog_watcher.py"))
     args = ap.parse_args()
 
     cs_path, watcher_path = Path(args.cs), Path(args.watcher)

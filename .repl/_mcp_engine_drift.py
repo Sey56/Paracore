@@ -52,7 +52,14 @@ PARACORE = Path(r"C:\Users\seyou\Paracore\paracore")
 # ⚠ paracore-gen is a SIBLING of paracore, NOT inside it. A path relative to PARACORE
 # silently matched only the takeoff generators, which made the scan look alive while
 # covering ~5% of the surface. Measure the population, never assume the path.
-MCP = PARACORE / "mcp" / "mcp_core"
+# ⚠⚠ MOVED 2026-10-30: the core is no longer inside `paracore`. Resolved through the ONE
+#   locator (the same env vars the five builds read). A path that now holds nothing would scan
+#   zero files and report a clean surface — the vacuous green this gate exists to prevent.
+sys.path.insert(0, str(PARACORE / "scripts"))
+
+from mcp_core_locator import CORE as _CORE_PATH  # noqa: E402
+
+MCP = Path(_CORE_PATH)
 TAKEOFF = Path(r"C:\Users\seyou\Paracore\paracore-takeoff") / "takeoff"
 
 # ---- 1. engine public members ------------------------------------------------

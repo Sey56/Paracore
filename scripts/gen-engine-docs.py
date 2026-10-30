@@ -111,8 +111,17 @@ FAMILY = Path(r"C:\Users\seyou\Paracore\paracore-family")
 #   ⚠ The two engine DOCS are still copied into each repo, and that is not duplication for
 #     its own sake: every exe must BUNDLE its own copy (`--add-data "EXTENSION_METHODS.md;."`),
 #     because the exe has no access to the source tree at runtime.
+# ⚠⚠ THE CORE LEFT THIS REPO ON 2026-10-30. `SHARED` (`paracore/mcp`) still holds the WIRE
+#   CONTRACT — `grpc_client.py` and the generated `corescript_pb2*.py` beside the `.proto` that
+#   makes them. The PACKAGE (`mcp_core/…`, including `shared_skills.py`, loaded just below) now
+#   lives in its own repo, resolved by the ONE locator the five builds also use, so this
+#   generator can never point at a core no build would bundle.
 SHARED = FREE / "mcp"
-SHARED_MC = SHARED / "mcp_core"
+sys.path.insert(0, str(FREE / "scripts"))
+
+from mcp_core_locator import CORE_REPO as _CORE_REPO  # noqa: E402
+
+SHARED_MC = Path(_CORE_REPO) / "mcp_core"
 
 # The REPL / dynamic-execution skill set. ONE authority —
 # `paracore/mcp/mcp_core/shared_skills.py` — the same in every MCP that drives the generic

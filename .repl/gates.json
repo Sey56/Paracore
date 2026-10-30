@@ -20,6 +20,17 @@
       "known_red": null
     },
     {
+      "id": "mcp-dir-boundary",
+      "path": "paracore/scripts/check-mcp-dir-boundary.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 60,
+      "protects": "`paracore/mcp/` holds the WIRE CONTRACT and nothing else. The shared MCP framework moved to its own public repo (paracore-mcp-core) on 2026-10-30, because this repo is the free MIT platform and was carrying the shared code of four PAID products. ⚠ A text scan cannot defend this — the defect is a FILE that exists — so the gate asserts the directory's CONTENTS against a whitelist. An absent or empty directory FAILS.",
+      "known_red": null
+    },
+    {
       "id": "memory-budget",
       "path": "paracore/scripts/check-memory-budget.py",
       "cwd": "paracore",

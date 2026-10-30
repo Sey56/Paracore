@@ -44,11 +44,17 @@ from __future__ import annotations
 import argparse
 import glob
 import os
+import subprocess
 import sys
 import tempfile
 
 ECOSYSTEM = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-CORE = os.path.join(ECOSYSTEM, "paracore", "mcp", "mcp_core")
+# ⚠ MOVED 2026-10-30: the core left the engine repo for its own — `paracore-mcp-core`, PUBLIC
+#   and MIT, because paracore-gen is free and released and imports nine of its twelve modules.
+#   ⚠ The wire contract (`grpc_client`, `utils`, `corescript_pb2*`) did NOT move: it stays at
+#   `paracore/mcp/`, beside the `.proto` that generates it. This gate tracks the core only.
+CORE_REPO = os.path.join(ECOSYSTEM, "paracore-mcp-core")
+CORE = os.path.join(CORE_REPO, "mcp_core")
 FORGE = os.path.join(ECOSYSTEM, "paracore-forge")
 
 # (suffix in the bundle, source on disk, module name or None for a data file, sentinel)
@@ -234,6 +240,24 @@ def open_pyz(reader, names: list[str]):
         raise
 
 
+def expected_core_version() -> str:
+    """
+    What the core on disk IS — by running the same script the builds run.
+
+    ⚠ One definition, not two. If this re-implemented `git rev-parse` the gate and the build
+    could disagree about the same tree, and the disagreement would look like a stale exe.
+    ⚠ `unknown` is returned, never guessed: an exported tree or a missing git is not "current".
+    """
+    script = os.path.join(CORE_REPO, "scripts", "core_version.py")
+    if not os.path.isfile(script):
+        return "unknown"
+    try:
+        p = subprocess.run([sys.executable, script], capture_output=True, text=True, timeout=60)
+        return (p.stdout or "").strip() or "unknown"
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+
+
 def check(exe: str) -> tuple[bool, list[str]]:
     from PyInstaller.archive.readers import CArchiveReader
 
@@ -250,6 +274,15 @@ def check(exe: str) -> tuple[bool, list[str]]:
     #   that: a sentinel is a string that SURVIVES a body rewrite, so a stale build keeps
     #   passing it. A build that predates the source cannot contain the source, and that
     #   needs no archive reading and no sentinel — only two mtimes.
+    # ⚠⚠ DEMOTED 2026-10-30 — THE SPLIT TOOK THE GROUND OUT FROM UNDER THIS RULE.
+    #   `mcp_core` now lives in its own repo, and every copy or clone stamps the whole tree
+    #   with "now". Measured: the same 57,250-byte `tools.py` read 10-29 14:03 in the old
+    #   tree and 10-30 18:36 in the new one. So an mtime stops being a fact about the core's
+    #   AGE and becomes a fact about when the checkout happened — on any freshly cloned
+    #   machine this rule would call every exe stale, forever, and be right about nothing.
+    #   It is now a FINDING that the pinned `CORE_VERSION` below may overrule, not a verdict.
+    mtime_finding = None
+    mtime_display = ""
     try:
         core_sources = [p for p in glob.glob(os.path.join(CORE, "*.py")) if os.path.isfile(p)]
         if not core_sources:
@@ -260,11 +293,12 @@ def check(exe: str) -> tuple[bool, list[str]]:
             newest = max(core_sources, key=os.path.getmtime)
             lag = os.path.getmtime(exe) - os.path.getmtime(newest)
             if lag < -120:                       # 120 s absorbs build/copy clock skew
-                problems.append(
+                mtime_finding = (
                     f"{name}: build predates the core by {-lag / 3600:.1f} h "
                     f"(newest {os.path.basename(newest)})")
-                print(f"  ⚠ built BEFORE {os.path.basename(newest)} "
-                      f"({-lag / 3600:.1f} h older) — it cannot contain the current core")
+                mtime_display = (
+                    f"built BEFORE {os.path.basename(newest)} "
+                    f"({-lag / 3600:.1f} h older) — it cannot contain the current core")
     except OSError as exc:  # noqa: BLE001
         problems.append(f"{name}: could not date the build against the core ({exc})")
 
@@ -298,6 +332,55 @@ def check(exe: str) -> tuple[bool, list[str]]:
     if len(names) < 50:
         print(f"  ⚠ only {len(names)} TOC entries — the reader did not work, so this proves nothing")
         return False, [f"{name}: TOC too small"]
+
+    # ── WHICH core does this exe carry? — read OFF the artifact ────────────────────────
+    # ⚠⚠ ADDED 2026-10-30. Every rule above INFERS staleness from an mtime: it can say "this
+    #   build is older than that source", never "this is the core it contains". On a fresh clone
+    #   every mtime is the clone time, so the inference goes blind — and a support question
+    #   ("which core is in the exe I am running?") had no answer at all. Measured 2026-10-30:
+    #   four paid exes were 32 h behind the core and the gate could not name what they held.
+    #   The builds now bake `CORE_VERSION` in as data (no timestamp, so a rebuild that changes
+    #   nothing does not turn this red); this reads it back and compares.
+    ver_entry = next(
+        (n for n in names if n.replace("\\", "/").lstrip("./").upper() == "CORE_VERSION"), None)
+    pinned = False
+    if ver_entry is None:
+        # ⚠ Not a failure: an exe built before 2026-10-30 predates the pin, and the mtime rule
+        #   above still covers it. Say so rather than manufacture a red.
+        print("  core ver  : (not baked — this exe predates the 2026-10-30 pin)")
+    else:
+        try:
+            baked = reader.extract(ver_entry).decode("utf-8", "replace").strip()
+        except Exception as exc:  # noqa: BLE001
+            baked = f"<unreadable: {exc}>"
+        want = expected_core_version()
+        if baked == want and not want.endswith("-dirty"):
+            pinned = True
+            print(f"  core ver  : {baked}  (matches the source)")
+        elif baked == want:
+            # ⚠ A DIRTY core's hash does not change as the tree is edited, so `a003806-dirty`
+            #   on both sides proves only "after a003806" — it cannot tell this exe from the
+            #   next uncommitted edit. Deliberately NOT a failure: during development the core
+            #   is dirty most of the time, and a gate that is permanently red is one everybody
+            #   learns to ignore (rule 3). Instead the pin is demoted to a FLOOR and the mtime
+            #   rule is allowed to speak again below, because a timestamp is then the only
+            #   remaining evidence. Commit the core before a release and this branch goes away.
+            print(f"  core ver  : {baked}   (core tree is dirty — the pin is a floor, not an identity)")
+        elif want == "unknown":
+            print(f"  core ver  : {baked}  (source version unknown — cannot compare)")
+        else:
+            print(f"  core ver  : {baked}   ⚠ source is {want}")
+            problems.append(f"{name}: carries core {baked}, source is {want} — rebuild it")
+
+    # ── now that the CONTENT has spoken, decide what the timestamp may still say ────────
+    if mtime_finding and pinned:
+        # The exe carries the committed core, so the lag is an artefact of when this checkout
+        # was made. Say it out loud instead of going red on every clone.
+        print("  ⚠ mtimes suggest the build is older, but the pinned core matches —")
+        print("              a clone or a copy resets every mtime, so the pin wins")
+    elif mtime_finding:
+        problems.append(mtime_finding)
+        print(f"  ⚠ {mtime_display}")
 
     pyz, pyz_path = None, None
     try:

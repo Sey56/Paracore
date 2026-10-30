@@ -9,10 +9,17 @@ import os
 import re
 import sys
 
-# ⚠ The shared MCP core moved into the ENGINE repo on 2026-10-13 (`paracore/mcp`); it used
-#   to be `paracore-gen/mcp_core`. Resolved from THIS file so it survives a moved checkout.
+# ⚠⚠ The shared MCP core moved OUT of this repo on 2026-10-30 into its own
+#   (`paracore-mcp-core`). TWO paths are needed — the package AND the wire contract
+#   (`paracore/mcp`) — and ONE locator owns both, so this gate and the five build scripts
+#   cannot disagree about where the core is. Resolved from THIS file so a moved checkout
+#   still works.
 _PARACORE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_PARACORE, "mcp"))
+sys.path.insert(0, os.path.join(_PARACORE, "scripts"))
+
+from mcp_core_locator import install_syspath  # noqa: E402
+
+install_syspath()
 
 from mcp_core.tool_helpers import (  # noqa: E402
     _LINT_RULES,

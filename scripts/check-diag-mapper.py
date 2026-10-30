@@ -38,8 +38,14 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MCP = os.path.join(os.path.dirname(HERE), "mcp")
-sys.path.insert(0, MCP)
+# ⚠⚠ The shared MCP core left this repo on 2026-10-30 (own repo: `paracore-mcp-core`). ONE
+#   locator resolves the package AND the wire contract — the same two paths the builds use —
+#   so a gate cannot import a stale copy that no build would ever bundle.
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "scripts"))
+
+from mcp_core_locator import install_syspath  # noqa: E402
+
+install_syspath()
 
 from mcp_core.tool_helpers import _annotate_compile_errors  # noqa: E402
 
