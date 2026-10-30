@@ -258,6 +258,29 @@ def expected_core_version() -> str:
         return "unknown"
 
 
+# ⚠⚠ ADDED 2026-10-30. The core pin and the asset checks are BLIND to a server's OWN source:
+#   editing `mcp_server.py` / `forge_core/` after a build is invisible to every rule above, and
+#   the gate reported green while the exe was built before the edit (measured: model/family/
+#   takeoff installed 20:32-20:37 with sources edited at 20:52). A baked SOURCE_HASH closes
+#   that — it is the sha256 of the repo's .py files (sorted relpath + per-file sha256, the same
+#   `source_hash.py` the builds run), so it is clone-proof and timestamp-independent. An exe that
+#   predates the pin is not failed for it; one whose pin disagrees with disk is.
+_SRC_HASH_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source_hash.py")
+
+
+def expected_source_hash(exe: str) -> str:
+    """What THIS repo's source IS — by running the same script the builds run."""
+    repo = os.path.join(ECOSYSTEM, os.path.basename(exe)[:-4])
+    if not os.path.isdir(repo):
+        return "unknown"
+    try:
+        p = subprocess.run([sys.executable, _SRC_HASH_SCRIPT, repo],
+                           capture_output=True, text=True, timeout=60)
+        return (p.stdout or "").strip() or "unknown"
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+
+
 def check(exe: str) -> tuple[bool, list[str]]:
     from PyInstaller.archive.readers import CArchiveReader
 
@@ -372,6 +395,31 @@ def check(exe: str) -> tuple[bool, list[str]]:
             print(f"  core ver  : {baked}   ⚠ source is {want}")
             problems.append(f"{name}: carries core {baked}, source is {want} — rebuild it")
 
+    # ── THIS REPO'S OWN SOURCE HASH — closes the blind spot the core pin and asset checks
+    #    leave open: an edit to `mcp_server.py` / `forge_core/` after the build. Same bake-and-
+    #    read pattern as the core pin, reading off the artifact instead of guessing from mtime.
+    src_entry = next(
+        (n for n in names if n.replace("\\", "/").lstrip("./").upper() == "SOURCE_HASH"), None)
+    if src_entry is None:
+        # ⚠ Not a failure: an exe built before 2026-10-30 predates this pin, and the mtime /
+        #   asset rules above still cover it. Say so rather than manufacture a red.
+        print("  src hash  : (not baked — this exe predates the 2026-10-30 source pin)")
+    else:
+        try:
+            baked_src = reader.extract(src_entry).decode("utf-8", "replace").strip()
+        except Exception as exc:  # noqa: BLE001
+            baked_src = f"<unreadable: {exc}>"
+        want_src = expected_source_hash(exe)
+        if baked_src == want_src and want_src != "unknown":
+            print(f"  src hash  : {baked_src}  (matches the repo's current sources)")
+        elif want_src == "unknown":
+            print(f"  src hash  : {baked_src}  (repo sources unreadable — cannot compare)")
+        else:
+            print(f"  src hash  : {baked_src}   ⚠ repo sources are {want_src}")
+            problems.append(
+                f"{name}: carries source hash {baked_src}, repo is {want_src} — "
+                "its own source was edited after this build")
+
     # ── now that the CONTENT has spoken, decide what the timestamp may still say ────────
     if mtime_finding and pinned:
         # The exe carries the committed core, so the lag is an artefact of when this checkout
@@ -473,10 +521,9 @@ def main() -> int:
     #   still reported green - because the core pin was unchanged and the assets were
     #   byte-identical. Editing a server's own source after its build is INVISIBLE here.
     #   (An mtime rule cannot close that: a clone stamps every file "now", which is exactly
-    #   why the core rule above was demoted to a finding. The durable fix is to bake a
-    #   source pin per repo, the way CORE_VERSION is baked.)
-    print("all installed MCP exes carry the CURRENT CORE and byte-identical bundled assets")
-    print("  NOT compared: each MCP repo's OWN source. If you edited one, rebuild it.")
+    #   why the core rule above was demoted to a finding. The SOURCE_HASH pin now closes it.)
+    print("all installed MCP exes carry the CURRENT CORE, their OWN CURRENT SOURCES, and "
+          "byte-identical bundled assets")
     return 0
 
 
