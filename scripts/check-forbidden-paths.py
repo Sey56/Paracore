@@ -1,21 +1,27 @@
 #!/usr/bin/env python3
 """
-THE ABSENCE GATE — what must NOT sit inside `paracore/`, and what may.
+THE ABSENCE GATE — folders that must NEVER sit inside `paracore/`.
 
-⚠⚠ WHY THIS EXISTS. `training/` is an external project with its own repo. It gets cloned in here by
-mistake, and it is **ignored** by `.gitignore`, so `git status` never mentions it — the only way to
-notice is to browse the folder. "Ignored" is not "harmless": `build-frontend.ps1` robocopies this
-repo with `/E`, so an ignored folder still ships inside the desktop bundle, and no diff shows it.
+⚠⚠ WHY THIS EXISTS. These are all separate projects with their own repos. They get cloned in here
+by mistake, and they are **ignored** by `.gitignore`, so `git status` never mentions them — the only
+way to notice is to browse the folder.
 
-⚠⚠ TWO DIFFERENT ASSERTIONS, and conflating them makes the gate wrong in both directions:
-  * `training/`, `SH_Tools/` — a separate project. Its PRESENCE is the defect.
-  * `rap-auth-server/` — **expected to be here**, as the drop for the PUBLIC key that
-    `build-frontend.ps1:157` reads into the desktop release. Its presence is fine; its CONTENTS are
-    the assertion, because the sibling repo also holds the PRIVATE signing key and `.env`, and this
-    repo is PUBLIC. One copy of `jwt_private.pem` here is a leaked signing key.
+⚠ "Ignored" is not "harmless", but say WHERE it bites, because the difference decides what a stray
+can damage. `build-frontend.ps1` never copies the repo root — the Tauri bundle ships one directory,
+`rap-web/src-tauri/server-release`. Three robocopies fill it, with `/E` and no exclusion for any of
+these names: `rap-server/server/` -> `server-release/server`, `mcp/` -> `server-release/paracore/mcp`,
+and the venv's site-packages. So a stray INSIDE either of the first two ships in the desktop bundle
+with no diff to show it; a stray at the ROOT ships nothing and only corrupts the working tree.
 
-⚠ An empty rule set FAILS. A gate whose lists were emptied by an edit would otherwise report green
-forever — "nothing to check" is not "clean" (rule 3).
+⚠⚠ `rap-auth-server/` is the one that has already cost something. A stale copy of the PUBLIC key sat
+there from a key rotation, `rap-server/server/config.py` found it before the current one, and dev
+offline auth verified tokens against a key nothing signs with any more. The build itself read the
+SIBLING repo, so the shipped app was fine and the defect was invisible in exactly the place nobody
+looks. The key now lives, tracked, at `rap-server/server/keys/jwt_public.pem` — `check-jwt-key.py`
+owns its contents, this gate owns the folder.
+
+⚠ An empty FORBIDDEN list FAILS. A gate whose list was emptied by an edit would otherwise report
+green forever — "nothing to check" is not "clean" (rule 3).
 """
 import os
 import sys
@@ -23,18 +29,15 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 PARACORE = os.path.dirname(HERE)
 
-#: folder → why its PRESENCE is the defect. Rooted at `paracore/`, case-insensitive on Windows.
+#: folder name -> why its PRESENCE is the defect. Rooted at `paracore/`, case-insensitive on Windows.
 FORBIDDEN = {
-    "training": "an external project with its own repo — clone it outside the workspace",
-    "SH_Tools": "an external project with its own repo — clone it outside the workspace",
-}
-
-#: folder → the ONLY contents it may hold. A nested `.git` is always a defect: a second clone of a
-#: private repo inside a public one, carrying whatever that repo carries.
-ALLOWED_CONTENTS = {
-    "rap-auth-server": {
-        "server/jwt_public.pem",
-    },
+    "training": "an external project with its own repo - clone it outside the workspace",
+    "SH_Tools": "an external project with its own repo - clone it outside the workspace",
+    "rap-auth-server": (
+        "its own PRIVATE repo (Sey56/rap-auth-server). A copy here is a second home for the JWT "
+        "keys - the build reads the SIBLING repo, and the tracked fallback key is "
+        "rap-server/server/keys/jwt_public.pem"
+    ),
 }
 
 #: Proof that the scan looked at the real repo and not an empty or wrong directory.
@@ -49,102 +52,73 @@ def human(n: int) -> str:
     return f"{n:,.1f} GB"
 
 
-def walk_files(path: str) -> tuple[int, int, set[str]]:
-    """(bytes, file count, posix-relative paths). Never follows a symlink out of the tree."""
+def walk(path: str) -> tuple[int, int]:
+    """(bytes, files). Never follows a symlink out of the tree."""
     total = files = 0
-    rel: set[str] = set()
     for root, _dirs, names in os.walk(path):
         for name in names:
-            full = os.path.join(root, name)
             try:
-                total += os.path.getsize(full)
+                total += os.path.getsize(os.path.join(root, name))
                 files += 1
             except OSError:
                 pass
-            rel.add(os.path.relpath(full, path).replace("\\", "/"))
-    return total, files, rel
+    return total, files
 
 
 def main() -> int:
     print(f"repo root : {PARACORE}")
 
     if not os.path.isdir(PARACORE):
-        print("FAIL: the repo root does not exist — the gate cannot look, and cannot pass.")
+        print("FAIL: the repo root does not exist - the gate cannot look, and cannot pass.")
         return 2
 
-    if not FORBIDDEN and not ALLOWED_CONTENTS:
-        print("FAIL: both rule sets are EMPTY — a gate with nothing to check is not a gate.")
+    if not FORBIDDEN:
+        print("FAIL: the FORBIDDEN list is EMPTY - a gate with nothing to check is not a gate.")
         return 2
 
     missing_markers = [m for m in MARKERS if not os.path.exists(os.path.join(PARACORE, m))]
     if missing_markers:
-        print(f"FAIL: not the repo root — these are absent: {', '.join(missing_markers)}")
+        print(f"FAIL: not the repo root - these are absent: {', '.join(missing_markers)}")
         return 2
 
     entries = {name.lower(): name for name in os.listdir(PARACORE)}
-    print(f"checked   : {len(FORBIDDEN)} forbidden + {len(ALLOWED_CONTENTS)} bounded "
-          f"against {len(entries)} root entr(y/ies)")
+    print(f"checked   : {len(FORBIDDEN)} forbidden name(s) against {len(entries)} root entr(y/ies)")
 
-    failures: list[str] = []
-
+    hits = []
     for wanted, why in FORBIDDEN.items():
         actual = entries.get(wanted.lower())
         if actual is None:
             print(f"  ok      {wanted}/ is absent")
             continue
-        if not os.path.isdir(os.path.join(PARACORE, actual)):
+        path = os.path.join(PARACORE, actual)
+        if not os.path.isdir(path):
             print(f"  ok      {actual} is a file, not a folder")
             continue
-        size, files, _ = walk_files(os.path.join(PARACORE, actual))
-        print(f"  ✗       {actual}/ is PRESENT ({human(size)}, {files:,} files)")
-        failures.append(f"{actual}/ must not be here — {why}")
+        size, files = walk(path)
+        print(f"  X       {actual}/ is PRESENT ({human(size)}, {files:,} files)")
+        hits.append((actual, size, files, why))
 
-    for wanted, allowed in ALLOWED_CONTENTS.items():
-        actual = entries.get(wanted.lower())
-        if actual is None:
-            print(f"  ok      {wanted}/ is absent (the build then fails loudly, which is correct)")
-            continue
-        base = os.path.join(PARACORE, actual)
-        if not os.path.isdir(base):
-            print(f"  ✗       {actual} is a FILE, expected a folder")
-            failures.append(f"{actual} must be a folder holding {sorted(allowed)}")
-            continue
-        size, files, rel = walk_files(base)
-        extra = sorted(rel - allowed)
-        absent = sorted(allowed - rel)
-        print(f"          {actual}/ holds {files:,} file(s), {human(size)}")
-        for name in sorted(allowed & rel):
-            print(f"  ok      {actual}/{name}")
-        for name in extra:
-            print(f"  ✗       {actual}/{name} — NOT allowed here")
-        for name in absent:
-            print(f"  ✗       {actual}/{name} — MISSING (the desktop build reads it)")
-        if extra:
-            failures.append(
-                f"{actual}/ holds {len(extra)} file(s) it must not — "
-                f"{', '.join(extra)}. ⚠ The sibling repo also holds jwt_private.pem and .env; "
-                f"this repo is PUBLIC, so one copy of either is a leaked secret"
-            )
-        if absent:
-            failures.append(
-                f"{actual}/ is missing {', '.join(absent)} — build-frontend.ps1:157 reads it into "
-                f"the desktop release"
-            )
-
-    if failures:
+    if not hits:
         print()
-        print(f"FAIL: {len(failures)} problem(s):")
-        for line in failures:
-            print(f"  + {line}")
-        print()
-        print("  ⚠ These folders are ignored by `.gitignore`, so `git status` will NEVER mention")
-        print("    them — that is exactly why this gate exists. Before removing one, check it holds")
-        print("    no uncommitted work: `git -C <the nested repo> status`.")
-        return 1
+        print("No external project is nested inside the repo.")
+        return 0
 
     print()
-    print("No external project is nested in the repo, and the key drop holds only the public key.")
-    return 0
+    print(f"FAIL: {len(hits)} folder(s) must not be inside `paracore/`:")
+    for name, size, files, why in hits:
+        print(f"  + {name}/  ({human(size)}, {files:,} files)")
+        print(f"      {why}")
+    print()
+    print("  These folders are IGNORED by `.gitignore`, so `git status` will NEVER mention them.")
+    print("  Before removing one, prove it holds no uncommitted work:")
+    print()
+    for name, _size, _files, _why in hits:
+        print(f"    git -C {os.path.join(PARACORE, name)!r} status")
+    print()
+    print("  A nested clone of a PRIVATE repo can carry secrets (jwt_private.pem, .env). Ignored means")
+    print("  it will not be committed by accident - not that it cannot be force-added. Check, then")
+    print("  delete the whole folder.")
+    return 1
 
 
 if __name__ == "__main__":

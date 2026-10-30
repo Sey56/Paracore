@@ -153,13 +153,38 @@ try {
     robocopy $coreSource (Join-Path $serverReleaseDir "paracore\mcp") /E /XD mcp_core __pycache__ .ruff_cache .git build dist /XF *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
     Write-Host "Bundled the shared MCP core (gRPC layer)" -ForegroundColor Gray
 
-    # Optional: JWT public key for offline auth
-    $jwtKeySource = "$ParacoreRoot\rap-auth-server\server\jwt_public.pem"
-    $releaseAuthDest = Join-Path -Path $serverReleaseDir -ChildPath 'rap-auth-server\server'
-    if (Test-Path $jwtKeySource) {
-        New-Item -ItemType Directory -Path $releaseAuthDest -Force | Out-Null
-        Copy-Item -Path $jwtKeySource -Destination $releaseAuthDest -Force
+    # JWT public key for offline auth.
+    # A MISSING KEY MUST FAIL THE BUILD, for the same reason the core above must: the old
+    # `if (Test-Path ...)` silently skipped, so the app shipped with no fallback and
+    # config.py printed "WARNING: JWT Public Key NOT LOADED" and carried on - offline auth
+    # then dies at the customer's machine instead of here.
+    # TWO SOURCES, in order: the auth-server repo (AUTHORITY - it rotates with the private
+    # key) and this repo's TRACKED copy (a fallback, so a clone without the sibling still
+    # builds). scripts/check-jwt-key.py fails when the two disagree.
+    $jwtKeyCandidates = @(
+        (Join-Path -Path $ParacoreRoot -ChildPath 'rap-auth-server\server\jwt_public.pem'),
+        (Join-Path -Path $ProjectRoot  -ChildPath 'rap-server\server\keys\jwt_public.pem')
+    )
+    $jwtKeySource = $null
+    foreach ($candidate in $jwtKeyCandidates) {
+        if (Test-Path $candidate) { $jwtKeySource = $candidate; break }
     }
+    if (-not $jwtKeySource) {
+        throw "JWT public key not found. Looked in:`n  $($jwtKeyCandidates -join "`n  ")"
+    }
+    if ($jwtKeySource -ne $jwtKeyCandidates[0]) {
+        Write-Warning "Bundling the TRACKED key copy, not the auth-server repo. If the key was rotated, offline auth will reject every token. Run scripts/check-jwt-key.py."
+    }
+    # Two destinations: `server\keys\` is the shape config.py looks for FIRST; the legacy
+    # `rap-auth-server\server\` shape keeps an already-installed layout resolving.
+    foreach ($jwtDest in @(
+        (Join-Path -Path $serverReleaseDir -ChildPath 'server\keys'),
+        (Join-Path -Path $serverReleaseDir -ChildPath 'rap-auth-server\server')
+    )) {
+        New-Item -ItemType Directory -Path $jwtDest -Force | Out-Null
+        Copy-Item -Path $jwtKeySource -Destination $jwtDest -Force
+    }
+    Write-Host "Bundled the JWT public key from $jwtKeySource" -ForegroundColor Gray
 
     # Configure Tauri resources
     if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'resources')) {

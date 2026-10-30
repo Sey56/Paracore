@@ -20,20 +20,36 @@ def load_public_key():
         print(f"--- Remote public key fetch failed: {e}")
 
     # 2. Fallback: Try Local File System
+    #
+    # ⚠⚠ TWO SHAPES, deliberately. The key is TRACKED at `server/keys/jwt_public.pem`
+    # (beside this file), which is the shape dev and every fresh clone have. The legacy
+    # `rap-auth-server/server/jwt_public.pem` shape is still tried because a release built
+    # before this move carries the key there, and an installed app must not lose offline auth
+    # because its config.py got newer than its bundle.
     try:
         key_path = os.getenv("JWT_PUBLIC_KEY_PATH")
         if not key_path:
-             current_dir = os.path.dirname(__file__)
-             candidate_bases = [
-                 os.path.join(current_dir, "..", ".."), # Dev
-                 os.path.join(current_dir, ".."),       # Installed
-                 current_dir                            # Fallback
-             ]
-             for base in candidate_bases:
-                 potential_path = os.path.join(os.path.abspath(base), "rap-auth-server", "server", "jwt_public.pem")
-                 if os.path.exists(potential_path):
-                     key_path = potential_path
-                     break
+            current_dir = os.path.dirname(__file__)
+            candidate_bases = [
+                os.path.join(current_dir, "..", ".."),  # Dev
+                os.path.join(current_dir, ".."),        # Installed
+                current_dir,                            # Beside this file
+            ]
+            candidate_paths = []
+            # ⚠⚠ TWO PASSES, not one. The tracked shape must beat the legacy shape for EVERY
+            # base, not just for its own — otherwise `paracore/rap-auth-server/…` (base 1) wins
+            # over `server/keys/…` (base 3) and the tracked key is never read. That is exactly
+            # how a stale drop survived: it was found first.
+            for base in candidate_bases:
+                candidate_paths.append(os.path.join(os.path.abspath(base), "keys", "jwt_public.pem"))
+            for base in candidate_bases:
+                candidate_paths.append(
+                    os.path.join(os.path.abspath(base), "rap-auth-server", "server", "jwt_public.pem")
+                )
+            for potential_path in candidate_paths:
+                if os.path.exists(potential_path):
+                    key_path = potential_path
+                    break
 
         if key_path and os.path.exists(key_path):
             with open(key_path, 'r') as f:

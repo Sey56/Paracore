@@ -38,7 +38,18 @@
       "args": [],
       "runs": "auto",
       "timeout": 120,
-      "protects": "No external project is nested in `paracore/`, and the key drop at `rap-auth-server/` holds only the PUBLIC key. ⚠ These folders are IGNORED by .gitignore, so `git status` never mentions them — and build-frontend.ps1 robocopies the repo with /E, so an ignored folder still ships inside the desktop bundle. A folder that cannot be committed can still be shipped.",
+      "protects": "No external project is nested in `paracore/` — `training/`, `SH_Tools/` and `rap-auth-server/` must be ABSENT. ⚠ All three are IGNORED by .gitignore, so `git status` never mentions them. A stray INSIDE `rap-server/server/` or `mcp/` also ships in the desktop bundle: both are robocopied with /E and neither excludes these names. (The repo ROOT is never copied — the Tauri bundle takes `server-release/` only — so a root-level stray ships nothing and only corrupts the tree.) ⚠ `rap-auth-server/` is the one that already cost something: a stale PUBLIC key sat there from a key rotation and config.py found it before the current one.",
+      "known_red": null
+    },
+    {
+      "id": "jwt-key",
+      "path": "paracore/scripts/check-jwt-key.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 120,
+      "protects": "The tracked JWT public key (rap-server/server/keys/jwt_public.pem) is PRESENT, is a PUBLIC key, parses as DER, and matches the authority's key when that repo is on this machine. \u26a0 config.py verifies auth and licence tokens locally when it cannot reach the auth server, so a stale key breaks OFFLINE auth silently \u2014 that is what a stray copy in an ignored folder had already done. A missing sibling repo or a missing openssl degrades to a WARN: the gate must not have a failure mode of its own.",
       "known_red": null
     },
     {
