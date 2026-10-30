@@ -465,7 +465,18 @@ def main() -> int:
         for p in problems:
             print(f"  - {p}")
         return 1
-    print("all installed MCP exes match the sources on disk")
+    # ⚠⚠ SAY ONLY WHAT WAS CHECKED. This used to read "match the sources on disk", which was
+    #   FALSE the moment it printed: every rule above compares the exe to the CORE
+    #   (`paracore-mcp-core`), never to the MCP repo's OWN source (`mcp_server.py`,
+    #   `forge_core/`). Measured 2026-10-30: model, family and takeoff were installed at
+    #   20:32-20:37 while their own `mcp_server.py` had been edited at 20:52, and this gate
+    #   still reported green - because the core pin was unchanged and the assets were
+    #   byte-identical. Editing a server's own source after its build is INVISIBLE here.
+    #   (An mtime rule cannot close that: a clone stamps every file "now", which is exactly
+    #   why the core rule above was demoted to a finding. The durable fix is to bake a
+    #   source pin per repo, the way CORE_VERSION is baked.)
+    print("all installed MCP exes carry the CURRENT CORE and byte-identical bundled assets")
+    print("  NOT compared: each MCP repo's OWN source. If you edited one, rebuild it.")
     return 0
 
 
