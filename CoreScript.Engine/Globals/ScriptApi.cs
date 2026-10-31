@@ -495,15 +495,31 @@ namespace CoreScript.Engine.Globals
         /// `GetElements&lt;Wall&gt;()` instead. ⚠ A CATEGORY name yields its INSTANCES; a name
         /// that is ITSELF a type name (`"WallType"`, `"FamilySymbol"`) yields TYPES instead, and
         /// the INFO line says which. A valid category with 0 instances returns an EMPTY list and
-        /// SAYS SO; it never substitutes the category's types. Plural and singular both resolve
-        /// (`"Doors"` = `"Door"`) and a category name needs no space (`"StructuralColumns"` =
-        /// `"Structural Columns"`). An unknown name THROWS with near matches — `GetMagicNames()`
-        /// lists everything targetable.
+        /// SAYS SO — naming WHAT it resolved to; it never substitutes the category's types.
+        /// <para>
+        /// ⚠⚠ TWO SPELLING RULES, and they are not the same rule:
+        /// <list type="bullet">
+        /// <item>A CATEGORY name is user-facing text. Plural and singular both resolve
+        /// (`"Doors"` = `"Door"`) and the space is optional (`"Structural Columns"` =
+        /// `"StructuralColumns"`). SUBCATEGORIES resolve too, at any depth — `"Property Lines"`
+        /// is a subcategory of Site, not a top-level category.</item>
+        /// <item>A CLASS name is an identifier. It is accepted here as well as in the angle
+        /// brackets — `GetElements("PropertyLine")` == `GetElements&lt;PropertyLine&gt;()` — but
+        /// always spelled EXACTLY as intellisense gives it. A class name never contains a space:
+        /// `"Property Line"` is not a class, it is the category, and it resolves as one.</item>
+        /// </list>
+        /// An unknown name THROWS with near matches — `GetMagicNames()` lists everything
+        /// targetable.
+        /// </para>
         /// </summary>
         public static PipelineEnumerable<Element> GetElements(string categoryOrClass)
         {
             var computer = new Core.ParameterOptionsComputer(Doc);
-            var results = computer.ComputeElementOptions(categoryOrClass);
+
+            // ⚠ ONE LOOKUP, ONE VERDICT. The verdict is produced by the same call that collects
+            //   the elements, so the sentence below cannot describe a resolution that never
+            //   happened.
+            var results = computer.ComputeElementOptions(categoryOrClass, null, out var resolution);
 
             if (results.Count > 0)
             {
@@ -519,42 +535,34 @@ namespace CoreScript.Engine.Globals
                         + " for a loadable family's symbols use GetElements<FamilySymbol>(\"<Category>\").");
                 }
             }
+            else if (!resolution.IsResolved)
+            {
+                // ⚠⚠ A GENUINE TYPO — and ONLY a typo reaches this throw. The verdict comes from
+                //    the resolver that just failed to match, never from a second function's
+                //    opinion about validity. That separation IS the fix: the old code asked
+                //    `IsKnownElementName` whether the name was real, and that function stripped
+                //    spaces from CLASS names — so `GetElements("Property Lines")`, a name the
+                //    resolver could not resolve (the category is a SUBCATEGORY of Site), was
+                //    certified valid and answered "valid Class or Category with 0 instances".
+                throw new ArgumentException(resolution.UnknownMessage());
+            }
             else
             {
-                var cleanName = categoryOrClass.Trim();
-                var allValidTerms = GetMagicNames();
-
-                // ⚠⚠ A NAME THAT RESOLVES TO A REAL CATEGORY / CLASS / FAMILY IS VALID — the
-                //    document simply has no instances of it (e.g. "Doors" in a project where no
-                //    doors have been placed yet). Return an empty list, but SAY SO.
-                //
-                //    ⚠⚠ This branch used to return SILENTLY for a "magic" name, and because the
-                //    result is built with `track: false` it did not even reach PipelineDiagnostics
-                //    — so `GetElements("Doors")` on a project with 0 doors produced NO output at
-                //    all. An empty list with no explanation is indistinguishable from "the filter
-                //    matched nothing" and from "your query was wrong"; an agent cannot tell
-                //    "there are 0" from "the call did nothing". A query for 0 placed doors must
-                //    report 0 through this (string) form just as plainly as the fallback-to-types
-                //    case above reports its fallback.
-                if (allValidTerms.Any(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase))
-                    || Core.ParameterOptionsComputer.IsKnownElementName(cleanName))
+                // ⚠⚠ A RESOLVED NAME WITH NOTHING IN IT. An empty list is a real answer, but it
+                //    must NAME WHAT IT LOOKED AT. Without that, "there are 0" is indistinguishable
+                //    from "the lookup never happened" — which is exactly how a false zero sent an
+                //    agent off to build a duplicate property line on 2026-10-31.
+                if (resolution.Kind == Core.NameResolutionKind.Enum)
                 {
-                    Println($"[INFO] {cleanName}: valid Class or Category with 0 instances in this document.");
-                    return new PipelineEnumerable<Element>(results, track: false); // Empty list
+                    Println($"[INFO] \"{resolution.Requested}\" is the enum {resolution.Matched}, not an"
+                        + " element class — an enum has no instances to collect. Use ComputeOptions"
+                        + " to list its members.");
                 }
-
-                // --- SUGGESTION ENGINE (for genuine typos only) ---
-                var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
-                var matches = allValidTerms.Where(t => t.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
-                                                       t.StartsWith(cleanName, StringComparison.OrdinalIgnoreCase)).Take(3).ToList();
-
-                if (matches.Any())
+                else
                 {
-                    string suggestions = string.Join("' or '", matches);
-                    throw new ArgumentException($"'{cleanName}' is not a valid Class or Category. Did you mean '{suggestions}'? For a list of supported Hydrations run GetMagicNames().");
+                    Println($"[INFO] \"{resolution.Requested}\" resolved to {resolution.Describe()},"
+                        + " which has 0 instances in this document.");
                 }
-
-                throw new ArgumentException($"'{cleanName}' is not a valid Class or Category. For a list of supported Hydrations run GetMagicNames().");
             }
 
             return new PipelineEnumerable<Element>(results, track: false);
@@ -563,11 +571,12 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Lists all potential "Magic" strings targetable by
         /// <see cref="GetElements(string)">GetElements("Category")</see>.
-        /// Includes Categories, Class names, and Family names available in the document.
+        /// Includes Categories (top level AND subcategories), Class names, and Family names
+        /// available in the document.
         /// </summary>
         public static List<string> GetMagicNames()
         {
-            var docCategories = Doc.Settings.Categories.Cast<Category>().Select(c => c.Name);
+            var docCategories = AllCategoryNames();
             var familyNames = new FilteredElementCollector(Doc).OfClass(typeof(Family)).Cast<Family>().Select(f => f.Name);
 
             // Standard Classes commonly used
@@ -582,14 +591,37 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Lists all Revit categories currently available in the document settings.
+        /// Every category name in the document at ANY depth, top level and subcategories.
+        /// <para>
+        /// ⚠⚠ `Settings.Categories` holds the TOP LEVEL ONLY, and some of the most-wanted
+        /// categories are nested: "Property Lines" is a subcategory of Site. A list built from
+        /// the top level alone omits names that <see cref="GetElements(string)">GetElements("Category")</see>
+        /// can resolve, and an agent reading it concludes the name does not exist.
+        /// </para>
+        /// </summary>
+        private static List<string> AllCategoryNames()
+        {
+            var names = new List<string>();
+            var stack = new Stack<Category>();
+            foreach (Category c in Doc.Settings.Categories) stack.Push(c);
+
+            while (stack.Count > 0)
+            {
+                var c = stack.Pop();
+                names.Add(c.Name);
+                foreach (Category s in c.SubCategories) stack.Push(s);
+            }
+
+            return names.Distinct().OrderBy(s => s).ToList();
+        }
+
+        /// <summary>
+        /// Lists all Revit categories currently available in the document — top level AND
+        /// subcategories, at any depth.
         /// </summary>
         public static List<string> GetCategories()
         {
-            return Doc.Settings.Categories.Cast<Category>()
-                .Select(c => c.Name)
-                .OrderBy(s => s)
-                .ToList();
+            return AllCategoryNames();
         }
     }
 }

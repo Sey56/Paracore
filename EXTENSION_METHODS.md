@@ -53,9 +53,10 @@ GetElements("Doors")                  → untyped Element list
 
 ⚠⚠ **INSTANCES MEAN INSTANCES — a category with none returns ZERO, not its types.**
 `GetElements("Doors")` and `GetElements<FamilyInstance>("Doors")` return the doors **in the model**.
-On a project with no doors they return an **empty list** and report the zero —
-`[INFO] Doors: valid Class or Category with 0 instances in this document.` They never substitute the
-door **types**. Types are still reachable, but only by **asking** for them:
+On a project with no doors they return an **empty list** and report the zero **naming what they
+resolved to** — `[INFO] "Doors" resolved to category "Doors" (id -2000023), which has 0 instances in
+this document.` They never substitute the door **types**. Types are still reachable, but only by
+**asking** for them:
 
 ```
 GetElements<FamilySymbol>("Doors")   → the door symbols (the types)
@@ -71,13 +72,23 @@ class (Doors, Windows, Furniture, Columns, Roofs) whenever the model had 0 insta
 
 ⚠ **A category name is not a class name.** The string in the parentheses is the **PLURAL category
 name** — `"Walls"`, `"Doors"`, `"Structural Columns"`. The space is optional: `"StructuralColumns"`
-resolves to the same category (matching is exact-name, no-space, or a `BuiltInCategory` substring).
+resolves to the same category (matching ignores case, spaces and underscores, and accepts the
+singular). ⚠⚠ **SUBCATEGORIES RESOLVE TOO, AT ANY DEPTH** — `"Property Lines"` is a subcategory of
+**Site**, not a top-level category, and it resolves exactly like one. Before 2026-10-31 the lookup
+walked only the top level, so every nested category answered a confident zero.
+
+⚠ **A CLASS is accepted in the parentheses as well** — `GetElements("PropertyLine")` is
+`GetElements<PropertyLine>()` — but it must be spelled **exactly** as intellisense gives it. A class
+name never contains a space: `"Property Line"` is the **category**, and it resolves as one. Never
+write a space into a class name.
+
 For a **loadable** family the CLASS goes in the angle brackets and the CATEGORY in the parentheses —
 Structural Columns are loadable, so it is `GetElements<FamilyInstance>("Structural Columns")`
 (**there is no `StructuralColumn` type**). A **system** family needs no category at all:
 `GetElements<Wall>()`.
 
-Single-element: `GetElement("name-or-id")` | Discovery: `GetMagicNames()`, `GetCategories()`
+Single-element: `GetElement("name-or-id")` | Discovery: `GetMagicNames()`, `GetCategories()` —
+both list categories at **any depth**, subcategories included.
 
 ---
 

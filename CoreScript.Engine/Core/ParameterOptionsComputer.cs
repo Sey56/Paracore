@@ -15,22 +15,111 @@ namespace CoreScript.Engine.Core
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
         }
 
+        // ─────────────────────────────────────────────────────────────────────────────────
+        // TWO NORMALIZATION RULES, and they must never be mixed up.
+        //
+        //   CATEGORY names are USER-FACING TEXT. The same category is written "Structural
+        //   Framing", "StructuralFraming" and "structuralframing", and all three must resolve
+        //   — that is how every category in the engine behaves. So a CATEGORY key ignores
+        //   case, spaces and underscores, and accepts the singular ("Doors" = "Door").
+        //
+        //   CLASS names are IDENTIFIERS. They are reachable BOTH ways — `GetElements<PropertyLine>()`
+        //   in the angle brackets and `GetElements("PropertyLine")` in the parentheses — but
+        //   always spelled exactly as intellisense gives them, and a class name never contains
+        //   a space. "Property Line" is NOT a class; it is the CATEGORY, and it resolves
+        //   through the category path. Class matching therefore stays EXACT (case-insensitive,
+        //   singular tolerated because `GetElements("Walls")` reading as walls is the point).
+        //
+        //   ⚠⚠ THE DEFECT THIS REPLACES (2026-10-31). `GetElements("Property Lines")` answered
+        //   0 on a document that held one. Two separate faults produced that single lie:
+        //
+        //     1. The CATEGORY path walked only `Document.Settings.Categories` — the TOP LEVEL.
+        //        "Property Lines" is a SUBCATEGORY of Site (id -2001265), so it was never
+        //        looked at. Nothing else separated it from "Structural Framing", which works.
+        //
+        //     2. The zero was then CERTIFIED by `IsKnownElementName`, a different function with
+        //        its own rules — it stripped spaces from CLASS names, so it "knew" PropertyLine
+        //        and reported "valid Class or Category with 0 instances". The sentence claimed
+        //        a resolution that had never happened, and it is indistinguishable from a true
+        //        zero. It sent an agent off to build a duplicate boundary.
+        //
+        //   Hence: ONE normalizer (NameKey), ONE resolver (Resolve), and the message is read
+        //   off the resolver's own verdict (NameResolution). Never ask a second function
+        //   whether the first one's answer was real.
+        // ─────────────────────────────────────────────────────────────────────────────────
+
+        private static string Compact(string s) => s.Replace(" ", "").Replace("_", "").ToLowerInvariant();
+
+        private static string Singularize(string cleanName) =>
+            cleanName.EndsWith("ies", StringComparison.OrdinalIgnoreCase)
+                ? cleanName.Substring(0, cleanName.Length - 3) + "y"
+                : (cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) && !cleanName.EndsWith("ss", StringComparison.OrdinalIgnoreCase)
+                    ? cleanName.Substring(0, cleanName.Length - 1)
+                    : cleanName);
+
+        /// <summary>
+        /// A name prepared for matching, carrying BOTH rules so the caller must choose one
+        /// explicitly: <see cref="MatchesCategory"/> for category text, <see cref="MatchesClass"/>
+        /// for a class identifier. There is deliberately no "default" comparison.
+        /// </summary>
+        private readonly struct NameKey
+        {
+            public readonly string Clean;
+            public readonly string Singular;
+            public readonly string Compact;
+            public readonly string SingularCompact;
+
+            private NameKey(string clean, string singular)
+            {
+                Clean = clean;
+                Singular = singular;
+                Compact = ParameterOptionsComputer.Compact(clean);
+                SingularCompact = ParameterOptionsComputer.Compact(singular);
+            }
+
+            public static NameKey From(string name)
+            {
+                var clean = (name ?? string.Empty).Trim();
+                return new NameKey(clean, Singularize(clean));
+            }
+
+            /// <summary>
+            /// CATEGORY rule — spaces, underscores and case are ignored, singular accepted.
+            /// `"Structural Framing"` == `"StructuralFraming"`.
+            /// </summary>
+            public bool MatchesCategory(string candidate)
+            {
+                if (string.IsNullOrEmpty(candidate)) return false;
+                if (candidate.Equals(Clean, StringComparison.OrdinalIgnoreCase)) return true;
+                if (candidate.Equals(Singular, StringComparison.OrdinalIgnoreCase)) return true;
+
+                var c = ParameterOptionsComputer.Compact(candidate);
+                return c == Compact || c == SingularCompact;
+            }
+
+            /// <summary>
+            /// CLASS rule — EXACT. A class name has no spaces and we never invent one.
+            /// </summary>
+            public bool MatchesClass(string candidate)
+            {
+                if (string.IsNullOrEmpty(candidate)) return false;
+                return candidate.Equals(Clean, StringComparison.OrdinalIgnoreCase)
+                    || candidate.Equals(Singular, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
         public List<string> ComputeOptions(string revitElementType, string? category = null)
         {
             if (string.IsNullOrEmpty(revitElementType)) return new List<string>();
 
-            var cleanName = revitElementType.Trim();
-            var singularName = cleanName.EndsWith("ies", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 3) + "y" : 
-                               (cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) && !cleanName.EndsWith("ss", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName);
+            var key = NameKey.From(revitElementType);
 
             if (_revitTypes == null)
             {
                 _revitTypes = typeof(Element).Assembly.GetTypes();
             }
 
-            var enumType = _revitTypes.FirstOrDefault(t =>
-                (t.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || t.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase)) &&
-                t.IsEnum);
+            var enumType = _revitTypes.FirstOrDefault(t => t.IsEnum && key.MatchesClass(t.Name));
 
             if (enumType != null)
             {
@@ -43,12 +132,24 @@ namespace CoreScript.Engine.Core
 
         public List<Element> ComputeElementOptions(string revitElementType, string? category = null)
         {
+            return ComputeElementOptions(revitElementType, category, out _);
+        }
+
+        /// <summary>
+        /// The same lookup, plus the resolver's verdict — so a caller reporting a ZERO can say
+        /// what the zero is a zero OF. See <see cref="NameResolution">NameResolution</see> for
+        /// why that matters.
+        /// </summary>
+        public List<Element> ComputeElementOptions(string revitElementType, string? category, out NameResolution resolution)
+        {
+            resolution = NameResolution.Unknown((revitElementType ?? string.Empty).Trim());
+
             if (string.IsNullOrEmpty(revitElementType))
             {
                 return new List<Element>();
             }
 
-            try { return GetGenericElements(revitElementType, category).ToList(); }
+            try { return GetGenericElements(revitElementType, category, out resolution).ToList(); }
             catch (Exception ex) { Console.WriteLine($"Error computing options for {revitElementType}: {ex.Message}"); return new List<Element>(); }
         }
 
@@ -123,184 +224,284 @@ namespace CoreScript.Engine.Core
             catch { return new FilteredElementCollector(doc).WhereElementIsNotElementType(); }
         }
 
-        private IEnumerable<Element> GetGenericElements(string targetName, string? categoryFilter = null)
+        /// <summary>
+        /// Every category in the document at ANY depth — top level AND subcategories.
+        /// <para>
+        /// ⚠⚠ A subcategory is a real, addressable category, and several of the ones people ask
+        /// for most live under another one: "Property Lines" is a subcategory of Site. The
+        /// lookup used to enumerate `Settings.Categories` alone, so every nested category was
+        /// invisible and answered a confident zero.
+        /// </para>
+        /// </summary>
+        private IEnumerable<Category> EnumerateCategories()
         {
+            var stack = new Stack<Category>();
+            foreach (Category c in _doc.Settings.Categories) stack.Push(c);
+
+            while (stack.Count > 0)
+            {
+                var c = stack.Pop();
+                yield return c;
+                foreach (Category s in c.SubCategories) stack.Push(s);
+            }
+        }
+
+        private Category? FindCategory(NameKey key)
+        {
+            // An EXACT name wins over a loose one, so "Site" is never displaced by a
+            // subcategory that happens to singularize into the same key.
+            Category? loose = null;
+
+            foreach (var cat in EnumerateCategories())
+            {
+                if (!key.MatchesCategory(cat.Name) && !key.MatchesCategory(Singularize(cat.Name))) continue;
+
+                if (cat.Name.Equals(key.Clean, StringComparison.OrdinalIgnoreCase)) return cat;
+                if (loose == null) loose = cat;
+            }
+
+            return loose;
+        }
+
+        private static BuiltInCategory? FindBuiltInCategory(NameKey key)
+        {
+            foreach (var bic in Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>())
+            {
+                if (bic == BuiltInCategory.INVALID) continue;
+
+                var en = bic.ToString();                                        // OST_MultistoryStairs
+                if (en.Equals(key.Clean, StringComparison.OrdinalIgnoreCase)) return bic;
+                if (en.Equals(key.Singular, StringComparison.OrdinalIgnoreCase)) return bic;
+
+                var enCompact = en.Replace("_", "");                            // OSTMultistoryStairs
+                if (enCompact.Equals("OST" + key.Compact, StringComparison.OrdinalIgnoreCase)) return bic;
+                if (enCompact.Equals("OST" + key.SingularCompact, StringComparison.OrdinalIgnoreCase)) return bic;
+
+                var noPrefix = enCompact.StartsWith("OST", StringComparison.OrdinalIgnoreCase)
+                    ? enCompact.Substring(3)                                    // MultistoryStairs
+                    : enCompact;
+
+                if (noPrefix.Equals(key.Compact, StringComparison.OrdinalIgnoreCase)) return bic;
+                if (noPrefix.Equals(key.SingularCompact, StringComparison.OrdinalIgnoreCase)) return bic;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Resolves a name to a category, a class, or an enum — and says which. This is the ONLY
+        /// place that decides, and the only thing allowed to describe the outcome.
+        /// </summary>
+        public NameResolution Resolve(string revitElementType)
+        {
+            var requested = (revitElementType ?? string.Empty).Trim();
+            if (requested.Length == 0) return NameResolution.Unknown(requested);
+
+            var key = NameKey.From(requested);
+            var asksTypes = key.Clean.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
+
+            if (_revitTypes == null) _revitTypes = typeof(Element).Assembly.GetTypes();
+
+            // 1. ENUM — a valid name, but there are no ELEMENTS to return. `ComputeOptions`
+            //    is the overload that answers with Enum.GetNames; the element overload
+            //    answering empty is by design and the PackSdk relies on it.
+            var enumType = _revitTypes.FirstOrDefault(t => t.IsEnum && key.MatchesClass(t.Name));
+            if (enumType != null)
+            {
+                return new NameResolution
+                {
+                    Kind = NameResolutionKind.Enum,
+                    Requested = key.Clean,
+                    Matched = enumType.Name
+                };
+            }
+
+            // 2. ELEMENT CLASS — EXACT, never space-stripped. "PropertyLine" resolves here;
+            //    "Property Line" does not, because that is the CATEGORY and falls through to
+            //    step 3, which is where it actually belongs.
+            var classType = _revitTypes.FirstOrDefault(t =>
+                t.IsPublic && typeof(Element).IsAssignableFrom(t) && key.MatchesClass(t.Name));
+
+            if (classType != null)
+            {
+                var types = asksTypes || typeof(ElementType).IsAssignableFrom(classType);
+                return new NameResolution
+                {
+                    Kind = types ? NameResolutionKind.TypeClass : NameResolutionKind.ElementClass,
+                    Requested = key.Clean,
+                    Matched = classType.Name,
+                    ClassType = classType,
+                    AsksForTypes = types
+                };
+            }
+
+            // 3. CATEGORY — top level AND subcategories. This is the fix: "Property Lines"
+            //    is a subcategory of Site, id -2001265.
+            var category = FindCategory(key);
+            if (category != null)
+            {
+                return new NameResolution
+                {
+                    Kind = NameResolutionKind.Category,
+                    Requested = key.Clean,
+                    Matched = category.Name,
+                    CategoryId = category.Id,
+                    AsksForTypes = asksTypes
+                };
+            }
+
+            // 4. BuiltInCategory fallback — a category absent from Settings.Categories and with
+            //    no matching class is still addressable by its enum name.
+            var builtin = FindBuiltInCategory(key);
+            if (builtin != null)
+            {
+                return new NameResolution
+                {
+                    Kind = NameResolutionKind.Category,
+                    Requested = key.Clean,
+                    Matched = builtin.Value.ToString(),
+                    CategoryId = new ElementId(builtin.Value),
+                    AsksForTypes = asksTypes
+                };
+            }
+
+            // 5. UNKNOWN — a genuine typo. Suggestions come from names that EXIST, never from
+            //    a second opinion about validity.
+            return NameResolution.Unknown(key.Clean, NearMatches(key));
+        }
+
+        private List<string> NearMatches(NameKey key)
+        {
+            var names = new List<string>();
+
+            if (_revitTypes != null)
+            {
+                names.AddRange(_revitTypes
+                    .Where(t => t.IsPublic && typeof(Element).IsAssignableFrom(t))
+                    .Select(t => t.Name));
+            }
+
+            names.AddRange(EnumerateCategories().Select(c => c.Name));
+
+            return names
+                .Where(n => n.StartsWith(key.Clean, StringComparison.OrdinalIgnoreCase)
+                         || n.StartsWith(key.Singular, StringComparison.OrdinalIgnoreCase)
+                         || key.Clean.StartsWith(n, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n)
+                .Take(3)
+                .ToList();
+        }
+
+        private IEnumerable<Element> GetGenericElements(string targetName, string? categoryFilter, out NameResolution resolution)
+        {
+            resolution = Resolve(targetName);
+
             try
             {
-                var cleanName = targetName.Trim();
-
                 // SPECIAL CASE: Family discovery (Loadable Families)
-                if (cleanName.Equals("Family", StringComparison.OrdinalIgnoreCase))
+                if (resolution.Requested.Equals("Family", StringComparison.OrdinalIgnoreCase))
                 {
                     var familyCollector = new FilteredElementCollector(_doc).OfClass(typeof(Family));
                     var families = familyCollector.Cast<Family>();
 
                     if (!string.IsNullOrEmpty(categoryFilter))
                     {
+                        var filterKey = NameKey.From(categoryFilter);
                         families = families.Where(f =>
-                            f.FamilyCategory?.Name.Equals(categoryFilter, StringComparison.OrdinalIgnoreCase) == true ||
-                            f.FamilyCategory?.BuiltInCategory.ToString().Contains(categoryFilter) == true);
+                            f.FamilyCategory != null && CategoryFilterMatches(filterKey, f.FamilyCategory));
                     }
 
                     return families.Cast<Element>();
                 }
 
-                var isTypeRequested = cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
-                                       
-                var singularName = cleanName.EndsWith("ies", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 3) + "y" : 
-                                   (cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) && !cleanName.EndsWith("ss", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName);
-
-                // Enum Discovery — for types like BuiltInParameter, BuiltInCategory, etc.
-                if (_revitTypes == null)
+                switch (resolution.Kind)
                 {
-                    _revitTypes = typeof(Element).Assembly.GetTypes();
-                }
+                    case NameResolutionKind.Unknown:
+                    case NameResolutionKind.Enum:
+                        return Enumerable.Empty<Element>();
 
-                var enumType = _revitTypes.FirstOrDefault(t =>
-                    (t.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || t.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase)) &&
-                    t.IsEnum);
-
-                if (enumType != null)
-                {
-                    // Enums don't return elements, so we skip them here or handle them specifically if needed for filters.
-                    // For now, return empty as filters usually apply to Elements.
-                    return Enumerable.Empty<Element>();
-                }
-
-                // Pure Class-Based Discovery
-                var classType = _revitTypes.FirstOrDefault(t =>
-                    (t.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || t.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase)) &&
-                    typeof(Element).IsAssignableFrom(t));
-
-                if (classType != null)
-                {
-                    var collector = CreateResilientCollector(_doc, classType);
-                    IEnumerable<Element> elements = collector.Cast<Element>().Where(e => classType.IsAssignableFrom(e.GetType()));
-
-                    // Filter Types vs Instances
-                    if (typeof(ElementType).IsAssignableFrom(classType) || isTypeRequested)
+                    case NameResolutionKind.Category when resolution.CategoryId != null:
                     {
-                        elements = elements.Where(e => e is ElementType);
-                    }
-                    else
-                    {
-                        elements = elements.Where(e => !(e is ElementType));
-                    }
+                        var collector = new FilteredElementCollector(_doc).OfCategoryId(resolution.CategoryId);
+                        var results = resolution.AsksForTypes
+                            ? collector.WhereElementIsElementType().Cast<Element>().ToList()
+                            : collector.WhereElementIsNotElementType().Cast<Element>().ToList();
 
-                    // Apply Optional Category Filter (e.g. from RevitElements attribute)
-                    if (!string.IsNullOrEmpty(categoryFilter))
-                    {
-                        var filterSingular = categoryFilter.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? categoryFilter.Substring(0, categoryFilter.Length - 1) : categoryFilter;
-                        elements = elements.Where(e =>
-                            e.Category?.Name.Equals(categoryFilter, StringComparison.OrdinalIgnoreCase) == true ||
-                            e.Category?.Name.Replace(" ", "").EndsWith(filterSingular, StringComparison.OrdinalIgnoreCase) == true ||
-                            e.Category?.BuiltInCategory.ToString().Contains(categoryFilter) == true);
-                    }
-
-                    return elements;
-                }
-
-                // --- ROBUST CATEGORY DISCOVERY (V4.2.0) ---
-                // Matching is lenient: exact name, singular, or with spaces removed — so
-                // "Multistory Stairs" and "MultistoryStairs" both resolve to the same category.
-                var baseCategoryName = cleanName;
-                var baseCompact = baseCategoryName.Replace(" ", "");
-                var singularCompact = singularName.Replace(" ", "");
-
-                Category? matchedCategory = null;
-                foreach (Category cat in _doc.Settings.Categories)
-                {
-                    var catSingular = cat.Name.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cat.Name.Substring(0, cat.Name.Length - 1) : cat.Name;
-                    var catCompact = cat.Name.Replace(" ", "");
-                    var catSingularCompact = catSingular.Replace(" ", "");
-
-                    if (cat.Name.Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) || 
-                        cat.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
-                        catSingular.Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) ||
-                        catSingular.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
-                        catCompact.Equals(baseCompact, StringComparison.OrdinalIgnoreCase) ||
-                        catCompact.Equals(singularCompact, StringComparison.OrdinalIgnoreCase) ||
-                        catSingularCompact.Equals(baseCompact, StringComparison.OrdinalIgnoreCase) ||
-                        catSingularCompact.Equals(singularCompact, StringComparison.OrdinalIgnoreCase))
-                    {
-                        matchedCategory = cat;
-                        break;
+                        // ⚠⚠ INSTANCES MEAN INSTANCES — the "automatic type fallback" that used to
+                        //    sit here was REMOVED on 2026-10-14. It returned the category's ElementTypes
+                        //    whenever the category had 0 instances, so `GetElements("Doors")` on a
+                        //    project with no doors answered with door TYPES: objects that .Count()
+                        //    counts as instances, .Delete() deletes (taking every instance of the type
+                        //    with them) and .SetVal() writes to the TYPE of. One easy-to-miss INFO line
+                        //    was the only signal, and the trap caught a live build on 2026-10-10.
+                        //
+                        //    ⚠ Types are still reachable — but only by ASKING for them:
+                        //      GetElements<FamilySymbol>("Doors")  — a loadable family's symbols
+                        //      GetElements<WallType>()             — a system family's types
+                        //      GetElements("WallType")             — a name that is itself a type name
+                        //    A category with 0 instances returns an EMPTY list, and
+                        //    ScriptApi.GetElements reports that zero instead of substituting types.
+                        return results;
                     }
                 }
 
-                ElementId? categoryId = matchedCategory?.Id;
+                var classType = resolution.ClassType;
+                if (classType == null) return Enumerable.Empty<Element>();
 
-                // Fallback to Built-in Enum mapping (covers OST_ prefix and standard Enum names)
-                // The normalized comparisons make "Multistory Stairs" match OST_MultistoryStairs
-                // even though that category is not present in Settings.Categories.
-                if (categoryId == null)
+                var classCollector = CreateResilientCollector(_doc, classType);
+                IEnumerable<Element> elements = classCollector.Cast<Element>().Where(e => classType.IsAssignableFrom(e.GetType()));
+
+                // Filter Types vs Instances
+                elements = resolution.AsksForTypes
+                    ? elements.Where(e => e is ElementType)
+                    : elements.Where(e => !(e is ElementType));
+
+                // Apply Optional Category Filter (e.g. from RevitElements attribute)
+                if (!string.IsNullOrEmpty(categoryFilter))
                 {
-                    var builtin = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>()
-                        .FirstOrDefault(c =>
-                        {
-                            var en = c.ToString(); // e.g. "OST_MultistoryStairs"
-                            var enCompact = en.Replace("_", "").Replace(" ", ""); // "OSTMultistoryStairs"
-                            var enNoPrefix = enCompact.StartsWith("OST", StringComparison.OrdinalIgnoreCase)
-                                ? enCompact.Substring(3) // "MultistoryStairs"
-                                : enCompact;
-
-                            return en.Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) ||
-                                   en.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
-                                   en.Equals($"OST_{baseCategoryName}", StringComparison.OrdinalIgnoreCase) ||
-                                   en.Equals($"OST_{singularName}", StringComparison.OrdinalIgnoreCase) ||
-                                   en.Equals($"OST_{baseCategoryName}s", StringComparison.OrdinalIgnoreCase) ||
-                                   en.Equals($"OST_{singularName}s", StringComparison.OrdinalIgnoreCase) ||
-                                   enCompact.Equals("OST" + baseCompact, StringComparison.OrdinalIgnoreCase) ||
-                                   enCompact.Equals("OST" + singularCompact, StringComparison.OrdinalIgnoreCase) ||
-                                   enNoPrefix.Equals(baseCompact, StringComparison.OrdinalIgnoreCase) ||
-                                   enNoPrefix.Equals(singularCompact, StringComparison.OrdinalIgnoreCase);
-                        });
-
-                    if (builtin != default) categoryId = new ElementId(builtin);
+                    var filterKey = NameKey.From(categoryFilter);
+                    elements = elements.Where(e => e.Category != null && CategoryFilterMatches(filterKey, e.Category));
                 }
 
-                if (categoryId != null)
-                {
-                    var collector = new FilteredElementCollector(_doc).OfCategoryId(categoryId);
-                    var results = isTypeRequested 
-                        ? collector.WhereElementIsElementType().Cast<Element>().ToList()
-                        : collector.WhereElementIsNotElementType().Cast<Element>().ToList();
-
-                    // ⚠⚠ INSTANCES MEAN INSTANCES — the "automatic type fallback" that used to sit
-                    //    here was REMOVED on 2026-10-14. It returned the category's ElementTypes
-                    //    whenever the category had 0 instances, so `GetElements("Doors")` on a
-                    //    project with no doors answered with door TYPES: objects that .Count()
-                    //    counts as instances, .Delete() deletes (taking every instance of the type
-                    //    with them) and .SetVal() writes to the TYPE of. One easy-to-miss INFO line
-                    //    was the only signal, and the trap caught a live build on 2026-10-10.
-                    //
-                    //    ⚠ Types are still reachable — but only by ASKING for them:
-                    //      GetElements<FamilySymbol>("Doors")  — a loadable family's symbols
-                    //      GetElements<WallType>()             — a system family's types
-                    //      GetElements("WallType")             — a name that is itself a type name
-                    //    A category with 0 instances now returns an EMPTY list, and
-                    //    ScriptApi.GetElements reports that zero instead of substituting types.
-                    return results;
-                }
-
-                return Enumerable.Empty<Element>();
+                return elements;
             }
             catch (Exception ex) { Console.WriteLine($"[OptionsComputer] Error: {ex.Message}"); return Enumerable.Empty<Element>(); }
         }
 
+        private static bool CategoryFilterMatches(NameKey key, Category category)
+        {
+            if (key.MatchesCategory(category.Name)) return true;
+            if (key.MatchesCategory(Singularize(category.Name))) return true;
+
+            // Last resort: the BuiltInCategory name, for categories whose display name differs
+            // from the enum ("Structural Framing" vs OST_StructuralFraming).
+            var bic = category.BuiltInCategory.ToString();
+            return bic.IndexOf(key.Compact, StringComparison.OrdinalIgnoreCase) >= 0
+                || bic.IndexOf(key.SingularCompact, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         /// <summary>
-        /// True if the name matches any Revit Element subclass (exact, singular, or with spaces
-        /// removed) or any BuiltInCategory name (with/without the OST_ prefix, spaces and
-        /// underscores ignored). Used to distinguish "valid but empty" names from genuine typos:
-        /// e.g. "MultistoryStairs" is a real class even when the document has no instances.
+        /// Document-free validity check: is this name an ELEMENT CLASS, an ENUM, or a
+        /// BuiltInCategory member?
+        /// <para>
+        /// ⚠ It cannot see CATEGORIES — those live on the document — so
+        /// <see cref="Resolve">Resolve</see> is the authoritative answer wherever a document is
+        /// available.
+        /// </para>
+        /// <para>
+        /// ⚠⚠ It used to strip spaces from CLASS names, so it called "Property Lines" a valid
+        /// class while the resolver could not resolve it. Two functions disagreeing about the
+        /// same name produced a false "valid Class or Category with 0 instances". Class matching
+        /// here is now EXACT, identical to the resolver's rule.
+        /// </para>
         /// </summary>
         public static bool IsKnownElementName(string name)
         {
-            var cleanName = name.Trim();
-            if (string.IsNullOrEmpty(cleanName)) return false;
+            var requested = (name ?? string.Empty).Trim();
+            if (requested.Length == 0) return false;
 
-            var singularName = cleanName.EndsWith("ies", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 3) + "y" :
-                               (cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) && !cleanName.EndsWith("ss", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName);
+            var key = NameKey.From(requested);
 
             if (_revitTypes == null)
             {
@@ -308,37 +509,13 @@ namespace CoreScript.Engine.Core
                 catch { return false; } // leave null so future calls can retry
             }
 
-            var cleanCompact = cleanName.Replace(" ", "");
-            var singularCompact = singularName.Replace(" ", "");
-
-            // Revit Element subclass names
             foreach (var t in _revitTypes)
             {
-                if (!typeof(Element).IsAssignableFrom(t)) continue;
-                var tName = t.Name;
-                if (tName.Equals(cleanName, StringComparison.OrdinalIgnoreCase) ||
-                    tName.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
-                    tName.Replace(" ", "").Equals(cleanCompact, StringComparison.OrdinalIgnoreCase) ||
-                    tName.Replace(" ", "").Equals(singularCompact, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+                if (t.IsEnum && key.MatchesClass(t.Name)) return true;
+                if (t.IsPublic && typeof(Element).IsAssignableFrom(t) && key.MatchesClass(t.Name)) return true;
             }
 
-            // BuiltInCategory names (OST_ prefix, spaces and underscores normalized)
-            foreach (var bicName in Enum.GetNames(typeof(BuiltInCategory)))
-            {
-                var compact = bicName.Replace("_", "").Replace(" ", "");
-                var noPrefix = compact.StartsWith("OST", StringComparison.OrdinalIgnoreCase) ? compact.Substring(3) : compact;
-                if (compact.Equals("OST" + cleanCompact, StringComparison.OrdinalIgnoreCase) ||
-                    noPrefix.Equals(cleanCompact, StringComparison.OrdinalIgnoreCase) ||
-                    noPrefix.Equals(singularCompact, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return FindBuiltInCategory(key) != null;
         }
     }
 }
