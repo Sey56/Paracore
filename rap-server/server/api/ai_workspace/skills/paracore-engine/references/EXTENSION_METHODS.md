@@ -1291,7 +1291,7 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 
 ### A.2 Global `ScriptApi` surface — no prefix
 
-**46 members · 34 distinct names · 4 source files.**
+**67 members · 55 distinct names · 5 source files.**
 
 Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. ⚠ These are NOT extension methods — the `this` test does not see them, which is why this half of the reference used to drift on its own.
 
@@ -1316,6 +1316,32 @@ Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. 
 | `Checkpoints` | `IReadOnlyList<Checkpoint> Checkpoints()` |
 | `DropCheckpoint` | `bool DropCheckpoint(string name)` |
 | `RollbackTo` | `BatchReport RollbackTo(string name, bool confirm = false)` |
+
+#### `Globals/ScriptApi.Files.cs`
+
+| Member | Signature |
+| --- | --- |
+| `Root` | `string Root` |
+| `DefaultRoot` | `string DefaultRoot` |
+| `Resolve` | `string Resolve(string path)` |
+| `ResolveIn` | `string ResolveIn(string path, string root, bool confine = true)` |
+| `Exists` | `bool Exists(string path)` |
+| `Size` | `long Size(string path)` |
+| `ModifiedUtc` | `DateTime ModifiedUtc(string path)` |
+| `ReadText` | `string ReadText(string path)` |
+| `ReadLines` | `string[] ReadLines(string path)` |
+| `ReadBytes` | `byte[] ReadBytes(string path)` |
+| `WriteText` | `string WriteText(string path, string text)` |
+| `AppendText` | `string AppendText(string path, string text)` |
+| `WriteLines` | `string WriteLines(string path, IEnumerable<string> lines)` |
+| `WriteBytes` | `string WriteBytes(string path, byte[] bytes)` |
+| `List` | `string[] List(string? directory = null, string pattern = "*")` |
+| `Dirs` | `string[] Dirs(string? directory = null)` |
+| `CreateDirectory` | `string CreateDirectory(string path)` |
+| `Copy` | `string Copy(string from, string to, bool overwrite = false)` |
+| `Move` | `string Move(string from, string to)` |
+| `Delete` | `void Delete(string path)` |
+| `DeleteDirectory` | `void DeleteDirectory(string path)` |
 
 #### `Globals/ScriptApi.ViewExport.cs`
 
