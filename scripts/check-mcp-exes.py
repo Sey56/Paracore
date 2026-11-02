@@ -14,11 +14,23 @@ see into the compressed PKG at all (it returns 0 for text that IS present — ve
       `PYZ.pyz`, so a filename lookup for `mcp_core/tool_helpers.py` finds NOTHING — and a
       checker that stops there reports "clean" for a file it never opened. (The first version of
       this script did exactly that.) For a module, open the PYZ, extract the module's code
-      object, and probe it for a SENTINEL string that only the current source contains.
+      object, and probe it for an ANCHOR string that only the current source contains.
+
+⚠⚠ "ANCHOR", NOT "SENTINEL" (renamed 2026-11-01). This ecosystem already uses the word
+   "sentinel" for two other things and a third meaning made reports ambiguous:
+     * the **Sentinel / watchdog surface** — `sentinel-surface` and `sentinel-teeth` gates. A
+       script writes it, and the desktop app can run it as a background process. That is a
+       PRODUCT feature.
+     * the **END-OF-MEMORY SENTINEL** — the last line of an injected `MEMORY.md`, checked by
+       `check-memory-budget.py`. A truncation detector.
+     * THIS file's string — a literal that proves a frozen exe carried an edit. Nothing is
+       written, nothing runs, no process is started.
+   The third is now called an ANCHOR everywhere here. Do not rename it back: saying "I
+   retargeted the sentinel" reads as a change to the watchdog, which it is not.
 
     the rule — an exe is STALE if ANY of these holds:
         * it carries a version of a file that has since changed (data: byte-compared;
-          module: sentinel-probed — a sentinel survives a body rewrite, so this is the
+          module: anchor-probed — an anchor survives a body rewrite, so this is the
           weak half, which is why the two rules below exist);
         * the exe is OLDER than the newest `mcp_core/*.py` — a build that predates the
           source cannot contain it, and that needs only two mtimes;
@@ -57,7 +69,7 @@ CORE_REPO = os.path.join(ECOSYSTEM, "paracore-mcp-core")
 CORE = os.path.join(CORE_REPO, "mcp_core")
 FORGE = os.path.join(ECOSYSTEM, "paracore-forge")
 
-# (suffix in the bundle, source on disk, module name or None for a data file, sentinel)
+# (suffix in the bundle, source on disk, module name or None for a data file, anchor)
 TRACKED = [
     # ── data files: byte-compared ──────────────────────────────────────────────
     # ⚠ RETARGETED 2026-10-27: this was `mcp_core/prompts/script-rules.md`. That file was
@@ -66,17 +78,17 @@ TRACKED = [
     #   that IS read (`get_globals` → `paracore://globals`), so it is what this watches now.
     ("mcp_core/prompts/globals.md", os.path.join(CORE, "prompts", "globals.md"), None, None),
     ("forge_core/prompts/script-rules.md", os.path.join(FORGE, "forge_core", "prompts", "script-rules.md"), None, None),
-    # ── python modules: sentinel-probed in the PYZ ─────────────────────────────
-    # ⚠ Each sentinel is a string that ONLY the current source contains. It proves "this build
+    # ── python modules: anchor-probed in the PYZ ─────────────────────────────
+    # ⚠ Each anchor is a string that ONLY the current source contains. It proves "this build
     #   includes the edit", not "every line matches" — a rebuild that carried the string but not
     #   the behaviour is not caught by this. That is what the unit tests and live probes are for.
     (
         "mcp_core/tool_helpers.py",
         os.path.join(CORE, "tool_helpers.py"),
         "mcp_core.tool_helpers",
-        # ⚠ RETARGETED 2026-10-27 (round 3) — the round-2 sentinel was in the exes built at
+        # ⚠ RETARGETED 2026-10-27 (round 3) — the round-2 anchor was in the exes built at
         #   10:27, so this gate called them "current" while the sources were 22 minutes newer
-        #   (edited 10:48–10:50). Third time these anchors have rotted: a sentinel only proves
+        #   (edited 10:48–10:50). Third time these anchors have rotted: an anchor only proves
         #   the build has the edit it was written for. Retarget, never delete.
         #   This string is the `_head_sections` trailer — round 3's truncation fix.
         # ⚠ RETARGETED AGAIN 2026-10-27 (round 5): round 5 rewrote the error messages that
@@ -85,7 +97,14 @@ TRACKED = [
         #   called it `read_extension_methods`, a tool that does not exist. The round-3
         #   `_head_sections` trailer is untouched by that edit and would still pass, so it
         #   cannot prove a round-5 build. This literal is round-5 only.
-        "TOOL for the complete method catalog",
+        # ⚠ RETARGETED 2026-11-01 — the round-5 anchor was itself rotten for today's edit.
+        #   Today closed four measured scan bypasses in `_AGENT_FILE_POLICY` (instance
+        #   `FileInfo`/`DirectoryInfo` creation, `FileMode.Append`, and the `Process` instance
+        #   forms). None of those touch the round-5 message, so a build that PREDATED the edit
+        #   would still have passed this gate — a green that proves nothing about the change it
+        #   was supposed to guard. The literal below is a refusal REASON that exists only in the
+        #   post-edit source, so it cannot pass unless the exe carries the new patterns.
+        "create or truncate a file through FileInfo",
     ),
     (
         "mcp_core/tools.py",
@@ -93,7 +112,7 @@ TRACKED = [
         "mcp_core.tools",
         # ⚠ RETARGETED 2026-10-27 (round 4): the ping cheat-sheet gained a TRUNCATION
         #   section explaining which tables are never cut vs capped at 50. The round-3
-        #   sentinel `Id = e.Id.Value` is still in the source, so it cannot distinguish a
+        #   anchor `Id = e.Id.Value` is still in the source, so it cannot distinguish a
         #   round-4 build from a round-3 one. This string is round-4 only.
         # ⚠ RETARGETED AGAIN 2026-10-27 (round 5): the schema usage example stopped being a
         #   fixed template and is now DERIVED from the parameter rows above it — the template
@@ -110,7 +129,7 @@ TRACKED = [
         # ⚠ RETARGETED 2026-10-27 (round 4): the summarizer now exempts cap-exempt tables
         #   (schema/discovery) from the 50-row cap. The header for an exempt table says
         #   "shown in full" — a string the pre-round-4 summarizer never produced. The
-        #   round-2 sentinel about "FIRST and LAST lines" is still present, so it could
+        #   round-2 anchor about "FIRST and LAST lines" is still present, so it could
         #   not distinguish a round-4 build.
         # ⚠ RETARGETED AGAIN 2026-10-27 (round 5): floats now render at 12 significant digits,
         #   so `3.0000000000000004` reads `3`, and the TOTALS line uses the same formatter
@@ -123,17 +142,17 @@ TRACKED = [
         os.path.join(CORE, "server.py"),
         "mcp_core.server",
         # ⚠ RETARGETED 2026-10-27 (round 4): `create_server` gained `omit_common` so the
-        #   gen domain can drop `pick_object` from its tool surface. The round-3 sentinel
+        #   gen domain can drop `pick_object` from its tool surface. The round-3 anchor
         #   "with a trailer saying where it stopped" is still in the source, so it could
         #   not distinguish a round-4 build. `omit=omit_common` is round-4 only.
         # ⚠⚠ RETARGETED AGAIN 2026-10-27 (release test): `omit=omit_common` was NEVER a valid
         #   anchor. It is source SYNTAX — a keyword argument — so it compiles to a LOAD_FAST
         #   plus the kwarg NAME "omit", never to a string constant. consts_contain() scans
-        #   string constants, so this row reported "sentinel absent" for EVERY build, and no
+        #   string constants, so this row reported "anchor absent" for EVERY build, and no
         #   rebuild could ever clear it. Measured: all five installed exes (23:46–23:49, each
         #   byte-identical to its dist/) carried 50 of the 57 long literals in this file and
         #   every round-5 dialog-watcher string, while this literal was absent from all five.
-        #   ⇒ A sentinel must be a string the COMPILER emits, not text the SOURCE shows.
+        #   ⇒ A anchor must be a string the COMPILER emits, not text the SOURCE shows.
         #   This string is the Watcher block added in round 5; it is a plain constant.
         # ⚠ RETARGETED 2026-10-28 (Pick removal): `pick_object` is retired from every agent
         #   surface and `COMMON_RULES` now carries the ban. "PARACORE DIALOG WATCHER" is
@@ -189,7 +208,7 @@ def consts_contain(code, needle: str) -> bool:
     tuples, and CPython folds that into ONE tuple constant — so a scan that only looked at
     `str` constants and nested code objects missed every message in it and reported the
     current build as STALE. Measured 2026-10-27: `paracore-gen/dist` (built 3 min after the
-    edit) was called stale for `tool_helpers.py` while its `tools.py` — whose sentinel is a
+    edit) was called stale for `tool_helpers.py` while its `tools.py` — whose anchor is a
     plain docstring — passed. The difference was the container, not the build.
     """
     seen: set[int] = set()
@@ -293,10 +312,10 @@ def check(exe: str) -> tuple[bool, list[str]]:
     # ⚠⚠ ADDED 2026-10-29. NOTHING compared the exe's BUILD TIME to the core it bundles, so
     #   four of the five servers passed this gate — family (10-28 07:39), model (07:40),
     #   takeoff (07:47), forge (07:54) — while `mcp_core/tools.py` had been rewritten at
-    #   05:43 the NEXT day and `tool_helpers.py` at 04:48. The sentinel check cannot see
-    #   that: a sentinel is a string that SURVIVES a body rewrite, so a stale build keeps
+    #   05:43 the NEXT day and `tool_helpers.py` at 04:48. The anchor check cannot see
+    #   that: an anchor is a string that SURVIVES a body rewrite, so a stale build keeps
     #   passing it. A build that predates the source cannot contain the source, and that
-    #   needs no archive reading and no sentinel — only two mtimes.
+    #   needs no archive reading and no anchor — only two mtimes.
     # ⚠⚠ DEMOTED 2026-10-30 — THE SPLIT TOOK THE GROUND OUT FROM UNDER THIS RULE.
     #   `mcp_core` now lives in its own repo, and every copy or clone stamps the whole tree
     #   with "now". Measured: the same 57,250-byte `tools.py` read 10-29 14:03 in the old
@@ -437,7 +456,7 @@ def check(exe: str) -> tuple[bool, list[str]]:
 
         stale = 0
         examined = 0
-        for suffix, source, module, sentinel in TRACKED:
+        for suffix, source, module, anchor in TRACKED:
             if not os.path.isfile(source):
                 continue
 
@@ -459,12 +478,12 @@ def check(exe: str) -> tuple[bool, list[str]]:
                 if not pyz or module not in pyz_toc:
                     continue  # module not bundled — not a dependency
                 examined += 1
-                if consts_contain(pyz.extract(module), sentinel):
-                    print(f"  {suffix:38} ok      sentinel present")
+                if consts_contain(pyz.extract(module), anchor):
+                    print(f"  {suffix:38} ok      anchor present")
                 else:
                     stale += 1
-                    problems.append(f"{name}: {suffix} is STALE (sentinel absent)")
-                    print(f"  {suffix:38} ⚠ STALE sentinel absent")
+                    problems.append(f"{name}: {suffix} is STALE (anchor absent)")
+                    print(f"  {suffix:38} ⚠ STALE anchor absent")
 
         if examined == 0:
             # ⚠ Say it. "Nothing to compare" must never be mistaken for "all good".

@@ -37,6 +37,16 @@
 # => The revision is printed below, and the "installed vs newest source" line is the
 #    hash-independent answer to "is the live engine current?". Trust THAT, not the hash.
 #
+# ⚠ HASHING IS DONE IN .NET, NOT WITH Get-FileHash (2026-11-01)
+# --------------------------------------------------------------
+# `Get-FileHash` did not resolve in the PowerShell that install-engine.cmd spawned from a pwsh 7
+# prompt, so both reports printed a CommandNotFoundException and NO hash at all. That was
+# survivable, but the comparison logic below would have treated two missing hashes as EQUAL and
+# printed "LIVE IN REVIT: Debug" - a false green from a tool whose only job is to prevent one.
+# So: hash via System.Security.Cryptography (no module to autoload), return $null on failure,
+# and make every comparison refuse to conclude anything from a $null. The PS version is printed
+# so the next occurrence is diagnosable instead of mysterious.
+#
 # NB: Windows client defaults every execution-policy scope to Undefined, i.e. Restricted, so a
 # bare `& script.ps1` FAILS with "running scripts is disabled on this system". Callers must use
 #   powershell -NoProfile -ExecutionPolicy Bypass -File "<this>"
@@ -47,6 +57,19 @@ $Root      = Split-Path -Parent $PSScriptRoot
 $DebugDll  = Join-Path $Root 'CoreScript.Engine\bin\Debug\net8.0-windows\win-x64\CoreScript.Engine.dll'
 $RelDll    = Join-Path $Root 'CoreScript.Engine\bin\Release\net8.0-windows\win-x64\CoreScript.Engine.dll'
 $Installed = 'C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\CoreScript.Engine.dll'
+
+# SHA256 (first 16 hex) with no module dependency. $null means "could not hash", and every
+# caller must treat $null as "no answer" - never as a value that can be compared.
+function Get-Sha16([string]$Path) {
+    try {
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $fs = [System.IO.File]::OpenRead($Path)
+            try { $bytes = $sha.ComputeHash($fs) } finally { $fs.Dispose() }
+        } finally { $sha.Dispose() }
+        return ([BitConverter]::ToString($bytes) -replace '-', '').Substring(0, 16).ToLowerInvariant()
+    } catch { return $null }
+}
 
 function Get-EngineInfo([string]$Path) {
     if (-not (Test-Path $Path)) { return $null }
@@ -65,7 +88,7 @@ function Get-EngineInfo([string]$Path) {
     [pscustomobject]@{
         Size = $f.Length
         Time = $f.LastWriteTime
-        Hash = (Get-FileHash $Path -Algorithm SHA256).Hash.Substring(0, 16)
+        Hash = Get-Sha16 $Path
         Rev  = $rev
     }
 }
@@ -75,8 +98,9 @@ function Show-Row([string]$Label, $Info) {
         Write-Host ("  {0,-10} {1}" -f $Label, '(not built)')
         return
     }
+    $hash = if ($Info.Hash) { $Info.Hash } else { '(HASH FAILED)' }
     Write-Host ("  {0,-10} {1,10:N0} B   {2:yyyy-MM-dd HH:mm:ss}   {3}   rev {4}" -f `
-        $Label, $Info.Size, $Info.Time, $Info.Hash, $Info.Rev)
+        $Label, $Info.Size, $Info.Time, $hash, $Info.Rev)
 }
 
 $dbg = Get-EngineInfo $DebugDll
@@ -85,6 +109,7 @@ $ins = Get-EngineInfo $Installed
 
 Write-Host ''
 Write-Host '=== CoreScript.Engine builds ===' -ForegroundColor Cyan
+Write-Host ("  host: PowerShell {0}" -f $PSVersionTable.PSVersion) -ForegroundColor DarkGray
 Show-Row 'Debug'     $dbg
 Show-Row 'Release'   $rel
 Show-Row 'INSTALLED' $ins
@@ -96,16 +121,24 @@ $newestSrc = Get-ChildItem (Join-Path $Root 'CoreScript.Engine') -Recurse -Filte
              Select-Object -First 1
 
 # --- which config is live in Revit? -----------------------------------------
+# ⚠ A $null hash must never satisfy `-eq`: two failures would look like a match and this tool
+#   would report a confident "Debug" while knowing nothing. Every test below requires a hash.
+$live = 'unknown (installed DLL matches neither build output)'
+$liveColor = 'Red'
+
 if ($null -ne $ins) {
-    $live = 'unknown (installed DLL matches neither build output)'
-    $liveColor = 'Red'
-    if ($null -ne $dbg -and $ins.Hash -eq $dbg.Hash) {
+    if ($ins.Hash -and $dbg -and $dbg.Hash -and $ins.Hash -eq $dbg.Hash) {
         $live = 'Debug'
         $liveColor = 'Green'
-    } elseif ($null -ne $rel -and $ins.Hash -eq $rel.Hash) {
+    } elseif ($ins.Hash -and $rel -and $rel.Hash -and $ins.Hash -eq $rel.Hash) {
         $live = 'Release'
         $liveColor = 'Yellow'
+    } elseif (-not $ins.Hash) {
+        $live = 'unknown (the installed DLL could not be hashed - see the row above)'
     }
+}
+
+if ($null -ne $ins) {
     Write-Host ''
     Write-Host ("  LIVE IN REVIT: {0}" -f $live) -ForegroundColor $liveColor
 
@@ -152,7 +185,9 @@ if ($null -ne $ins -and $null -ne $newestSrc) {
 # --- what will copying change? ---------------------------------------------
 if ($null -ne $ins -and $null -ne $dbg) {
     Write-Host ''
-    if ($ins.Hash -eq $dbg.Hash) {
+    if (-not $ins.Hash -or -not $dbg.Hash) {
+        Write-Host '  Cannot say - one of the two DLLs could not be hashed (see the rows above).' -ForegroundColor Red
+    } elseif ($ins.Hash -eq $dbg.Hash) {
         Write-Host '  Copying would be a NO-OP (installed already == Debug build).' -ForegroundColor DarkGray
     } elseif ($ins.Size -eq $dbg.Size -and $ins.Rev -ne $dbg.Rev) {
         Write-Host '  Copying would rewrite the installed engine with a Debug build whose CODE is' -ForegroundColor DarkGray
