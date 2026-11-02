@@ -5,8 +5,10 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace CoreScript.Engine.Core.Rewriters
 {
     /// <summary>
-    /// Roslyn syntax rewriter that injects timeout checks into all loop constructs.
-    /// This prevents infinite loops from freezing Revit by checking execution time on each iteration.
+    /// Roslyn syntax rewriter that injects a budget check into all loop constructs.
+    /// This prevents infinite loops from freezing Revit by checking execution time on each
+    /// iteration, and catches a loop that allocates without bound (see
+    /// <c>ExecutionGlobals.CheckBudget</c> — the memory half is sampled every 64th pass).
     ///
     /// ⚠⚠ WHAT THIS CANNOT COVER (measured live 2026-10-27, pre-release review). The check is a
     /// STATEMENT injected into a loop body that exists in the script's OWN syntax. It therefore
@@ -18,13 +20,16 @@ namespace CoreScript.Engine.Core.Rewriters
     ///     .Select(…).ToList() has no loop statement here to inject into, so it runs to the end.
     ///     Revit stays frozen; the client gives up at its own gRPC deadline and reports "Revit did
     ///     not answer" while Revit is still busy.
+    ///   * a ONE-SHOT allocation — `new byte[2_000_000_000]` outside a loop is a single IL
+    ///     `newarr` and is not refused (CoreCLR has no memory limit to set; see
+    ///     ExecutionGlobals.CheckBudget). Only an ACCUMULATING runaway is caught.
     /// Cancelling a thread mid-call would need a separate process or Thread.Abort, which .NET 8
     /// does not support. So this is a loop guard, not a kill switch — say so, do not imply more.
     /// </summary>
     public class TimeoutRewriter : CSharpSyntaxRewriter
     {
         private static readonly StatementSyntax TimeoutCheckStatement =
-            SyntaxFactory.ParseStatement("CoreScript.Engine.Globals.ExecutionGlobals.CheckTimeout();");
+            SyntaxFactory.ParseStatement("CoreScript.Engine.Globals.ExecutionGlobals.CheckBudget();");
 
         // ⚠ LAMBDAS TOO (added 2026-10-27). A spin written inside a LINQ predicate —
         //   list.Where(x => { while (…) { … } return true; }) — is a loop body in the script's

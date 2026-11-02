@@ -39,12 +39,13 @@ namespace CoreScript.Engine.Runtime
     /// <para><b>⚠⚠ LOOPS ARE NOT THIS CLASS'S JOB — DO NOT ADD A DEADLINE HERE.</b>
     /// A <c>while</c> loop consumes no stack, so no stack check can see it. Loops are already
     /// covered by a separate, script-facing mechanism: <c>TimeoutRewriter</c> injects
-    /// <c>ExecutionGlobals.CheckTimeout()</c> into every <c>for</c>/<c>foreach</c>/<c>while</c>/
+    /// <c>ExecutionGlobals.CheckBudget()</c> into every <c>for</c>/<c>foreach</c>/<c>while</c>/
     /// <c>do</c> body and every block-bodied lambda, against the deadline armed by
     /// <c>ExecutionGlobals.SetContext</c> (and raisable by the script itself with
-    /// <c>SetExecutionTimeout(n)</c>). Adding a second budget here would give the product two
-    /// sources of truth for the same limit, with different defaults — the exact mistake this note
-    /// exists to prevent.</para>
+    /// <c>SetExecutionTimeout(n)</c>). That same call carries the memory runaway guard, which is
+    /// sampled rather than checked every pass. Adding a second budget here would give the product
+    /// two sources of truth for the same limit, with different defaults — the exact mistake this
+    /// note exists to prevent.</para>
     ///
     /// <para><b>What neither mechanism can do, stated plainly:</b> code that calls NOTHING —
     /// <c>while (true) { }</c> with an empty body, or <c>int f(int n) =&gt; f(n + 1);</c> — never

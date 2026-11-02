@@ -141,11 +141,37 @@ namespace CoreScript.Engine.Globals
         private DateTime _executionDeadline = DateTime.MaxValue;
         private int _timeoutSeconds = 10; // Default 10 seconds
 
+        /// <summary>
+        /// When true, <c>ScriptApi.Files</c> refuses any path outside <see cref="FileAccessRoot"/>.
+        ///
+        /// <para>⚠⚠ <b>Defaults to FALSE, and that polarity is deliberate but uncomfortable.</b>
+        /// Off is the historical behaviour: a gallery tool run from the desktop app keeps the
+        /// full file access it has always had (<c>RoomFinishUpdater</c> reads and writes a CSV),
+        /// and <c>execute_script</c> is that channel. Flipping the default would break shipped
+        /// tools on the next build. The cost is that a NEW channel which forgets to set this
+        /// gets the permissive behaviour, so the one place that must set it —
+        /// <c>ReplSessionManager</c>, next to the <c>ScriptSandbox.ReplChannel</c> call — carries
+        /// the flag and the comment. If a third code channel appears, it sets this too.</para>
+        /// </summary>
+        public bool ConfineFileAccess { get; set; }
+
+        /// <summary>
+        /// The folder <c>ScriptApi.Files</c> confines to. Null means
+        /// <c>ScriptApi.Files.DefaultRoot</c> (<c>%LOCALAPPDATA%\Paracore\AgentWorkspace</c>,
+        /// or <c>PARACORE_AGENT_WORKSPACE</c> when set).
+        /// </summary>
+        public string? FileAccessRoot { get; set; }
+
         public static void SetContext(ExecutionGlobals context)
         {
             Current.Value = context;
             // Initialize deadline when execution starts
             context._executionDeadline = DateTime.Now.AddSeconds(context._timeoutSeconds);
+            // ⚠ The memory budget is GROWTH over this baseline, so it must be taken here — once
+            //   per submission, before the snippet — and never re-taken mid-run (that would let a
+            //   loop reset its own budget by calling anything that re-enters SetContext).
+            context._memoryBaseline = GC.GetTotalMemory(false);
+            context._budgetChecks = 0;
         }
 
         public static void ClearContext()
@@ -170,7 +196,7 @@ namespace CoreScript.Engine.Globals
         /// budget left behind by an earlier submission cannot leak into this one.
         /// </para>
         /// <para>
-        /// ⚠ A budget only has teeth if something calls <see cref="CheckTimeout"/> — the
+        /// ⚠ A budget only has teeth if something calls <see cref="CheckBudget"/> — the
         /// TimeoutRewriter injects it into loop bodies. Arming a deadline with no injection is
         /// what made the REPL path look protected while it was not (see ReplSessionManager).
         /// </para>
@@ -188,6 +214,54 @@ namespace CoreScript.Engine.Globals
             if (ctx != null && DateTime.Now > ctx._executionDeadline)
             {
                 throw new TimeoutException($"🛑 Script execution timed out after {ctx._timeoutSeconds} seconds. If this script needs more time, add SetExecutionTimeout(seconds) at the start of your script.");
+            }
+        }
+
+        // ── MEMORY BUDGET ───────────────────────────────────────────────────────────────
+        // ⚠⚠ WHAT THIS CANNOT DO, stated first (measured 2026-11-01). `new byte[2_000_000_000]`
+        //   compiles to a single IL `newarr`. Nothing in-process can refuse it BEFORE it happens:
+        //   the allocation belongs to the runtime, not to us, and CoreCLR has no per-AppDomain
+        //   memory limit — the same wall that rules out a real sandbox (see ScriptSandbox.cs).
+        //   Therefore:
+        //     • an ACCUMULATING runaway (a loop appending 1 MB per pass) IS caught — at the top
+        //       of the NEXT iteration, i.e. after one allocation too many but before the second;
+        //     • a ONE-SHOT huge allocation is NOT prevented. It succeeds, and GC frees it later.
+        //   This is a RUNAWAY GUARD, not a cap. Do not describe it as one.
+        //   ⚠ The budget is measured as GROWTH over a baseline taken at execution start, not as
+        //   an absolute heap figure, so a Revit model that is already large does not eat it.
+        private long _memoryBaseline;
+        private long _memoryBudgetBytes = 1_500_000_000; // 1.5 GB of GROWTH
+        private int _budgetChecks;
+
+        /// <summary>
+        /// One injected statement per loop iteration: the wall-clock check on every pass, the
+        /// memory sample on every 64th. Separate calls would put <c>GetTotalMemory</c> on a hot
+        /// loop's critical path for no benefit.
+        /// ⚠ 64, not 1024. A first draft sampled every 1024 passes, which is far too coarse to be
+        /// useful: a loop adding 8 MB per pass reaches the 1.5 GB budget at iteration ~190 but the
+        /// first sample would not happen until iteration 1024 — by then it has allocated 8 GB and
+        /// the guard has prevented nothing. At 64, the worst overshoot is 64 x one pass's
+        /// allocation, which is the granularity the budget is meant to have.
+        /// </summary>
+        public static void CheckBudget()
+        {
+            var ctx = Current.Value;
+            if (ctx == null) return;
+
+            if (DateTime.Now > ctx._executionDeadline)
+            {
+                throw new TimeoutException($"🛑 Script execution timed out after {ctx._timeoutSeconds} seconds. If this script needs more time, add SetExecutionTimeout(seconds) at the start of your script.");
+            }
+
+            if ((++ctx._budgetChecks & 0x3F) != 0) return;
+
+            long growth = GC.GetTotalMemory(false) - ctx._memoryBaseline;
+            if (growth > ctx._memoryBudgetBytes)
+            {
+                throw new OutOfMemoryException(
+                    $"🛑 Script stopped after allocating {growth / (1024 * 1024)} MB of managed memory " +
+                    $"(budget {ctx._memoryBudgetBytes / (1024 * 1024)} MB). A loop that allocates usually " +
+                    "means a result is being accumulated that should be filtered or streamed instead.");
             }
         }
 

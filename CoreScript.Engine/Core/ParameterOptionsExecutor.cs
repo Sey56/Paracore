@@ -67,7 +67,12 @@ namespace CoreScript.Engine.Core
                     "SixLabors.ImageSharp", "SixLabors.ImageSharp.Processing", "SixLabors.ImageSharp.PixelFormats",
                     "RestSharp", "MiniExcelLibs",
                     "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
-                );
+                )
+                // ⚠⚠ THE SAME CAPABILITY BOUNDARY (2026-11-01). This executor evaluates script
+                //   text too (CSharpScript.EvaluateAsync below), so it is a compile site and
+                //   must not be the one that forgets. See ScriptSandbox.
+                .WithMetadataResolver(ScriptSandbox.NoReferences)
+                .WithSourceResolver(ScriptSandbox.NoLoads);
 
             string engineDir = Path.GetDirectoryName(typeof(ParameterOptionsExecutor).Assembly.Location) ?? "";
             string[] extraDlls = { "SixLabors.ImageSharp.dll", "RestSharp.dll", "MiniExcel.dll", "MathNet.Numerics.dll" };

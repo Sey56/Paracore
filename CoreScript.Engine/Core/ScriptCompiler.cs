@@ -20,7 +20,12 @@ namespace CoreScript.Engine.Core
     {
         public Script<object> CreateScript(string code, string scriptName)
         {
-            var options = GetScriptOptions(scriptName);
+            // ⚠⚠ THE CAPABILITY BOUNDARY — see ScriptSandbox. Harden() refuses `#r` and `#load`
+            //   so the reference set cannot be re-opened at compile time, and ThrowIfForbidden()
+            //   refuses a snippet that NAMES a machine capability (process, network, registry,
+            //   native code, reflection). This is the compile-time half; the MCP's text scan is
+            //   the other half, and it is a filter, not a boundary.
+            var options = ScriptSandbox.Harden(GetScriptOptions(scriptName));
             // Inject ScriptApi parity and resolve Parameter ambiguity
             string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + CoreScript.Engine.Globals.ScriptSurface.StaticImportsLine + Environment.NewLine +
                               "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine +
@@ -39,7 +44,22 @@ namespace CoreScript.Engine.Core
                 }
             }
 
-            return CSharpScript.Create(fullCode, options, assemblyLoader: loader);
+            var script = CSharpScript.Create(fullCode, options, assemblyLoader: loader);
+
+            // ⚠⚠ THE SEMANTIC CHECK IS HERE **AND** IN ReplSessionManager — both, unconditionally.
+            //   Two gRPC entry points reach the compiler, and NEITHER is "the human one":
+            //     execute_repl   → ReplSessionManager   (mcp_core/tools.py, both MCP tools)
+            //     execute_script → CodeRunner → HERE     (paracore-forge/forge_core/engine.py:200,
+            //                                             source=AGENT_SOURCE)
+            //   A gallery script IS agent-generated code — forge writes it — and an earlier
+            //   version of this comment claimed the opposite. OPERATOR RULING (2026-11-01): the
+            //   protection belongs to the CODE, not to who runs it, so it is not gated on the
+            //   caller's source string the way the text scan is.
+            //   ⚠ The consequence, stated plainly: a hand-written gallery tool that spawns a
+            //   process or touches the registry is refused too. That is the intended trade — the
+            //   capability set is the product's boundary, not a per-caller setting.
+            ScriptSandbox.ThrowIfForbidden(script);
+            return script;
         }
 
 

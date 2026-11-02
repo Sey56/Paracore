@@ -86,6 +86,18 @@ namespace CoreScript.Engine.Globals
                 throw new ArgumentException("ExportImage: a target path is required.", nameof(path));
             }
 
+            // ⚠⚠ THE IMAGE IS WRITTEN BY REVIT, NOT BY THIS METHOD. Refusing `System.IO` on the
+            //   agent channel therefore does NOT stop an export from landing anywhere the caller
+            //   names — this is a file primitive wearing a Revit hat, and it was the last
+            //   unconfined write route left once the façade existed. On the confined channel the
+            //   target is routed through the same guard as `ScriptApi.Files`, so an agent export
+            //   lands inside the workspace and nowhere else. A gallery tool (confinement off)
+            //   keeps writing wherever it always did.
+            if (ExecutionGlobals.Current.Value?.ConfineFileAccess ?? false)
+            {
+                path = Files.Resolve(path);
+            }
+
             var view = string.IsNullOrWhiteSpace(viewName)
                 ? Doc.ActiveView
                 : new FilteredElementCollector(Doc)

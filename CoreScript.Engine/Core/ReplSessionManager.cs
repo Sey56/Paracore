@@ -154,7 +154,13 @@ namespace CoreScript.Engine.Core
                     // With sequence points emitted the frame reads `in script:line N`, and the
                     // `#line 1 "script"` directive above makes N the USER's own line — the
                     // same coordinate system DiagnosticMapper uses for compile errors.
-                    .WithEmitDebugInformation(true);
+                    .WithEmitDebugInformation(true)
+                    // ⚠⚠ THE SAME CAPABILITY BOUNDARY AS ScriptCompiler (2026-11-01). The
+                    //   interactive REPL is a separate compile site, so it needs the resolvers
+                    //   too: `#r` here would re-open every capability the reference set closed,
+                    //   and a compile site that skips this is a bypass of ScriptSandbox.
+                    .WithMetadataResolver(ScriptSandbox.NoReferences)
+                    .WithSourceResolver(ScriptSandbox.NoLoads);
 
                 // Inject pipeline tracking for all LINQ methods — semantic guard
                 // first so name collisions that cannot accept tracking
@@ -250,6 +256,16 @@ namespace CoreScript.Engine.Core
                     // Start new session
                     var globals = new ExecutionGlobals(context, new Dictionary<string, object>(), new Dictionary<string, object>());
                     globals.SetTimeoutBudget(ReplTimeoutSeconds);
+
+                    // ⚠⚠ CONFINEMENT BELONGS WITH THE CHANNEL, not with the caller's source
+                    //   string — the same ruling as ThrowIfForbidden below. This is the REPL
+                    //   channel: `System.IO` is refused outright (ScriptSandbox.ReplChannel), so
+                    //   `ScriptApi.Files` is the ONLY way a snippet can touch a file, and it must
+                    //   be the confined one. A second code channel that forgets this line gets
+                    //   the permissive behaviour (see ExecutionGlobals.ConfineFileAccess).
+                    globals.ConfineFileAccess = true;
+                    globals.FileAccessRoot = ScriptApi.Files.DefaultRoot;
+
                     ExecutionGlobals.SetContext(globals);
                     try
                     {
@@ -268,6 +284,31 @@ namespace CoreScript.Engine.Core
                         // NO globals: parameter — avoids cross-ALC type cast.
                         // Context is accessible via ScriptApi (using static) + ExecutionGlobals.SetContext.
                         var script = CSharpScript.Create(fullCode, options, assemblyLoader: loader);
+
+                        // ⚠⚠ THE CAPABILITY CHECK — AND THIS IS THE PATH THAT MATTERS (2026-11-01).
+                        //   MEASURED LIVE: `mcp_core/tools.py` calls `execute_repl` for BOTH MCP
+                        //   tools, and `execute_repl` lands here — NOT in ScriptCompiler. A check
+                        //   placed only in ScriptCompiler never ran for a single agent snippet,
+                        //   and a probe proved it: `typeof(string).AssemblyQualifiedName` executed
+                        //   successfully through the agent path while the "hardened" build was
+                        //   installed. The reference set still refused `Process` (CS1069), which
+                        //   is why the hole was invisible from the outside.
+                        //   ⚠ It is unconditional, and ScriptCompiler carries the SAME call:
+                        //   forge generates gallery scripts and runs them through execute_script
+                        //   (forge_core/engine.py:200, source=AGENT_SOURCE), so that path is an
+                        //   agent path too. OPERATOR RULING (2026-11-01): the protection belongs
+                        //   to the CODE, not to who runs it — so it is NOT gated on the source
+                        //   string the way the text scan is.
+                        //   ⚠⚠ PLUS the channel-scoped refusals (2026-11-01, measured): this
+                        //   channel additionally refuses System.IO. A file a snippet creates
+                        //   outlives the run — C:\ProgramData\Autodesk\Revit\Addins\2025 grants
+                        //   Users (CI)(WD) so a planted .addin loads at the NEXT launch — and a
+                        //   file it reads comes back through tool output to the model provider.
+                        //   That is a CHANNEL distinction (structural entry point), not a trust
+                        //   decision about the caller: execute_script keeps file access because
+                        //   RoomFinishUpdater needs it. See ScriptSandbox.ReplChannel.
+                        ScriptSandbox.ThrowIfForbidden(script, ScriptSandbox.ReplChannel);
+
                         var state = await script.RunAsync();
                         runScope?.MarkSucceeded();
                         session = new ReplSession { State = state, Globals = globals, LastUsed = DateTime.UtcNow };
@@ -348,6 +389,18 @@ namespace CoreScript.Engine.Core
 
                     try
                     {
+                        // ⚠⚠ THE CHECK MUST BE HERE TOO (2026-11-01). The `if` branch above runs
+                        //   only for the FIRST snippet of a session; every later one continues an
+                        //   existing Roslyn state. A check on the Create path alone therefore
+                        //   protects exactly ONE call per session — and the MCP reuses a single
+                        //   session id, so that would have been the first call only.
+                        //   `ContinueWith` builds the CHAINED submission (a variable defined in an
+                        //   earlier snippet still resolves, so nothing is refused for being
+                        //   unknown), and the result is compiled only to obtain the verdict.
+                        ScriptSandbox.ThrowIfForbidden(
+                            session.State.Script.ContinueWith(fullCode, options),
+                            ScriptSandbox.ReplChannel);
+
                         session.State = await session.State.ContinueWithAsync(fullCode, options);
                         runScope?.MarkSucceeded();
                     }
