@@ -58,7 +58,14 @@ namespace Paracore.Addin.Handlers
             // Element creation and transforms
             "NewFamilyInstance", "Wall.Create", "Floor.Create", "Roof.Create",
             "Ceiling.Create", "Grid.Create", "Level.Create", "doc.Create",
-            ".CopyElements(", ".MoveElement(", ".RotateElement(", ".MirrorElement("
+            ".CopyElements(", ".MoveElement(", ".RotateElement(", ".MirrorElement(",
+            // ⚠⚠ SIDE EFFECTS THAT LEAVE THE TRANSACTION (added 2026-11-01). A read-only
+            //    snippet runs inside an always-rollback transaction group, and that covers the
+            //    MODEL — not what publishes, exports or reloads AROUND it. `SynchronizeWithCentral`
+            //    was the live hole: a "discovery" snippet could publish to the central model and
+            //    no rollback undoes that. `.Export(` writes files outside the model entirely.
+            //    ⚠ MIRROR: `_READ_ONLY_WRITE_PATTERNS` in mcp_core/tool_helpers.py.
+            ".SynchronizeWithCentral(", ".ReloadLatest(", ".Export("
         };
 
         private static bool ContainsWriteOperations(string code)
@@ -75,20 +82,25 @@ namespace Paracore.Addin.Handlers
         }
 
         // ── Agent file / network policy ─────────────────────────────────────────
-        // ⚠⚠ THE RULE (operator, 2026-10-27), and it is deliberately NOT "no files":
-        //   an agent MAY create a new file — an output — and MAY read files. It may
-        //   NEVER replace, move or delete an existing one, "even if it is the one it
-        //   created earlier", because a replace cannot tell an output from something
-        //   important. The user deletes files; the agent does not. Network is off.
+        // ⚠⚠ THE RULE — REWRITTEN 2026-11-01. It used to read "an agent MAY create a new
+        //   file and MAY read files", with `FileMode.CreateNew` as the blessed write. That
+        //   is no longer true on this channel and had become actively harmful: the semantic
+        //   sandbox refuses `System.IO` outright, so the recipe this layer handed out could
+        //   not compile. A refusal message that tells the agent to do the refused thing is
+        //   worse than no message.
         //
-        //   So the blessed write is `FileMode.CreateNew`, which THROWS when the path
-        //   already exists. The agent then picks the next free name (_001, _002). The
-        //   protection is .NET's, not a substring scan's — this list only has to stop
-        //   the APIs that would route around it.
+        //   The rule now: agent code touches files ONLY through `ScriptApi.Files`, and only
+        //   inside `Files.Root` (%LOCALAPPDATA%\Paracore\AgentWorkspace by default). Read,
+        //   write, create, modify and delete are all allowed there; nothing outside it is.
+        //   The enforcement is NOT this list — it is the closed reference set plus the
+        //   runtime path check in ScriptApi.Files. This list exists so the agent gets a
+        //   clear refusal instead of a compile error, and so the process/registry patterns
+        //   still fire a layer earlier.
         //
         //   ⚠ Applies to AGENT SOURCES ONLY. A human running a gallery tool from the
         //   REPL keeps full file access — RoomFinishUpdater reads a CSV and writes one,
-        //   and that is the person's own action, not an agent's.
+        //   and that is the person's own action, not an agent's. (`execute_script` never
+        //   sets ExecutionGlobals.ConfineFileAccess; the REPL channel does.)
         //   ⚠ MIRROR: `mcp_core/tool_helpers.py::_AGENT_FILE_POLICY` carries the same
         //   patterns one layer earlier so the agent gets a clean refusal instead of an
         //   "Execution Failed". `paracore-gen/tests/test_tool_helpers.py` parses THIS
@@ -185,27 +197,49 @@ namespace Paracore.Addin.Handlers
             // The instance form of the destructive file ops, bounded to one statement so a
             // FileInfo used for READING (.Exists, .Length, .FullName) stays allowed.
             (@"FileInfo\b[^;]{0,200}\.(Delete|MoveTo|Replace)", "delete or move a file"),
-            (@"DirectoryInfo\b[^;]{0,200}\.(Delete|MoveTo|Replace)", "delete or move a directory")
+            (@"DirectoryInfo\b[^;]{0,200}\.(Delete|MoveTo|Replace)", "delete or move a directory"),
+            // ⚠⚠ THE INSTANCE FORMS OF CREATION (added 2026-11-01, MEASURED). Every rule above
+            //    names a STATIC call, so constructing the object first walked past all of them:
+            //        new FileInfo(p).Create()           -> TRUNCATED an existing file
+            //        new FileInfo(p).OpenWrite()        -> opened an existing file for writing
+            //        new FileStream(p, FileMode.Append) -> appended to an existing file
+            //    Same defect class as `new System.Threading.Thread(` (fixed 2026-10-29): a rule
+            //    written against ONE SPELLING of a call is not a restriction.
+            (@"FileInfo\b[^;]{0,200}\.(?:Create|CreateText|OpenWrite|AppendText)\s*\(", "create or truncate a file through FileInfo"),
+            (@"DirectoryInfo\b[^;]{0,200}\.Create\s*\(", "create a directory through DirectoryInfo"),
+            (@"FileMode\.Append",         "append to an existing file"),
+            // ⚠⚠ THE PROCESS OBJECT ITSELF (added 2026-11-01, MEASURED). `Process.Start(` was
+            //    refused; `new Process()` followed by `.Start()` was NOT, so a snippet could
+            //    spawn anything. Naming the CONSTRUCTION closes every spelling of the call.
+            (@"new\s+Process\s*\(",       "start another process"),
+            (@"Process\.GetCurrentProcess\s*\(", "inspect or kill the Revit process"),
+            (@"Process\.GetProcess(?:es|ById)\b", "inspect other processes"),
+            (@"\.Kill\s*\(",              "kill a process")
         };
 
         private const string AgentPolicyMessage =
             "Blocked by the Paracore agent file policy: {0}.\n\n"
-            + "Agent code MAY create a new file and MAY read files. It may NEVER replace, "
-            + "move or delete an existing file — not even one it wrote earlier in this "
-            + "session — and it may not use the network. Deleting files is the user's job.\n\n"
-            + "To write an output, create it with FileMode.CreateNew and pick a new name if "
-            + "it already exists (report.csv, then report_001.csv, report_002.csv, …):\n\n"
-            + "  var bytes = System.Text.Encoding.UTF8.GetBytes(text);\n"
-            + "  using (var fs = new FileStream(path, FileMode.CreateNew))\n"
-            + "      fs.Write(bytes, 0, bytes.Length);\n\n"
-            + "CreateNew THROWS when the path exists. That is the protection, not a bug to "
-            + "work around: choose another name and try again.\n\n"
-            + "⚠ What this list refuses IS refused — but it is a list, not a sandbox. The whole "
-            + "reflection family is refused (AppDomain, GetTypes/GetAssemblies, GetConstructor, "
-            + "GetProperty, Activator, System.Reflection, .Assembly, DllImport, Marshal), so a "
-            + "type name assembled from string pieces cannot be resolved to reach File, "
-            + "HttpClient or Process. Still open: a delegate obtained from a framework method, "
-            + "code hidden in an interpolated-string hole, and a loop inside a framework call. "
+            + "Agent code has NO general file access. `System.IO` is not available on this "
+            + "channel at all — the snippet is compiled against a closed reference set, so File, "
+            + "Directory, Path, FileStream and every other spelling of them cannot be named.\n\n"
+            + "To work with a file, use the workspace façade:\n\n"
+            + "  Files.WriteText(\"takeoff.csv\", csv);        // inside the workspace\n"
+            + "  var text = Files.ReadText(\"input.csv\");\n"
+            + "  foreach (var p in Files.List()) Println(p);\n\n"
+            + "Files.Root is the ONE folder agent code may touch — "
+            + "%LOCALAPPDATA%\\Paracore\\AgentWorkspace unless the machine sets "
+            + "PARACORE_AGENT_WORKSPACE. Every path is checked when it is USED, not when it is "
+            + "written: `..`, a junction pointing outside, a \\\\?\\ device path and an alternate "
+            + "data stream are all refused, including a path that only LOOKS like it is inside "
+            + "the folder.\n\n"
+            + "Creating, modifying and deleting files inside that folder is allowed. Everything "
+            + "outside it is not, and the workspace root itself cannot be deleted.\n\n"
+            + "⚠ This pattern list is an EARLY, FRIENDLY refusal — it is not the boundary. The "
+            + "closed reference set and the runtime path check are the boundary, and they hold "
+            + "where a text rule cannot: a type reached through an alias, a `using static`, or a "
+            + "name assembled from string pieces still resolves to no symbol. Still open: a "
+            + "single long-running framework call cannot be interrupted (a denial of service, "
+            + "not an escape), and the model itself is deliberately NOT restricted.\n"
             + "⚠ The consent dialog decides WHO may run agent code; it is a decision, not a "
             + "second line of defence — do not rely on it as one.";
 
