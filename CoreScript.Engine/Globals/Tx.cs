@@ -178,26 +178,26 @@ namespace CoreScript.Engine.Globals
             }
 
             // ── COMMITTED ────────────────────────────────────────────────────────
-            List<string> ok =
-            [
-                "✅ Transact \"" + Name + "\" — COMMITTED   created " + N(Created.Count)
-                    + " · modified " + N(Modified.Count)
-                    + " · deleted " + N(Deleted.Count),
-            ];
+            // ⚠ SILENT ON SUCCESS (2026-11-03). The headline "✅ Transact … — COMMITTED"
+            //   was removed: the user knows it succeeded because the element is in the model.
+            //   The counts and ID lists are still returned (the REPL displays them as the
+            //   return value), and warnings about a broken capture or a zero-change commit
+            //   still appear because those are the cases the caller must not skim past.
+            List<string> ok = [];
 
             if (TotalChanged == 0)
             {
                 // ⚠ A committed transaction that changed NOTHING is a real answer and is worth
                 //   saying out loud: it separates "the filter matched nothing" from "the write
                 //   silently failed".
-                ok.Add("   (committed but changed nothing — the filter matched nothing, or the"
-                       + " values were already set)");
+                ok.Add("Transact \"" + Name + "\" — committed but changed nothing"
+                       + " (the filter matched nothing, or the values were already set).");
             }
             else
             {
-                if (Created.Count > 0) { ok.Add("   created  : " + Ids(Created)); }
-                if (Modified.Count > 0) { ok.Add("   modified : " + Ids(Modified)); }
-                if (Deleted.Count > 0) { ok.Add("   deleted  : " + Ids(Deleted)); }
+                if (Created.Count > 0) { ok.Add("created  : " + Ids(Created)); }
+                if (Modified.Count > 0) { ok.Add("modified : " + Ids(Modified)); }
+                if (Deleted.Count > 0) { ok.Add("deleted  : " + Ids(Deleted)); }
             }
 
             if (TotalChanged > 0 && EventsSeen == 0)
@@ -212,12 +212,12 @@ namespace CoreScript.Engine.Globals
                 //   ⚠ ScriptApi.Batch.cs already guards the same warning with EventCaptureUsed;
                 //   this branch was the one place the rule was missing. A rule in N places must be
                 //   changed in N places.
-                ok.Add("   ⚠ the transaction COMMITTED but NO change event was received — the"
-                       + " capture is not working, so treat the counts above as UNVERIFIED.");
+                ok.Add("⚠ NO change event was received — the capture is not working,"
+                       + " so treat the counts above as UNVERIFIED.");
             }
             if (EventsOtherDocument > 0)
             {
-                ok.Add("   (note: " + N(EventsOtherDocument)
+                ok.Add("(note: " + N(EventsOtherDocument)
                        + " change event(s) were for ANOTHER document and were not counted)");
             }
 
@@ -403,9 +403,19 @@ namespace CoreScript.Engine.Globals
                 report.EventsSeen = eventsSeen;
                 report.EventsOtherDocument = eventsOtherDocument;
 
-                string rendered = report.Render();
-                SafePrint(rendered);
-                Log(rendered.Replace(System.Environment.NewLine, " | ", StringComparison.Ordinal));
+                // ⚠ SILENT ON SUCCESS (2026-11-03). The REPL displays the TxReport as the
+                //   return value of the Transact() call, so SafePrint-ing it here produced
+                //   the SAME text twice — once in printLog, once as the return value. On
+                //   success the transaction is unremarkable; the user knows it worked because
+                //   the wall is there. On FAILURE (rollback, error, skip) the report MUST
+                //   still print, because that is the case the caller must not skim past.
+                if (report.Skipped || !string.IsNullOrEmpty(report.Error) || report.RolledBack)
+                {
+                    string rendered = report.Render();
+                    SafePrint(rendered);
+                }
+
+                Log(report.Render().Replace(System.Environment.NewLine, " | ", StringComparison.Ordinal));
             }
 
             return report;
