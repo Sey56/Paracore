@@ -18,6 +18,16 @@ Installers go to `installers/`.
 
 **Requirements**: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
 
+## Supported Revit versions
+
+**Revit 2025, 2026 and 2027.** Paracore ships one `net8.0-windows` payload, compiled against the
+Revit 2025 API. Revit 2027 hosts **.NET 10**, and .NET 10 loads .NET 8 assemblies — so no retarget
+was needed. The 2027 work was an assembly-load-context fix in the shim plus a changed all-users
+`.addin` path in the installer, not a framework migration. The installer detects installed Revit
+versions from the registry and offers one checkbox per version.
+
+See [the v4.8.2 release notes](Release-Notes-4.8.2.md) for the verified details.
+
 ## Quick start
 
 ```powershell

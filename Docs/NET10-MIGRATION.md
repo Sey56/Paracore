@@ -2,6 +2,18 @@
 
 > **STATUS: HISTORICAL** — a plan / research / audit record. It describes what was being considered at the time, **not what is true now**. For current behaviour read the owning repo's `PROJECT_SPEC.md` or the master spec. (Marked 2026-10-27.)
 
+> **⏭ RESOLVED 2026-11-06 — CURRENT pointer, not part of the parked plan below.**
+> **Revit 2027 is supported and needs NO .NET 10 retarget.** The current, verified statement is in
+> [`README.md` § Supported Revit versions](../README.md) and the [v4.8.2 release notes](../Release-Notes-4.8.2.md).
+> .NET 10 hosts load our `net8.0-windows` payload; the two real 2027 defects were a duplicated
+> `CoreScript.Engine.dll` in the default ALC (fixed in the shim) and the moved all-users `.addin`
+> path (fixed in the installer).
+>
+> ⚠ **Correction to § "The API divergence is ALREADY GONE" below:** that claim was over-stated.
+> Four `IntegerValue` reads survived in `CoreScript.Engine` until 2026-11-06 and were exactly what
+> broke `NewDemo/MassEdit` in 2027. They are now `.Value`. Everything below is the historical
+> record of a plan that was considered and parked — **do not act on it**.
+
 
 > **⏸ PARKED — 2026-10-07.** The user's call: keep working on what exists (Revit 2025 / 2026 on **.NET 8**);
 > the migration waits until a later date. **Nothing in this document is active.** It is the record for whenever
