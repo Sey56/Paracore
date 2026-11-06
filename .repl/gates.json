@@ -437,6 +437,17 @@
       "known_red": null
     },
     {
+      "id": "no-integervalue",
+      "path": "paracore/scripts/check-no-integervalue.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 60,
+      "protects": "No live runtime C# source names ElementId.IntegerValue. Revit 2027 REMOVED get_IntegerValue(); one compiled call throws MissingMethodException when its containing method is JIT-bound, even on an untaken branch - this is why MassEdit failed although the gallery script had no such text (the token was in CoreScript.Engine.dll). ElementId.Value (long) is the API on 2025/2026/2027. An EMPTY or partial scan FAILS; historical snapshots and prose that forbids the API are deliberately out of scope.",
+      "known_red": null
+    },
+    {
       "id": "takeoff-full-export",
       "path": "paracore-takeoff/scripts/full_export_check.py",
       "cwd": "paracore-takeoff",

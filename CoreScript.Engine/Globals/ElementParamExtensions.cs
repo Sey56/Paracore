@@ -97,7 +97,7 @@ namespace CoreScript.Engine.Globals
             //   reported 0 rows. A plausible wrong answer, not an error.
             //   Deliberately AFTER the parameter and BuiltInParameter lookups: a project that really
             //   declares a parameter called "Id" still wins, so nothing is shadowed.
-            if (_isElementIdName(name)) return e.Id.IntegerValue.ToString();
+            if (_isElementIdName(name)) return e.Id.Value.ToString();
 
             // 3. Smart Fallback: Try C# Property via Reflection
             try
@@ -578,7 +578,7 @@ namespace CoreScript.Engine.Globals
             //   overload, which calls GetNum. Without this it reached the reflection fallback,
             //   found `Element.Id` was an ElementId rather than a double/int, and returned 0.0 —
             //   so a filter for one Id matched nothing and the pipeline read [9 → 0].
-            if (_isElementIdName(name)) return e.Id.IntegerValue;
+            if (_isElementIdName(name)) return e.Id.Value;
 
             try
             {

@@ -20,8 +20,8 @@ namespace CoreScript.Engine.Globals
             {
                 var cat = e.Category?.Name;
                 return string.IsNullOrEmpty(cat)
-                    ? $"element {e.Id.IntegerValue}"
-                    : $"{cat} {e.Id.IntegerValue}";
+                    ? $"element {e.Id.Value}"
+                    : $"{cat} {e.Id.Value}";
             }
             catch { return "the element"; }
         }
