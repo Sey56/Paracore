@@ -14,13 +14,17 @@ interface WelcomeGateProps {
 export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isAuthenticated = false, onDismiss }) => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isOfflineLoading, setIsOfflineLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
+    setAuthError(null);
     try {
       await login();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('[WelcomeGate] Google login failed:', err);
+      const detail = err?.response?.data?.detail || err?.message || 'Unknown error';
+      setAuthError(typeof detail === 'string' ? detail : JSON.stringify(detail));
     } finally {
       setIsGoogleLoading(false);
     }
@@ -197,6 +201,12 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
                     />
                   </button>
                 </div>
+
+                {authError && (
+                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 text-xs font-medium">
+                    {authError}
+                  </div>
+                )}
 
                 <div className="space-y-3 pt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-normal">
                   <div className="flex gap-2">

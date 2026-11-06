@@ -1,0 +1,10 @@
+name = "rap-auth"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Non-secret configuration only. Everything sensitive lives in Worker secrets:
+#   GOOGLE_CLIENT_SECRET, JWT_PRIVATE_KEY, JWT_PUBLIC_KEY, ALLOWED_EMAILS
+# Set them with `npx wrangler secret put <NAME>` — see README.md.
+[vars]
+GOOGLE_CLIENT_ID = "367583834715-rlm1en39oh0sj4dq4qhtaks6j23u5q6d.apps.googleusercontent.com"

@@ -133,10 +133,12 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const login = useCallback(async () => {
     try {
+      console.log('[Auth] Starting Google OAuth login...');
       const [authorizationCode, redirectUri]: [string, string] = await invoke('google_oauth_login');
       if (!authorizationCode) {
         throw new Error('No authorization code received from Tauri.');
       }
+      console.log('[Auth] Got authorization code, forwarding to local server...');
 
       const cloudAuthResponse = await axios.post('http://localhost:8000/auth/verify-google-code', {
         code: authorizationCode,
@@ -165,7 +167,13 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setIsAuthenticated(true);
       setSessionStartTime(now);
     } catch (error) {
-      console.error('Authentication failed:', error);
+      console.error('[Auth] Authentication failed:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const resp = (error as any).response;
+        console.error('[Auth] Server response:', resp?.status, resp?.data);
+      }
+      // Re-throw so callers can show UI feedback
+      throw error;
     }
   }, [logout]);
 

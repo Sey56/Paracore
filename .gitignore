@@ -195,3 +195,12 @@ corescript-vscode/dist/
 # re-packages it, so a tracked copy is a stale duplicate that keeps an OLD version in
 # the repo after a bump. Untracked 2026-10-10 (a 4.7.0 .vsix was still tracked at 4.8.0).
 corescript-vscode/*.vsix
+
+# Cloudflare auth worker: local secrets + wrangler state
+.dev.vars
+auth-worker/.dev.vars
+auth-worker/.wrangler
+
+# Local probe/build scratch: regenerable build output, never source.
+# Untracked 2026-11-06 at 524 MB / 1241 files (mostly DLLs).
+_scratch/
