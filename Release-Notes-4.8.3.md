@@ -10,7 +10,7 @@ retarget was needed**. The 2027 work was a loader fix and an installer fix, not 
 migration. The parked .NET 10 migration plan stays a historical record.
 
 > **Supersedes the published v4.8.2 (2026-10-29).** Everything in
-> [v4.8.2](Release-Notes-4.8.2.md) is included here. ⚠ v4.8.2 is already a **published GitHub
+> [v4.8.2](https://github.com/Sey56/Paracore/blob/main/Release-Notes-4.8.2.md) is included here. ⚠ v4.8.2 is already a **published GitHub
 > release** — the 2027 work landed after that tag, so it is **not** part of 4.8.2 and must not be
 > shipped under that number. This note covers everything since the tag.
 
