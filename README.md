@@ -14,7 +14,9 @@ Write C# that runs live inside Revit — no project files, no compilation, no bo
 | **Paracore Desktop App** | Script gallery, REPL playground, parameter UI generator | `./build-frontend.ps1` |
 | **VS Code Extension** | Write C# in VS Code, execute in Revit, see output in VS Code | `./build-extension.ps1` |
 
-Installers go to `installers/`.
+Installers go to `installers/`. All four published installers — desktop app MSI, Revit add-in
+EXE, VS Code extension VSIX and Paracore-Gen EXE — are on the
+[v4.8.3 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.3).
 
 **Requirements**: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
 
@@ -51,7 +53,7 @@ terminal — see [Run (development)](DEVELOPMENT.md#run-development).
 
 ## Paracore MCP
 
-The Model Context Protocol server lives in a separate repo: [`paracore-gen`](https://github.com/datadrivenconstruction/paracore-gen). Install it alongside this addin to control Revit from Claude Desktop, Cursor, or any MCP-compatible client.
+The Model Context Protocol server lives in a separate repo: [`paracore-gen`](https://github.com/Sey56/paracore-gen). Its installer is on the [v4.8.3 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.3); install it alongside this addin to control Revit from Claude Desktop, Cursor, or any MCP-compatible client.
 
 ```powershell
 cd ../paracore-gen

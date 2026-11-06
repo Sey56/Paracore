@@ -1,3 +1,14 @@
+## Paracore v4.8.3 — Revit 2027, one download
+
+Full notes: [Release-Notes-4.8.3.md](Release-Notes-4.8.3.md) ·
+[All four installers](https://github.com/Sey56/Paracore/releases/tag/v4.8.3)
+
+Adds Revit 2025 / 2026 / 2027 support, closes the script-capability holes, and publishes the
+desktop app MSI, the Revit add-in EXE, the VS Code extension VSIX and the Paracore-Gen EXE on one
+release page. The MCP framework is no longer maintained in this repository.
+
+---
+
 ## Paracore v4.8.1
 
 Full notes: [Release-Notes-4.8.1.md](Release-Notes-4.8.1.md) · Previous: [4.8.0](Release-Notes-4.8.0.md)
@@ -29,7 +40,7 @@ Full notes: [Release-Notes-4.8.1.md](Release-Notes-4.8.1.md) · Previous: [4.8.0
 
 ### MCP core
 
-- The ~6,500 lines duplicated across five MCP repos now live once in `paracore/mcp/`; each MCP supplies only its `Domain`. **`paracore-gen` v2.1.0 is 8,393 lines smaller** for it
+- The ~6,500 lines duplicated across five MCP repos were consolidated into `paracore/mcp/` (the layout **at the time** — the shared framework has since moved to its own repository); each MCP supplies only its `Domain`. **`paracore-gen` v2.1.0 is 8,393 lines smaller** for it
 
 ### Desktop app
 

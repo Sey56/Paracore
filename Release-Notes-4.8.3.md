@@ -4,25 +4,39 @@
 
 The release that adds Revit 2027, and closes the holes an agent could walk a script through.
 
-One `net8.0-windows` payload, still compiled against the Revit 2025 API, now runs in **Revit 2025,
-2026 and 2027**. Revit 2027 hosts .NET 10, and .NET 10 loads .NET 8 assemblies — so **no retarget
-was needed**. The 2027 work was a loader fix and an installer fix, not a framework migration. The
-parked .NET 10 migration plan stays a historical record.
-
-Release with **Paracore-Gen v2.1.2**. Install both together.
+One `net8.0-windows` payload, compiled against the Revit 2025 API, now runs in **Revit 2025,
+2026 and 2027**. Revit 2027 hosts .NET 10, and .NET 10 loads .NET 8 assemblies — so **no
+retarget was needed**. The 2027 work was a loader fix and an installer fix, not a framework
+migration. The parked .NET 10 migration plan stays a historical record.
 
 > **Supersedes the published v4.8.2 (2026-10-29).** Everything in
 > [v4.8.2](Release-Notes-4.8.2.md) is included here. ⚠ v4.8.2 is already a **published GitHub
 > release** — the 2027 work landed after that tag, so it is **not** part of 4.8.2 and must not be
-> shipped under that number. This note covers the 21 commits since the tag.
+> shipped under that number. This note covers everything since the tag.
+
+## Download — one page, four installers
+
+Everything ships on **this release page**. There is no second download location.
+
+| Installer | What it installs | Version |
+|---|---|---|
+| `Paracore_4.8.3_x64.msi` | Paracore desktop app | 4.8.3 |
+| `Paracore_Addin_v4.8.3.exe` | Revit add-in (2025 / 2026 / 2027) | 4.8.3 |
+| `corescript-4.8.3.vsix` | VS Code extension | 4.8.3 |
+| `Paracore-Gen-v2.1.2.exe` | Paracore-Gen MCP server | 2.1.2 |
+
+The **desktop app** and the **Revit add-in** are the two Paracore components — install both. The
+VS Code extension and Paracore-Gen are optional: the extension lets you write C# in VS Code and run
+it in Revit; Paracore-Gen generates REPL scripts for an AI assistant. Paracore-Gen's own `v2.1.2`
+tag carries a pointer release with no assets, so this page stays the single place to download.
 
 ## Highlights
 
-- **Revit 2027 works.** One installer, three registry-detected checkboxes (2025 / 2026 / 2027). Verified live: `GetElements("Rooms")` returned a six-room pipeline, and the gallery `NewDemo/MassEdit` script changed room numbers in the 2027 sample file.
+- **Revit 2027 works.** One installer, three registry-detected checkboxes (2025 / 2026 / 2027). Verified live: `GetElements("Rooms")` returned a six-room pipeline, and the **MassEdit** gallery script changed room numbers in the 2027 sample file.
 - **A script cannot ask the machine for capabilities it was never given.** Dangerous constructs are refused at compile time, and file access is confined to one workspace.
-- **The shared MCP core is no longer inside the free engine repo.** It lives in its own MIT repo, and each frozen MCP exe now carries the identity of the core and the hash of its own source.
-- **Desktop sign-in moved to the Cloudflare Worker.** Railway is gone.
+- **The add-in's instance-form scan bypasses are closed**, and a refused script no longer hands out the recipe it was refused for.
 - **`ElementId.IntegerValue` is gone from every live runtime source.** Revit 2027 removed `get_IntegerValue()`; `.Value` is the API on 2025, 2026 and 2027.
+- **The VS Code extension is repackaged at 4.8.3**, carrying the regenerated `ScriptApi.Files` API reference. The editor itself is unchanged.
 
 ## Revit 2027 — what actually had to change
 
@@ -55,8 +69,8 @@ exists to prevent.
 
 ### `ElementId.IntegerValue` was removed
 
-Four surviving reads in `CoreScript.Engine` (`GetStr`, `GetNum`, `_describeElement`) made
-`NewDemo/MassEdit` fail in 2027 with *"Method not found: `Int32
+Four surviving reads in `CoreScript.Engine` (`GetStr`, `GetNum`, `_describeElement`) made the
+**MassEdit** gallery script fail in 2027 with *"Method not found: `Int32
 Autodesk.Revit.DB.ElementId.get_IntegerValue()`"* — even though the gallery script itself had **no**
 `.IntegerValue` text, because the failing reference was inside the compiled engine DLL. All are now
 `.Value` (a `long`). The new `no-integervalue` gate scans 186 live C# files across seven roots,
@@ -72,30 +86,25 @@ SHA256 of the shim it just built against the shim copied into the publish folder
 
 ## Security and correctness
 
-- **Compile-time capability refusal.** `ScriptSandbox` and `ScriptApi.Files` confine machine access to one workspace; the script cannot name capabilities it was not granted.
-- **The add-in's instance-form scan bypasses are closed**, and a refused script no longer hands out the recipe it was refused for.
-- **A `SOURCE_HASH` per MCP repo** is baked into each frozen exe, so the exe check can detect edits to its own `.py` sources that a core pin and asset checks are blind to. Only **tracked** `.py` files are hashed.
-- **The JWT public key has a tracked home** and is asserted.
+- **Compile-time capability refusal.** `ScriptSandbox` and `ScriptApi.Files` confine machine access to one workspace; a script cannot name capabilities it was not granted.
+- **Instance-form scan bypasses are closed**, and a refused script no longer hands out the recipe it was refused for.
 - **Nested categories resolve**, and a parameter-options result no longer certifies a zero that never happened.
 - **Duplicate `TxReport` output on success is silenced.**
 - **Revit Addins folders are ACL-hardened**, the one layer that covers every manifest channel.
+- **Two gates that could report a green they could not have known were fixed**, and the release check now proves the UI version is derived rather than hard-coded.
 
 ## Other changes since v4.8.2
 
-- Desktop sign-in moved to the Cloudflare Worker (`AUTH_SERVER_URL` defaults to `https://rap-auth.seyoumhgs.workers.dev`); Python `urllib` sends an explicit `User-Agent` because Cloudflare Bot Fight Mode blocks the default.
-- The shared MCP core moved out of the free engine repo; the engine is generic and neutral — a **pack** is how a tool adds to it.
-- Two gates that could report a green they could not have known were fixed; one now refuses to claim it compared a server's own source.
-- `ScriptApi.Files` added to the generated `EXTENSION_METHODS.md` surface.
-- `Verify-Release.ps1` repaired: it was BOM-less with a non-ASCII character inside a string (a PowerShell 5.1 parse trap), its UI-version check could never pass, its contact anchor had rotted, and it printed "STOP!" while exiting 0. It now proves the UI version is **derived** from `package.json`, exits 1 on failure, and builds the frontend.
-- The go-to-market assessment and the next ninety days are recorded in `Docs/GTM_ASSESSMENT_2026-11-02.md`.
+- `ScriptApi.Files` added to the generated `EXTENSION_METHODS.md` surface; the VS Code extension's bundled API reference is regenerated from it.
+- `Verify-Release.ps1` repaired: it was BOM-less with a non-ASCII character inside a string (a PowerShell 5.1 parse trap), its UI-version check could never pass, its contact anchor had rotted, and it printed "STOP!" while exiting 0. It now proves the version is **derived** from `package.json`, exits 1 on failure, and builds the frontend.
+- `build-frontend.ps1` writes `tauri.conf.json` without a UTF-8 BOM (Windows PowerShell 5.1's `Set-Content -Encoding UTF8` adds one, which the Rust build rejects) and restores the file in a `finally` block.
+- The installer check now looks for the add-in in the 2027 `Program Files` location as well as the older locations.
 
 ## Versioning
 
 `paracore` versions as **one unit**: engine, Revit add-in, desktop app and VS Code extension all
-carry `4.8.3`. `scripts/Set-Version.ps1` is the only writer of that number; `build-addin.ps1` and
-`build-frontend.ps1` call it before building. The sibling MCPs version independently —
-`paracore-gen` ships **2.1.2** in this release; `paracore-model`, `-family`, `-forge` and
-`-takeoff` stay at **2.0.0**.
+carry `4.8.3`. `scripts/Set-Version.ps1` is the only writer of that number; the build scripts read
+it before building. Paracore-Gen ships **2.1.2** in the same release and versions independently.
 
 ## Verification
 
@@ -103,8 +112,11 @@ carry `4.8.3`. `scripts/Set-Version.ps1` is the only writer of that number; `bui
 |---|---|
 | `Set-Version.ps1 -Check` (16 surfaces) | all at 4.8.3 |
 | `Verify-Release.ps1` (incl. frontend build) | READY FOR RELEASE |
+| `Paracore_Addin_v4.8.3.exe` ProductVersion | 4.8.3 |
+| `Paracore-Gen-v2.1.2.exe` ProductVersion | 2.1.2 |
+| `corescript-4.8.3.vsix` manifest | version 4.8.3, bundle present |
 | live Revit 2027 · `GetElements("Rooms")` | 6-room pipeline |
-| live Revit 2027 · gallery `MassEdit` | room numbers changed in the 2027 sample |
+| live Revit 2027 · gallery **MassEdit** | room numbers changed in the 2027 sample |
 | live Revit 2025 · same REPL script | ran against the active 2025 project |
 | `no-integervalue` gate | 186 files scanned, zero hits · teeth proven |
 
