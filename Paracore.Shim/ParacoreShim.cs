@@ -60,10 +60,7 @@ namespace Paracore.Shim
                 Environment.SetEnvironmentVariable("PARACORE_ADDIN_DIR", shimDir,
                     EnvironmentVariableTarget.Process);
 
-                // 1. Create the isolated bubble
-                LoadContext = new IsolatedLoadContext(shimDir);
-
-                // 2. Load the real add-in INTO the bubble
+                // 2. Locate the real add-in
                 var addinPath = Path.Combine(shimDir, "Paracore.Addin.dll");
                 if (!File.Exists(addinPath))
                 {
@@ -71,8 +68,21 @@ namespace Paracore.Shim
                     return Result.Failed;
                 }
 
+                // ⚠ THE BUBBLE IS NOT OPTIONAL. Measured 2026-11-06: skipping it makes the
+                //   Revit 2027 REPL work (one CoreScript.Engine, shared AsyncLocal), but it also
+                //   puts Paracore's Microsoft.CodeAnalysis into Default — which is exactly the
+                //   pyRevit collision the shim was introduced to prevent. Isolation stays on every
+                //   Revit version. The 2027 script-context bug is fixed by IsolatedLoadContext's
+                //   Default.Resolving guard, which binds the script back to THIS bubble's engine
+                //   instead of letting a host resolver create a second copy in Default. Never
+                //   fix it by dropping the bubble.
+                var revitYear = 0;
+                int.TryParse(application.ControlledApplication.VersionNumber, out revitYear);
+
+                // 1. Create the isolated bubble
+                LoadContext = new IsolatedLoadContext(shimDir);
                 AddinAssembly = LoadContext.LoadFromAssemblyPath(addinPath);
-                Log("Loaded Paracore.Addin into isolated context");
+                Log($"Revit {revitYear}: loaded Paracore.Addin into isolated context");
 
                 // 3. Find and create the real ParacoreApp
                 var appType = AddinAssembly.GetType(AddinAppTypeName);

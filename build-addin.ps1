@@ -141,6 +141,11 @@ Write-Host "  [+] Paracore.PackSdk.dll present (host-provided pack SDK)" -Foregr
 Write-Host "`nBuilding Paracore.Shim (Isolation Layer)..." -ForegroundColor Cyan
 $shimDir = Join-Path -Path $ProjectRoot -ChildPath 'Paracore.Shim'
 dotnet build $shimDir -c Release
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "BUILD GATE FAILED: Paracore.Shim did not build (dotnet exit $LASTEXITCODE)." -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
 $shimDll = Get-ChildItem -Path "$shimDir\bin\Release\net8.0-windows" -Recurse -Filter "Paracore.Shim.dll" |
            Select-Object -First 1
 if ($shimDll) {
@@ -151,6 +156,24 @@ if ($shimDll) {
     Pop-Location
     exit 1
 }
+
+# ⚠⚠ GATE — THE PUBLISH SHIM MUST BE THE SHIM WE JUST BUILT.
+# Measured 2026-11-06: the publish folder still held the Nov-3 17,408-byte shim
+# while the 2027 REPL fix sat in Paracore.Shim\bin\Release as a 20,480-byte DLL.
+# Copy-Item -Force preserves the SOURCE mtime, so a stale ship cannot be spotted
+# by date. Assert the BYTES. The whole 2027 fix lives in this one DLL; shipping
+# an old copy leaves the REPL broken with no visible build error at all.
+$shimInPublish = Join-Path $resolvedPublishDir 'Paracore.Shim.dll'
+$shimSrcHash = (Get-FileHash -LiteralPath $shimDll.FullName -Algorithm SHA256).Hash
+$shimDstHash = (Get-FileHash -LiteralPath $shimInPublish -Algorithm SHA256).Hash
+if ($shimSrcHash -ne $shimDstHash) {
+    Write-Host "BUILD GATE FAILED: Paracore.Shim.dll in the publish folder is NOT the shim just built." -ForegroundColor Red
+    Write-Host "  built  : $($shimDll.FullName)  [$shimSrcHash]" -ForegroundColor Red
+    Write-Host "  publish: $shimInPublish  [$shimDstHash]" -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+Write-Host "  [+] Publish shim matches the freshly built shim ($shimSrcHash)" -ForegroundColor Green
 
 # Dependency bundling removed — framework packages are provided by the .NET runtime.
 
@@ -183,6 +206,40 @@ Write-Host "`n[3/3] Compiling the installer with Inno Setup..."
 $rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'paracore-addin.iss'
 $iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\rap-icon.ico'
 $appDataFolderName = 'paracore-data'
+
+# ⚠⚠ GATE — REVIT 2027 ALL-USERS MANIFESTS GO TO PROGRAM FILES, NOT PROGRAMDATA.
+# Measured 2026-11-06: v4.8.2 installed 2027 into {commonappdata}\...\2027 and
+# Revit 2027 refused it — journal.0064.txt said "won't be loaded. All-users
+# Add-in manifest files must be installed to: Program Files\Autodesk\Revit\Addins\2027".
+# Autodesk's 2027 "Add-in Registration" guide confirms the move; the 2025/2026
+# guides still say ProgramData. A wrong DestDir compiles cleanly, installs cleanly,
+# and simply shows NO add-in. Assert the [Files] section, not the intention.
+# An EMPTY scan must FAIL — a guard that silently skips is not a guard.
+$issLines = Get-Content -LiteralPath $rserverAddinInstallerScript
+$inFilesSection = $false
+$bad2027Rows = @()
+$good2027Rows = @()
+foreach ($issLine in $issLines) {
+    $t = $issLine.TrimStart()
+    if ($t.StartsWith('[')) { $inFilesSection = ($t.StartsWith('[Files]')); continue }
+    if (-not $inFilesSection) { continue }
+    if (-not $t.StartsWith('Source:')) { continue }
+    if ($issLine.Contains('{commonappdata}') -and $issLine.Contains('2027')) { $bad2027Rows += $issLine }
+    if ($issLine.Contains('{commonpf64}') -and $issLine.Contains('2027')) { $good2027Rows += $issLine }
+}
+if ($bad2027Rows.Count -gt 0) {
+    Write-Host "BUILD GATE FAILED: a 2027 [Files] row still targets ProgramData:" -ForegroundColor Red
+    $bad2027Rows | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host "  Revit 2027 ignores that folder. Use {commonpf64}\Autodesk\Revit\Addins\2027." -ForegroundColor Red
+    exit 1
+}
+if ($good2027Rows.Count -ne 2) {
+    Write-Host "BUILD GATE FAILED: expected 2 Revit 2027 [Files] rows under {commonpf64}, found $($good2027Rows.Count)." -ForegroundColor Red
+    Write-Host "  An empty or partial scan is a FAIL, not a pass - the guard may have rotted." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  [+] Revit 2027 [Files] rows target {commonpf64} (all-users manifest path)" -ForegroundColor Green
+
 # Pass defines to the Inno Setup script
 & $InnoSetupCompiler "/O$finalInstallDir" "/dIconPath=$iconPath" "/dAppDataFolderName=$appDataFolderName" "/dPublishDir=$resolvedPublishDir" $rserverAddinInstallerScript
 
