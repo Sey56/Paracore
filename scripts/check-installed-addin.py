@@ -98,14 +98,34 @@ def sha(path: str) -> str:
 
 
 def install_roots() -> list[str]:
-    """Every Revit Addins folder Revit itself searches — machine-wide FIRST."""
+    """Every Revit Addins folder Revit itself searches — machine-wide FIRST.
+
+    ⚠⚠ RETARGETED 2026-11-06 (Revit 2027). Autodesk MOVED the all-users manifest
+    folder in 2027 from ProgramData to `C:\\Program Files\\Autodesk\\Revit\\Addins\\2027`.
+    Revit 2027's own journal says so outright ("All-users Add-in manifest files
+    must be installed to: C:\\Program Files\\Autodesk\\Revit\\Addins\\2027"), and the
+    2027 Add-in Registration developer guide agrees. The installer now writes 2027
+    there while 2025/2026 stay in ProgramData. Before this retarget the gate looked
+    only at ProgramData + AppData, so it was BLIND to the one 2027 install that
+    actually loads — a search that reports 'not installed' for a running add-in is
+    the exact false answer this file was written to prevent. ProgramW6432 is used
+    as well as ProgramFiles because a 32-bit host sees the latter redirected.
+    """
     roots: list[str] = []
-    for base in (
+    bases = [
         os.environ.get("PROGRAMDATA"),
         os.environ.get("APPDATA"),
-    ):
+        os.environ.get("ProgramW6432"),
+        os.environ.get("ProgramFiles"),
+    ]
+    seen: set[str] = set()
+    for base in bases:
         if not base:
             continue
+        key = os.path.normcase(os.path.normpath(base))
+        if key in seen:
+            continue
+        seen.add(key)
         roots.extend(sorted(glob.glob(os.path.join(base, "Autodesk", "Revit", "Addins", "*"))))
     return roots
 

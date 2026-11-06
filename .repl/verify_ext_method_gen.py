@@ -254,8 +254,15 @@ else:
     #   gate still red, because the installed copy was from 21:18 the night before. Name the copy
     #   and the action that actually closes it.
     _in_repo = str(DLL).lower().startswith(str(gen.ENGINE).lower())
+    # Resolve the installer name from VERSION, not a literal. A hard-coded
+    # `v4.8.1` here still pointed readers at a two-releases-old installer at
+    # 4.8.3 (2026-11-06) - the same snapshot-vs-fact rot as rule 25. Missing
+    # VERSION must not make the gate crash with its own failure mode.
+    _ver_file = REPO / "VERSION"
+    _release_ver = (_ver_file.read_text(encoding="utf-8").strip()
+                    if _ver_file.exists() else "<VERSION missing>")
     _remedy = ("rebuild the engine" if _in_repo
-               else "run installers\\Paracore_Addin_v4.8.1.exe with Revit CLOSED")
+               else f"run installers\\Paracore_Addin_v{_release_ver}.exe with Revit CLOSED")
     check(DLL.stat().st_mtime >= newest_src,
           f"the {'built' if _in_repo else 'INSTALLED'} DLL is OLDER than the newest engine source — {_remedy}",
           f"dll={DLL.stat().st_mtime:.0f} src={newest_src:.0f} (dll is older by "
