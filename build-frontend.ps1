@@ -194,8 +194,14 @@ try {
 
     Write-Host 'Python server bundled.' -ForegroundColor Green
 
-    # Write modified config
-    $configObject | ConvertTo-Json -Depth 10 | Set-Content -Path $tauriConfigPath -Encoding UTF8
+    # Write modified config.
+    # ⚠ BOM-LESS, ALWAYS. Windows PowerShell 5.1's `Set-Content -Encoding UTF8` writes a
+    #   UTF-8 BOM; Tauri's Rust build script then dies with "unable to parse JSON Tauri
+    #   config file ... expected value at line 1 column 1" (measured 2026-11-06 while
+    #   building 4.8.3). PowerShell 7 does NOT add the BOM, which is why this only bites
+    #   on 5.1. Same rule as Set-Version.ps1: read AND write with one explicit codec.
+    $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tauriConfigPath, ($configObject | ConvertTo-Json -Depth 10), $Utf8NoBom)
 
     # Clean build artifacts that break WiX (colon in filename)
     $badFiles = Get-ChildItem -Path $serverReleaseDir -Recurse -Filter "*_all_files.txt" -ErrorAction SilentlyContinue
@@ -214,20 +220,27 @@ try {
 
     # Tauri sometimes returns exit 1 for WiX warnings even on success
     if (-not (Test-Path $tauriMsiSource)) {
-        Write-Error "Build failed — MSI not produced at: $tauriMsiSource"
-        exit 1
+        # `throw`, not `exit`: exit would skip the finally block and leave the tree
+        # holding a REBRANDED tauri.conf.json with a BOM. Measured 2026-11-06 — a
+        # failed 4.8.3 build left 133 lines of spurious diff behind.
+        throw "Build failed - MSI not produced at: $tauriMsiSource"
     }
-    Write-Host "Tauri build finished — MSI produced."
-
-    # --- Cleanup ---
+    Write-Host "Tauri build finished - MSI produced."
+}
+finally {
+    # ⚠ ALWAYS restore, success OR failure. Byte-exact and BOM-less: the source
+    #   file is read with -Raw (its own CRLF preserved) and written back through
+    #   one explicit codec. The old `Set-Content -Encoding UTF8` added a BOM and
+    #   made a whitespace-only diff reappear on every build (the trap documented
+    #   in the repo-commit skill).
     Write-Host "Restoring tauri.conf.json..." -ForegroundColor Gray
-    Set-Content -Path $tauriConfigPath -Value $originalConfig -Encoding UTF8
+    $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tauriConfigPath, $originalConfig, $Utf8NoBom)
 
     # Remove any server-modules debris
     $bundleDir = Join-Path -Path $webDir -ChildPath 'server-modules'
     if (Test-Path $bundleDir) { Remove-Item -Path $bundleDir -Recurse -Force }
-}
-finally {
+
     Pop-Location
 }
 
