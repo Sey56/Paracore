@@ -47,7 +47,7 @@
 #    Registration" developer guide, confirmed by Revit 2027's own journal:
 #    "All-users Add-in manifest files must be installed to: ..."). Program Files
 #    is admin-only by default, so the 2027 payload needs NO hardening here. The
-#    2027 ProgramData folder is still hardened when present: v4.8.2 wrote there
+#    2027 ProgramData folder is still hardened when present: an earlier build wrote there
 #    and Revit 2027 ignores it, but a writable Revit-version-named folder is the
 #    kind of stale artifact that misleads the next diagnosis. Keep 2027 in the
 #    default list so `undo` still restores a folder hardened earlier.

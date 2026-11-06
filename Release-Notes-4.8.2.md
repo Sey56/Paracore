@@ -1,6 +1,6 @@
 # Paracore v4.8.2
 
-**Windows x64 · one .NET 8 payload · Revit 2025, 2026 & 2027**
+**Windows x64 · .NET 8 · Revit 2025 & 2026**
 
 The release that stops the engine from doing the wrong thing quietly.
 
@@ -11,6 +11,8 @@ background thread could take Revit down. This release closes that class rather t
 instances of it, and it says so in the reply when it cannot be sure.
 
 Release with **Paracore-Gen v2.1.1**. Install both together.
+
+> **Revit 2027 support is in [v4.8.3](Release-Notes-4.8.3.md), not this release.** v4.8.2 was published on 2026-10-29; later builds carrying this number are not this release.
 
 > **Supersedes v4.8.1, which was tagged and held back.** If you are coming from the last published
 > release (v4.8.0), everything in [v4.8.1](Release-Notes-4.8.1.md) is included here as well — the Pack
@@ -147,16 +149,5 @@ verdict — is `paracore-gen/Docs/RELEASE_ACCEPTANCE.md`.
 
 Model left exactly as found after every run: 609 walls, 27 wall types, 0 comments, 0 probe types.
 
-**Requirements:** Revit 2025, 2026 or 2027 · Windows x64 · .NET 8 Desktop Runtime (Revit 2027 supplies its own .NET 10 host)
-
-
-## Revit 2027 — supported (added 2026-11-06)
-
-The v4.8.2 installer was rebuilt with a **third Revit version task**. One `net8.0-windows` payload, still compiled against the Revit 2025 API, serves **Revit 2025, 2026 and 2027**. Revit 2027 hosts **.NET 10**, and .NET 10 loads .NET 8 assemblies — no retarget was needed. The 2027 work was a loader fix and an installer fix, not a framework migration.
-
-- **All-users `.addin` manifests moved.** In 2027 they must go to `C:/Program Files\Autodesk\Revit\Addins\2027`, not `C:/ProgramData/Autodesk/Revit/Addins/2027`. The installer targets the new path for 2027 only; 2025/2026 are unchanged.
-- **Script binding could load a second engine.** On .NET 10 a host resolver can answer `Default.Resolving` before Roslyn, loading a second `CoreScript.Engine.dll` into the default `AssemblyLoadContext`. `ExecutionGlobals.Current` is an `AsyncLocal` static, so the script saw `null` and threw *"Script context is not available"*. `Paracore.Shim` now promotes a one-name `Default.Resolving` guard to the front of the handler chain and serves the engine from its isolated ALC. Isolation stays on for every version.
-- **`ElementId.IntegerValue` was removed in 2027.** Four surviving reads in `CoreScript.Engine` made `NewDemo/MassEdit` fail with *"Method not found: Int32 ...get_IntegerValue()"* although the gallery script itself had no such text. All live runtime C# sources now use `.Value` (a `long`), enforced by the `no-integervalue` gate.
-
-Verified in a live Revit 2027 session: `GetElements("Rooms")` returned a six-room pipeline, and gallery scripts ran.
+**Requirements:** Revit 2025 or 2026 · Windows x64 · .NET 8 desktop runtime
 

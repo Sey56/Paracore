@@ -208,7 +208,7 @@ $iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\rap
 $appDataFolderName = 'paracore-data'
 
 # ⚠⚠ GATE — REVIT 2027 ALL-USERS MANIFESTS GO TO PROGRAM FILES, NOT PROGRAMDATA.
-# Measured 2026-11-06: v4.8.2 installed 2027 into {commonappdata}\...\2027 and
+# Measured 2026-11-06: the pre-fix build installed 2027 into {commonappdata}\...\2027 and
 # Revit 2027 refused it — journal.0064.txt said "won't be loaded. All-users
 # Add-in manifest files must be installed to: Program Files\Autodesk\Revit\Addins\2027".
 # Autodesk's 2027 "Add-in Registration" guide confirms the move; the 2025/2026
