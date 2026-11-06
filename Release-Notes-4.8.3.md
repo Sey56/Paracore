@@ -32,7 +32,7 @@ tag carries a pointer release with no assets, so this page stays the single plac
 
 ## Highlights
 
-- **Revit 2027 works.** One installer, three registry-detected checkboxes (2025 / 2026 / 2027). Verified live: `GetElements("Rooms")` returned a six-room pipeline, and the **MassEdit** gallery script changed room numbers in the 2027 sample file.
+- **Revit 2027 works.** One installer, three registry-detected checkboxes (2025 / 2026 / 2027). Verified live in a 2027 session: `GetElements("Rooms")` returns a room pipeline, and scripts that write parameters run without the `ElementId` failure described below.
 - **A script cannot ask the machine for capabilities it was never given.** Dangerous constructs are refused at compile time, and file access is confined to one workspace.
 - **The add-in's instance-form scan bypasses are closed**, and a refused script no longer hands out the recipe it was refused for.
 - **`ElementId.IntegerValue` is gone from every live runtime source.** Revit 2027 removed `get_IntegerValue()`; `.Value` is the API on 2025, 2026 and 2027.
@@ -69,9 +69,9 @@ exists to prevent.
 
 ### `ElementId.IntegerValue` was removed
 
-Four surviving reads in `CoreScript.Engine` (`GetStr`, `GetNum`, `_describeElement`) made the
-**MassEdit** gallery script fail in 2027 with *"Method not found: `Int32
-Autodesk.Revit.DB.ElementId.get_IntegerValue()`"* — even though the gallery script itself had **no**
+Four surviving reads in `CoreScript.Engine` (`GetStr`, `GetNum`, `_describeElement`) made scripts
+fail in 2027 with *"Method not found: `Int32
+Autodesk.Revit.DB.ElementId.get_IntegerValue()`"* — even when the script's own source had **no**
 `.IntegerValue` text, because the failing reference was inside the compiled engine DLL. All are now
 `.Value` (a `long`). The new `no-integervalue` gate scans 186 live C# files across seven roots,
 fails on an empty or partial scan, and has a `--prove-teeth` mode.
@@ -115,8 +115,8 @@ it before building. Paracore-Gen ships **2.1.2** in the same release and version
 | `Paracore_Addin_v4.8.3.exe` ProductVersion | 4.8.3 |
 | `Paracore-Gen-v2.1.2.exe` ProductVersion | 2.1.2 |
 | `corescript-4.8.3.vsix` manifest | version 4.8.3, bundle present |
-| live Revit 2027 · `GetElements("Rooms")` | 6-room pipeline |
-| live Revit 2027 · gallery **MassEdit** | room numbers changed in the 2027 sample |
+| live Revit 2027 · `GetElements("Rooms")` | returned a 6-room pipeline |
+| live Revit 2027 · a parameter-writing script | completed; no `ElementId.IntegerValue` failure |
 | live Revit 2025 · same REPL script | ran against the active 2025 project |
 | `no-integervalue` gate | 186 files scanned, zero hits · teeth proven |
 
