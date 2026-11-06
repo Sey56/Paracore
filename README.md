@@ -26,7 +26,7 @@ was needed. The 2027 work was an assembly-load-context fix in the shim plus a ch
 `.addin` path in the installer, not a framework migration. The installer detects installed Revit
 versions from the registry and offers one checkbox per version.
 
-See [the v4.8.2 release notes](Release-Notes-4.8.2.md) for the verified details.
+See [the v4.8.3 release notes](Release-Notes-4.8.3.md) for the verified details.
 
 ## Quick start
 

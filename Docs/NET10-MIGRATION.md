@@ -4,7 +4,7 @@
 
 > **⏭ RESOLVED 2026-11-06 — CURRENT pointer, not part of the parked plan below.**
 > **Revit 2027 is supported and needs NO .NET 10 retarget.** The current, verified statement is in
-> [`README.md` § Supported Revit versions](../README.md) and the [v4.8.2 release notes](../Release-Notes-4.8.2.md).
+> [`README.md` § Supported Revit versions](../README.md) and the [v4.8.3 release notes](../Release-Notes-4.8.3.md).
 > .NET 10 hosts load our `net8.0-windows` payload; the two real 2027 defects were a duplicated
 > `CoreScript.Engine.dll` in the default ALC (fixed in the shim) and the moved all-users `.addin`
 > path (fixed in the installer).

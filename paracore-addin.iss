@@ -6,7 +6,7 @@
 #endif
 
 #ifndef MyAppVersion
-  #define MyAppVersion "4.8.2"
+  #define MyAppVersion "4.8.3"
 #endif
 
 #ifndef PublishDir
@@ -83,7 +83,7 @@ Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore
 ;   {commonpf64} = Program Files on x64 (Revit is 64-bit only). The manifest's
 ;   <Assembly>Paracore\Paracore.Shim.dll</Assembly> is RELATIVE, so the payload
 ;   goes in the \Paracore subfolder of that same folder.
-;   The two {commonappdata} rows are CLEANUP for v4.8.2, which wrote 2027 to
+;   The two {commonappdata} rows are CLEANUP for the pre-fix build, which wrote 2027 to
 ;   ProgramData. Revit 2027 ignores that folder, but an upgrade must remove it.
 Type: files; Name: "{commonpf64}\Autodesk\Revit\Addins\2027\Paracore.Addin.addin"; Tasks: Revit2027
 Type: filesandordirs; Name: "{commonpf64}\Autodesk\Revit\Addins\2027\Paracore"; Tasks: Revit2027
@@ -131,7 +131,7 @@ Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.addin"
 Type: filesandordirs; Name: "{commonpf64}\Autodesk\Revit\Addins\2027\Paracore"
 Type: files; Name: "{commonpf64}\Autodesk\Revit\Addins\2027\Paracore.Addin.addin"
-; v4.8.2 wrote 2027 to ProgramData before the path change was known - clean it up too.
+; The pre-fix build wrote 2027 to ProgramData before the move was known - clean it up too.
 Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2027\Paracore"
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2027\Paracore.Addin.addin"
 
