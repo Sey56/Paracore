@@ -613,12 +613,33 @@ namespace CoreScript.Engine.Core
                 {
                     var frame = raw.Trim();
                     if (frame.Length == 0)
-                        continue;
-
-                    var m = System.Text.RegularExpressions.Regex.Match(
-                        frame, @"in\s+script\s*:\s*line\s+(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        continue;                        var m = System.Text.RegularExpressions.Regex.Match(
+                            frame, @"in\s+script\s*:\s*line\s+(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                     if (m.Success)
-                        return "  at your line " + m.Groups[1].Value + " — the script stopped here.";
+                    {
+                        // ⚠⚠ A LAMBDA FRAME REPORTS ITS OPENING LINE, NOT THE FAILING STATEMENT
+                        //   (measured live 2026-11-06, Revit 2027, operator report: "Base Offset is
+                        //   mentioned at line 10 in the REPL playground... so the numbering is
+                        //   confusing").
+                        //   Roslyn emits the delegate as `<>c.<<Initialize>>b__N_M`, and that
+                        //   method's sequence point is the line the lambda STARTS on. Probed
+                        //   directly: with the failing `.Select(dr => new { … dr.GetNum(…) })`
+                        //   closing the `new` on line 4 and the call on line 7, the trace read
+                        //   `in script:line 4` — and top-level code in the same submission
+                        //   (`d__0.MoveNext() in script:line 2`) was correct, so this is NOT a
+                        //   prelude/offset error and cannot be fixed by subtracting a constant.
+                        //   Saying "at your line 4" then accuses a line the caller did not write
+                        //   anything wrong on. Name it as the lambda it is: the exception text
+                        //   above already names the exact call.
+                        bool inLambdaFrame =
+                            frame.IndexOf("<>c", StringComparison.Ordinal) >= 0
+                            || System.Text.RegularExpressions.Regex.IsMatch(frame, @"b__\d+_\d+");
+
+                        return inLambdaFrame
+                            ? "  in the lambda starting at your line " + m.Groups[1].Value
+                              + " — the failing call is named above."
+                            : "  at your line " + m.Groups[1].Value + " — the script stopped here.";
+                    }
                 }
 
                 return string.Empty;

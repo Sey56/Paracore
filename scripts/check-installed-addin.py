@@ -78,6 +78,11 @@ ENGINE_EXPECTED = [
     # round 4 — cap-exempt schema tables
     ("SchemaRows", "schema/discovery tables are marked and never capped at 50 rows"),
     ("capExempt", "the cap-exempt flag travels through Table/AddStructuredOutput"),
+    # 2026-11-07 — a name the CATEGORY does not declare now throws instead of reading as 0/"".
+    # ⚠ Without this anchor a stale install (the released 4.8.3) would still pass this gate
+    # and every conclusion drawn from a live Revit session would be against the old behaviour.
+    ("_throwIfCategoryLacksParameter", "missing parameter names raise instead of returning 0"),
+    ("_declaredNamesForCategory", "the per-category parameter-name index behind that check"),
 ]
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -178,7 +178,10 @@ namespace CoreScript.Engine.Globals
             //   hunting for a typo that was not there. Measured live: ~5 such warnings on a
             //   single Peek(). Only warn when the parameter is genuinely undeclared.
             if (!_declaresParameter(e, name))
+            {
                 _warnUnknownParameter(e, name, "GetStr");
+                _throwIfCategoryLacksParameter(e, name, "GetStr");
+            }
             return "";
         }
 
@@ -238,6 +241,203 @@ namespace CoreScript.Engine.Globals
             }
             catch { }
             return false;
+        }
+
+        // ══ CATEGORY-LEVEL PARAMETER VERDICT ═════════════════════════════════
+        // ⚠⚠ WHY A CATEGORY CHECK, NOT AN ELEMENT ONE (2026-11-06, operator report).
+        //   A read that finds nothing has two very different meanings:
+        //     • this ELEMENT has no value for a parameter the category does declare
+        //       (legitimate — an empty cell), and
+        //     • the NAME does not exist for this category at all (a typo, or the wrong
+        //       category) — and answering that with 0.0 is the worst outcome a QUANTITY
+        //       can have, because 0 reads as a measurement.
+        //   The element alone cannot tell them apart, and `_declaresParameter` is
+        //   deliberately narrow. The CATEGORY can: MEASURED LIVE on Revit 2027
+        //   (2026-11-06, paracore-gen probe, door 376493): `Base Offset` / `Top Offset`
+        //   resolve through NO route (LookupParameter null, no `Paracore ` alias, no
+        //   BuiltInParameter, absent from both instance and type sets) yet the pipeline
+        //   silently produced 0 in both columns.
+        //   ⚠ The check runs ONLY on the failure path — a parameter that yields a value is
+        //   never re-validated, so live behaviour can only change where it used to return 0
+        //   or "". Consequence, stated plainly: a NAME THAT DOES NOT EXIST NOW THROWS
+        //   instead of quietly measuring nothing. That is the requested trade.
+        //   ⚠ Cost: one bounded scan per (category, process), cached, and only ever paid
+        //   when a read has already failed. Mirrors ContextHandler.GetCategoryParameters,
+        //   which samples an element of the category and unions instance + type names.
+        private static readonly Dictionary<long, HashSet<string>> _categoryParamNames =
+            new Dictionary<long, HashSet<string>>();
+
+        /// <summary>How many elements of a category are sampled for the name index.</summary>
+        private const int CategorySampleLimit = 50;
+
+        /// <summary>
+        /// Every parameter name the element's CATEGORY declares, instance and type, unioned
+        /// over a bounded sample and cached per category for the process. <c>null</c> when the
+        /// answer cannot be established (no category, no document) — in which case callers must
+        /// NOT claim the name is wrong.
+        /// </summary>
+        private static HashSet<string> _declaredNamesForCategory(Element e)
+        {
+            var category = e?.Category;
+            if (category == null) return null;
+
+            long catId;
+            try { catId = category.Id.Value; }
+            catch { return null; }
+
+            lock (_categoryParamNames)
+            {
+                if (_categoryParamNames.TryGetValue(catId, out var cached)) return cached;
+            }
+
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool built = false;
+            try
+            {
+                var doc = e.Document;
+                if (doc != null)
+                {
+                    _addParameterNames(e, names);
+                    var seenTypes = new HashSet<long>();
+                    int seen = 0;
+                    var collector = new FilteredElementCollector(doc)
+                        .OfCategoryId(category.Id)
+                        .WhereElementIsNotElementType();
+                    foreach (var el in collector)
+                    {
+                        if (el == null) continue;
+                        _addParameterNames(el, names);
+                        var tid = el.GetTypeId();
+                        if (tid != null && tid != ElementId.InvalidElementId && seenTypes.Add(tid.Value))
+                        {
+                            var typeEl = doc.GetElement(tid);
+                            if (typeEl != null) _addParameterNames(typeEl, names);
+                        }
+                        if (++seen >= CategorySampleLimit) break;
+                    }
+                    built = true;
+                }
+            }
+            catch { /* a failed index must not become a wrong verdict */ }
+
+            if (!built) return null;
+            lock (_categoryParamNames) _categoryParamNames[catId] = names;
+            return names;
+        }
+
+        /// <summary>
+        /// Exact, whole-category test: does ANY element of this category (instance or type)
+        /// declare a parameter with this name? Used only to confirm a name the sampled index
+        /// did not contain, immediately before reporting it as wrong.
+        /// </summary>
+        private static bool _categoryDeclaresByName(Element e, string name)
+        {
+            try
+            {
+                var doc = e.Document;
+                if (doc == null || e.Category == null) return false;
+
+                var collector = new FilteredElementCollector(doc)
+                    .OfCategoryId(e.Category.Id)
+                    .WhereElementIsNotElementType();
+
+                foreach (var el in collector)
+                {
+                    if (el == null) continue;
+                    if (_declaresNameInSet(el, name)) return true;
+
+                    var tid = el.GetTypeId();
+                    if (tid != null && tid != ElementId.InvalidElementId)
+                    {
+                        var typeEl = doc.GetElement(tid);
+                        if (typeEl != null && _declaresNameInSet(typeEl, name)) return true;
+                    }
+                }
+            }
+            catch { /* a failed confirmation must not become a conviction */ }
+            return false;
+        }
+
+        private static bool _declaresNameInSet(Element el, string name)
+        {
+            try
+            {
+                foreach (Parameter p in el.Parameters)
+                {
+                    if (string.Equals(p?.Definition?.Name, name, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static void _addParameterNames(Element el, HashSet<string> names)
+        {
+            try
+            {
+                foreach (Parameter p in el.Parameters)
+                {
+                    var n = p?.Definition?.Name;
+                    if (!string.IsNullOrEmpty(n)) names.Add(n);
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Throws when the element's category does not declare this parameter AT ALL — the
+        /// "this name is wrong for this category" case — and does nothing otherwise.
+        /// <para>
+        /// Called only after every read route has already failed, so it can never reject a
+        /// parameter that would have produced a value. No category, no document, or an empty
+        /// index means "cannot tell": return silently rather than accuse a correct name.
+        /// </para>
+        /// </summary>
+        private static void _throwIfCategoryLacksParameter(Element e, string name, string caller)
+        {
+            if (e == null || string.IsNullOrEmpty(name)) return;
+            if (_isElementIdName(name)) return;
+
+            var declared = _declaredNamesForCategory(e);
+            if (declared == null || declared.Count == 0) return;
+            if (declared.Contains(name)) return;      // declared here — this element is just empty
+
+            // ⚠⚠ THE INDEX IS A BOUNDED SAMPLE, SO IT CANNOT CONVICT ON ITS OWN.
+            //   It unions names over at most CategorySampleLimit elements; a shared parameter
+            //   declared only on a later family of the same category would be missing from it,
+            //   and accusing a CORRECT name is worse than the silent zero we are fixing.
+            //   So before throwing, confirm across the WHOLE category once. Paid only on the
+            //   failure path, and the answer is folded back into the cached set so a second
+            //   call is free.
+            if (_categoryDeclaresByName(e, name))
+            {
+                lock (_categoryParamNames)
+                {
+                    try { declared.Add(name); } catch { }
+                }
+                return;
+            }
+
+            int bestDistance = int.MaxValue;
+            string bestName = null;
+            foreach (var candidate in declared)
+            {
+                int d = _editDistance(name, candidate);
+                if (d < bestDistance) { bestDistance = d; bestName = candidate; }
+            }
+            // Same tolerance as the element-level suggestion: one edit per four characters.
+            int limit = Math.Max(2, name.Length / 4);
+            var hint = bestName != null && bestDistance <= limit
+                ? $" Did you mean \"{bestName}\"?"
+                : string.Empty;
+
+            var categoryName = "this element";
+            try { categoryName = "Category " + (e.Category?.Name ?? "(unnamed)"); } catch { }
+
+            throw new InvalidOperationException(
+                $"{caller}(\"{name}\"): there is no \"{name}\" parameter in {categoryName}.{hint}"
+                + " Use .CombinedParams().Table() to list the real names.");
         }
 
         /// <summary>
@@ -607,7 +807,10 @@ namespace CoreScript.Engine.Globals
             //   parameter not existing. So warn only when it genuinely does not exist, exactly
             //   as GetStr does, and suggest the closest real name.
             if (!_declaresParameter(e, name))
+            {
                 _warnUnknownParameter(e, name, "GetNum");
+                _throwIfCategoryLacksParameter(e, name, "GetNum");
+            }
             return 0.0;
         }
 
@@ -650,7 +853,10 @@ namespace CoreScript.Engine.Globals
 
             // Same rule as GetNum: 0 is a plausible value, so silence makes a typo invisible.
             if (!_declaresParameter(e, name))
+            {
                 _warnUnknownParameter(e, name, "GetInt");
+                _throwIfCategoryLacksParameter(e, name, "GetInt");
+            }
             return 0;
         }
 
