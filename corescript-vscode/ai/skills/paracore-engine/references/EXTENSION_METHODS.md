@@ -128,14 +128,22 @@ GetElements("Walls").First().GetStr("Level")            // "02 - Ground Floor Pl
 
 **"Level" resolution**: GetStr("Level") works on ALL categories. Walls → NativeProperties LevelId, Structural Framing → "Reference Level", Columns → "Base Level", Doors/Windows/Rooms → built-in "Level" parameter. Uses category-specific fallback chain: Reference Level → Base Level → Base Constraint → Native LevelId.
 
-**Unknown parameters**: GetStr returns "" and logs a one-time warning: `⚠ GetStr("BadParam"): no parameter of that name on this element. … Check the spelling, or use .CombinedParams().Table() to see the real names.`
+**Unknown parameters**: a name that the element's **category does not declare at all** is an error.
+`GetStr`, `GetNum` and `GetInt` throw an `InvalidOperationException` naming the category and
+suggesting the closest real name:
 
-⚠ **Reads return, collection filters RAISE — and that asymmetry is deliberate.** `WhereParam` /
-`GroupByParam` / `SumParam` / `OrderByParam` check the name against the whole set and throw, because
-one wrong name makes an aggregate silently zero — a false all-clear. A single-element read cannot do
-that: absence per element is NORMAL in a mixed set (`WhereParam("Type Mark", …)` over Walls + Grids
-legitimately finds the parameter on some elements and not others), so `GetStr` must tolerate the
-misses or the filter breaks. To tell **"undeclared"** from **"empty"**, ask:
+```text
+GetNum("Top Offset"): there is no "Top Offset" parameter in Category Doors.
+Did you mean "Top Level Offset"? Use .CombinedParams().Table() to list the real names.
+```
+
+⚠ **A wrong NAME raises; an empty VALUE does not.** Before 2026-11-07 a misspelled name silently
+returned `""` or `0`, and a table printed that as a measurement. The engine now separates the two
+cases that looked identical: a name no element of that category declares is a mistake and throws;
+a name the category *does* declare, but this particular element has no value for, still returns
+`""` / `0` — a legitimate empty cell in a mixed set. `WhereParam` / `GroupByParam` / `SumParam` /
+`OrderByParam` also check the name against the whole set and throw, because one wrong name makes an
+aggregate silently zero. To tell **"undeclared"** from **"empty"** on one element, ask:
 
 ```csharp
 GetElements("Walls").First().HasParam("Fire Rating")    // true
