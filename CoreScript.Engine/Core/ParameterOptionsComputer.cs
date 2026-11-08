@@ -476,9 +476,32 @@ namespace CoreScript.Engine.Core
 
             // Last resort: the BuiltInCategory name, for categories whose display name differs
             // from the enum ("Structural Framing" vs OST_StructuralFraming).
+            //
+            // ⚠⚠ EXACT, NOT "CONTAINS" (fixed 2026-11-08, operator report). This used IndexOf on
+            //    the raw enum name, and it compared the SINGULAR key, so "Doors" became "door"
+            //    and matched "OST_DoorTags": "door" is a substring of "doortags". Measured live
+            //    on TestModel.rvt with GetElements<FamilySymbol>(…):
+            //        "Doors"               8 symbols — incl. Door Tags
+            //        "Windows"            26         — incl. Window Tags
+            //        "Rooms"               7         — EVERY one a Room Tag, zero room types
+            //        "Columns"                       — Columns + Structural Columns
+            //        "Walls"              14         — Curtain Wall Mullions, Curtain Panels, Wall Tags
+            //        "Structural Framing"            — incl. Structural Framing Tags
+            //        "Grids" / "Areas"               — Grid Heads / Area Tags only
+            //    A contains-check can only ever ADD categories, and every legitimate match here
+            //    is exact ("Structural Framing" == structuralframing), so tightening this removes
+            //    the false ones and nothing else. The plural forms keep "Door" → OST_Doors and
+            //    "Column" → OST_Columns working, which is the only shape the substring served.
+            //    ⚠ The FILTER is the only loose place: FindBuiltInCategory above is already exact.
             var bic = category.BuiltInCategory.ToString();
-            return bic.IndexOf(key.Compact, StringComparison.OrdinalIgnoreCase) >= 0
-                || bic.IndexOf(key.SingularCompact, StringComparison.OrdinalIgnoreCase) >= 0;
+            var enumCompact = Compact(bic.StartsWith("OST", StringComparison.OrdinalIgnoreCase)
+                ? bic.Substring(3)
+                : bic);
+
+            return enumCompact.Equals(key.Compact, StringComparison.OrdinalIgnoreCase)
+                || enumCompact.Equals(key.SingularCompact, StringComparison.OrdinalIgnoreCase)
+                || enumCompact.Equals(key.SingularCompact + "s", StringComparison.OrdinalIgnoreCase)
+                || enumCompact.Equals(key.Compact + "s", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
