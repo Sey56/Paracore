@@ -83,6 +83,10 @@ ENGINE_EXPECTED = [
     # and every conclusion drawn from a live Revit session would be against the old behaviour.
     ("_throwIfCategoryLacksParameter", "missing parameter names raise instead of returning 0"),
     ("_declaredNamesForCategory", "the per-category parameter-name index behind that check"),
+    # 2026-11-09 — the raise stops at a PACK: a pack ships its own fallbacks and probes names
+    # whose absence is normal (takeoff's "b" / "Structural Material"). Without this anchor an
+    # install that still throws inside packs passes the gate and takeoff exports zero sections.
+    ("_callerIsPackCode", "the raise is skipped for code loaded from a pack assembly"),
 ]
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

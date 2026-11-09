@@ -1,6 +1,8 @@
 using Autodesk.Revit.DB;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
@@ -419,6 +421,28 @@ namespace CoreScript.Engine.Globals
                 return;
             }
 
+            // ⚠⚠⚠ A PACK IS A PRODUCT, NOT A TYPO (2026-11-09, operator report: "the
+            //   paracore-takeoff connector used to work without any problems whatsoever").
+            //   The strict throw above is a contract for the code a PERSON or AGENT writes —
+            //   "Base Offset" on a Door must not read as 0. It is the WRONG contract for a
+            //   pack, because a pack ships its own fallbacks and therefore PROBES names whose
+            //   absence is the normal answer:
+            //       paracore-takeoff: sym.GetNum("b", "m")            // rebar/precast width
+            //       paracore-takeoff: el.GetStr("Structural Material") // only structural cats
+            //   Measured live on the villa model (2026-11-09): HasParam("b")=false on Structural
+            //   Foundations, HasParam("Structural Material")=false on Doors AND Ceilings. With
+            //   the throw reaching them, export_collect_all finished with `sections done: []`
+            //   and Earthwork/Roofing/Joinery/MetalWork/Finishing all died on their first
+            //   element. ⚠ None of that was a pack regression: the RELEASED engine (v4.8.3,
+            //   the tag HEAD is 7 commits past) warned and returned ""/0 for exactly these
+            //   reads — the pack was compiled against that, and its compound-structure /
+            //   MaterialNames / Length×b×h fallbacks are the intended handling.
+            //   So: the strict answer applies to the SCRIPT (and engine internals keep their
+            //   own judgement); code loaded from a pack assembly keeps the released contract.
+            //   Detection is explicit — the caller's assembly declares IParacorePack — never a
+            //   guess at Roslyn's script-assembly name. Paid only on the failure path.
+            if (_callerIsPackCode()) return;
+
             int bestDistance = int.MaxValue;
             string bestName = null;
             foreach (var candidate in declared)
@@ -438,6 +462,56 @@ namespace CoreScript.Engine.Globals
             throw new InvalidOperationException(
                 $"{caller}(\"{name}\"): there is no \"{name}\" parameter in {categoryName}.{hint}"
                 + " Use .CombinedParams().Table() to list the real names.");
+        }
+
+        /// <summary>
+        /// Is the first frame OUTSIDE this assembly in a PACK assembly?
+        ///
+        /// Packs are loaded into the same isolated context as the engine (see
+        /// <see cref="Packs.PackCatalog"/> and <see cref="Packs.IParacorePack"/>), so their code
+        /// is a normal caller here. Frames from THIS assembly are skipped, because an engine
+        /// helper invoked by a pack (GetLevelName, MaterialNames, …) must not answer for it.
+        ///
+        /// ⚠ Cached per assembly: GetTypes() over a pack is not free, but it runs at most once
+        /// per assembly per process, and only after a read has already failed.
+        /// </summary>
+        private static bool _callerIsPackCode()
+        {
+            try
+            {
+                var engineAssembly = typeof(ElementExtensions).Assembly;
+                // Skip this method and _throwIfCategoryLacksParameter themselves.
+                var trace = new StackTrace(2, false);
+                foreach (var frame in trace.GetFrames())
+                {
+                    var asm = frame?.GetMethod()?.DeclaringType?.Assembly;
+                    if (asm == null || asm == engineAssembly) continue;
+                    return _packAssemblyCache.GetOrAdd(asm, _declaresPack);
+                }
+            }
+            catch { /* frames are best-effort — never let diagnostics change behaviour */ }
+            return false;
+        }
+
+        /// <summary>Assembly → "does it declare a pack?", filled on first failure per assembly.</summary>
+        private static readonly ConcurrentDictionary<Assembly, bool> _packAssemblyCache = new();
+
+        /// <summary>Does this assembly implement <see cref="Packs.IParacorePack"/>?</summary>
+        private static bool _declaresPack(Assembly asm)
+        {
+            static bool Any(IEnumerable<Type> types)
+            {
+                foreach (var t in types)
+                {
+                    if (t == null || t.IsAbstract || t.IsInterface) continue;
+                    if (typeof(Packs.IParacorePack).IsAssignableFrom(t)) return true;
+                }
+                return false;
+            }
+
+            try { return Any(asm.GetTypes()); }
+            catch (ReflectionTypeLoadException ex) { return Any(ex.Types); }
+            catch { return false; }
         }
 
         /// <summary>

@@ -149,6 +149,19 @@ GetElements("Walls").First().HasParam("Fire Ratng")     // false — a typo, not
 GetElements("Walls").First().HasParam("Id")             // true — answered from the element itself
 ```
 
+⚠⚠ **The throw is a contract for CODE YOU WRITE, and it stops at a pack.** A **pack** (takeoff,
+BOQ, clash …) is a compiled product that ships its own fallbacks, so it legitimately *probes* names
+whose absence is the normal answer — `sym.GetNum("b", "m")` for a rebar width, or
+`el.GetStr("Structural Material")` which only structural categories declare. When the read comes
+from a **pack assembly** (one that implements `IParacorePack`), the engine keeps the older,
+released contract: it warns and returns `""` / `0` instead of throwing. Verified 2026-11-09:
+with the throw reaching them, `paracore-takeoff`'s export finished with **zero** collected sections
+and five sections died on their first element, because `HasParam("b")` is `false` on Structural
+Foundations and `HasParam("Structural Material")` is `false` on Doors and Ceilings. A script still
+throws for both, which is the point: `GetNum("Base Offset")` on a Door is a mistake, and a typo in
+a BOQ must never read as a measured zero. If you are writing a pack and *want* the strict answer,
+ask `HasParam(...)` yourself.
+
 ### GetNum — parameter value as double
 
 ```csharp
