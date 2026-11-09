@@ -4,7 +4,15 @@
 [![Revit 2025+](https://img.shields.io/badge/Revit-2025%2B-blue)](https://www.autodesk.com/products/revit/)
 [![Documentation](https://img.shields.io/badge/docs-live-brightgreen)](https://sey56.github.io/paracore-help/)
 
-Write C# that runs live inside Revit — no project files, no compilation, no boilerplate. Every Revit API namespace is pre-imported. Every element has smart extension methods.
+Write C# that runs live inside Revit — no project files, no compilation step, no boilerplate. Revit API namespaces are pre-imported and elements have extension methods for common operations.
+
+## Install
+
+Download the installers from the [v4.8.3 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.3), run the desktop app MSI and the Revit add-in EXE, then open Revit and switch the Paracore server ON in the ribbon.
+
+Supported Revit versions: **2025, 2026, 2027**. One installer covers all three; select the versions you have.
+
+The optional VS Code extension and the Paracore-Gen MCP server have installers on the same release page.
 
 ## What's in this repo
 
@@ -12,48 +20,30 @@ Write C# that runs live inside Revit — no project files, no compilation, no bo
 |-----------|-------------|-------|
 | **Paracore Addin** | Revit ribbon + gRPC execution engine | `./build-addin.ps1` |
 | **Paracore Desktop App** | Script gallery, REPL playground, parameter UI generator | `./build-frontend.ps1` |
-| **VS Code Extension** | Write C# in VS Code, execute in Revit, see output in VS Code | `./build-extension.ps1` |
+| **CoreScript VS Code Extension** | Write C# in VS Code, run it in Revit | `./build-extension.ps1` |
 
-Installers go to `installers/`. All four published installers — desktop app MSI, Revit add-in
-EXE, VS Code extension VSIX and Paracore-Gen EXE — are on the
-[v4.8.3 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.3).
+Build outputs go to `installers/`. Requirements: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
 
-**Requirements**: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
-
-## Supported Revit versions
-
-**Revit 2025, 2026 and 2027.** Paracore ships one `net8.0-windows` payload, compiled against the
-Revit 2025 API. Revit 2027 hosts **.NET 10**, and .NET 10 loads .NET 8 assemblies — so no retarget
-was needed. The 2027 work was an assembly-load-context fix in the shim plus a changed all-users
-`.addin` path in the installer, not a framework migration. The installer detects installed Revit
-versions from the registry and offers one checkbox per version.
-
-See [the v4.8.3 release notes](Release-Notes-4.8.3.md) for the verified details.
-
-## Quick start
+## Build from source
 
 ```powershell
-./build-addin.ps1                        # Build the Revit addin
-./build-frontend.ps1                     # Build the desktop app installer
+./build-addin.ps1
+./build-frontend.ps1
+./build-extension.ps1
 ```
 
-Run the installer from `installers/`, open Revit, toggle the Paracore server ON in the ribbon.
-
-None of the build scripts take a `-Release` flag — `./build-frontend.ps1` is already the installer
-build. For local development, `./dev.ps1` runs the API server and the desktop app together in one
-terminal — see [Run (development)](DEVELOPMENT.md#run-development).
+`./dev.ps1` runs the API server and the desktop app together for local development. See [DEVELOPMENT.md](DEVELOPMENT.md#run-development).
 
 ## Key features
 
-- **Zero boilerplate** — no `.csproj`, no `using` statements, no `namespace`. Just C# top-level statements.
-- **Smart parameter access** — `GetStr("Level")` works on ANY category (Walls, Beams, Columns, Rooms). The engine resolves the right parameter name per category.
-- **Fluent LINQ chains** — `.WhereParam().GroupByParam().SumParam().Select().Table()` — pipeline tracking shows element counts at each step.
-- **Auto-generated UI** — add a `Params` class and Paracore generates the dialog from it.
-- **AI-ready** — works with the Paracore MCP (separate repo) for Claude Desktop / Cursor / VS Code integration.
+- **Top-level C# statements** — no `.csproj`, `using` or `namespace`.
+- **Parameter access by name** — `GetStr("Level")` works across categories; the engine resolves the parameter.
+- **Fluent chains** — `.WhereParam().GroupByParam().SumParam().Select().Table()`.
+- **Generated parameter dialogs** — add a `Params` class and the UI is built from it.
 
-## Paracore MCP
+## Paracore-Gen
 
-The Model Context Protocol server lives in a separate repo: [`paracore-gen`](https://github.com/Sey56/paracore-gen). Its installer is on the [v4.8.3 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.3); install it alongside this addin to control Revit from Claude Desktop, Cursor, or any MCP-compatible client.
+An optional MCP server that lets an AI assistant drive Revit from Claude Desktop, Cursor or VS Code. It lives in [paracore-gen](https://github.com/Sey56/paracore-gen). To build it locally:
 
 ```powershell
 cd ../paracore-gen
@@ -62,9 +52,10 @@ cd ../paracore-gen
 
 ## Documentation
 
-- [Development Guide](DEVELOPMENT.md) — architecture, local setup
+- [User documentation](https://sey56.github.io/paracore-help/)
+- [Development Guide](DEVELOPMENT.md)
 - [Contributing](CONTRIBUTING.md)
-- [paracore-help](https://sey56.github.io/paracore-help/) — user docs
+- [v4.8.3 release notes](Release-Notes-4.8.3.md)
 
 ## License
 
