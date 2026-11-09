@@ -43,7 +43,7 @@ Build outputs go to `installers/`. Requirements: .NET 8 SDK, Node.js, Python 3.1
 
 ## Paracore-Gen
 
-An optional MCP server that lets an AI assistant drive Revit from Claude Desktop, Cursor or VS Code. It lives in [paracore-gen](https://github.com/Sey56/paracore-gen). To build it locally:
+An optional MCP server that lets an AI assistant drive Revit from Claude Desktop, Cursor or VS Code. It generates and runs C# from the user's conversation — there is no fixed set of task tools. It lives in [paracore-gen](https://github.com/Sey56/paracore-gen). To build it locally:
 
 ```powershell
 cd ../paracore-gen
