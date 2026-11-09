@@ -2,7 +2,7 @@
 
 A comprehensive guide to every extension method the **engine** provides on Revit elements and collections in Paracore scripts. All methods are globally available in the REPL and in all scripts.
 
-⚠⚠ **This document is ENGINE-ONLY, and there is exactly ONE of it (2026-10-09).** There is no free/Pro split any more — the engine and the add-in are always free and generic, so there is no `#PRO-ONLY` region, no stripped variant, and no second copy with different content. A method provided by a tool's **pack** (the Pro/free unit) is documented **with that tool**, never here: the takeoff pack's `CoordinationExtensions.cs`, `CurtainGridRepairExtensions.cs` and `Eco.cs` live in `paracore-takeoff/pack/Engine/Globals/` and are documented in **`paracore-takeoff/Docs/TAKEOFF_REFERENCE.md`**.
+⚠⚠ **This document is ENGINE-ONLY.** It lists the methods the generic engine provides. The engine and the add-in are always free and generic, so there is no `#PRO-ONLY` region, no stripped variant, and no second copy with different content. A method supplied by a consumer's own **pack** is documented with that consumer, never here.
 
 This document has TWO halves, and only one of them is written by hand.
 
@@ -19,10 +19,8 @@ the next `--write` discards it, and every copy of this file in the other MCPs is
 `public static … (this …)` declared under `CoreScript.Engine/` appears there, and so does every
 `public static` member of the `ScriptApi*` partials. (Host plumbing that a script cannot call — the DI
 registration `AddCoreScriptEngineServices` in `ServiceCollectionExtensions.cs` — is deliberately out of
-scope.) A method provided by a tool's **pack** is documented **with that tool**, never here: the takeoff
-pack's `CoordinationExtensions.cs`, `CurtainGridRepairExtensions.cs` and `Eco.cs` live in
-`paracore-takeoff/pack/Engine/Globals/` and are documented in
-**`paracore-takeoff/Docs/TAKEOFF_REFERENCE.md`**.
+scope.) A method supplied by a consumer's own **pack** is documented with that consumer,
+never here.
 
 > [!NOTE]
 > All extension methods work identically in the **REPL** and in **Gallery scripts**. They are standard C# extension methods available everywhere the engine runs.
