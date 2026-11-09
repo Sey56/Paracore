@@ -22,7 +22,7 @@ Every build script is PowerShell and runs from the repo root:
 ./build-extension.ps1    # VS Code extension
 ```
 
-Requirements: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6. The build still targets `net8.0-windows`; that one payload runs in Revit 2025, 2026 and 2027. Revit 2027 hosts .NET 10 and loads it directly — do NOT retarget to `net10.0` to "support 2027". See [NET10-MIGRATION.md](Docs/NET10-MIGRATION.md).
+Requirements: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6. The build targets `net8.0-windows`; that one payload runs in Revit 2025, 2026 and 2027. Revit 2027 hosts .NET 10 and loads the payload directly.
 
 | script | output | notes |
 | --- | --- | --- |

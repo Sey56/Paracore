@@ -157,9 +157,9 @@ name, slug, intro, its own skills, optional prompt overrides, extra tools.
 ## Remote seam
 
 `rap-server` gained `/run-script` and `/api/pick-object`, and the sidecar gained
-`CoreScriptProxyService`. This is **Phase 0** of `Docs/CLOUD_PLAN.md` — the seam made configurable,
-no cloud execution — and that plan is **paused by choice**. Nothing here is a cloud product; it is
-the boundary being moved out one layer at a time, with each layer proven before the next.
+`CoreScriptProxyService`. This makes the seam configurable; there is no cloud execution.
+Nothing here is a cloud product; it is the boundary being moved out one layer at a time,
+with each layer proven before the next.
 
 ## Desktop app
 

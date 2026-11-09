@@ -1,4 +1,4 @@
-"""Stage 0 baseline harness for the finishing takeoff (Docs/MODULARIZATION_PLAN.md).
+"""Stage 0 baseline harness for the finishing takeoff.
 
 Replaces the "build -> close Revit -> install -> reopen -> probe by hand" loop with a
 capture/diff pair, so a change to one section can be proven not to have moved any other.
