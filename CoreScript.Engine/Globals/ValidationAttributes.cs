@@ -12,27 +12,6 @@ namespace CoreScript.Engine.Globals
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
-    public class ScriptParameterAttribute : Attribute
-    {
-        public bool MultiSelect { get; set; } = false;
-        public string? Options { get; set; }
-        public string? VisibleWhen { get; set; }
-        public string? Group { get; set; }
-        public string? Description { get; set; } // Deprecated in V3 if XML comments are used, but kept for back-compat
-        public double Min { get; set; }
-        public double Max { get; set; }
-        public double Step { get; set; }
-        public string? Suffix { get; set; }
-        public string? InputType { get; set; } // e.g., "File", "SaveFile", "Folder"
-        public bool Compute { get; set; } = false;
-        public bool Computable { get; set; } = false; // V3 Alias
-        public SelectionType Select { get; set; } = SelectionType.None; // New Selection Mode
-
-        // Validation helpers for attribute parsing
-        public ScriptParameterAttribute() { }
-    }
-
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public class RevitElementsAttribute : Attribute
     {
         public string? TargetType { get; set; } // Target element type name (e.g. "WallType")
@@ -89,20 +68,6 @@ namespace CoreScript.Engine.Globals
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class MinAttribute : Attribute
-    {
-        public double Value { get; }
-        public MinAttribute(double value) { Value = value; }
-    }
-
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class MaxAttribute : Attribute
-    {
-        public double Value { get; }
-        public MaxAttribute(double value) { Value = value; }
-    }
-
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class RangeAttribute : Attribute
     {
         public double Min { get; }
@@ -124,13 +89,6 @@ namespace CoreScript.Engine.Globals
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class PatternAttribute : Attribute
-    {
-        public string Regex { get; }
-        public PatternAttribute(string regex) { Regex = regex; }
-    }
-
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class SuffixAttribute : Attribute
     {
         public string Value { get; }
@@ -147,13 +105,6 @@ namespace CoreScript.Engine.Globals
             ParameterName = parameterName;
             Value = value;
         }
-    }
-
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class DescriptionAttribute : Attribute
-    {
-        public string Value { get; }
-        public DescriptionAttribute(string value) { Value = value; }
     }
 
     // --- File System Attributes (Unified V3) ---
