@@ -61,9 +61,8 @@ Watchdog(() =>
     // ⚠ [Unit("mm")] means the UI takes mm and the property ARRIVES in internal feet — the
     //   same units GetNum(name) returns when you pass no unit. Compare those two directly;
     //   convert only for the sentence a human reads.
-    var shortWalls = GetElements<Wall>()
-        .Where(w => w.GetNum("Length") < p.MinLength)
-        .ToList();
+    List<Wall> shortWalls = [.. GetElements<Wall>()
+        .Where(w => w.GetNum("Length") < p.MinLength)];
 
     string action = ExecutionGlobals.Get<string>("__sentinel_action__")?.ToLowerInvariant() ?? "";
 
@@ -88,7 +87,7 @@ Watchdog(() =>
                 ? "All walls meet the minimum length."
                 : $"{shortWalls.Count} wall(s) below {limit}.",
             shortWalls.Count == 0 ? "success" : "warning",
-            shortWalls.Select(w => w.Id).ToList());
+            shortWalls.Select(w => w.Id));
 
         if (string.IsNullOrEmpty(action))       // a manual Run should still SHOW something
         {

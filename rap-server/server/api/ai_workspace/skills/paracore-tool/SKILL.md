@@ -82,8 +82,8 @@ Convention-based hooks that feed the configurator dynamically:
 
 ```csharp
 // Custom dropdown filter
-public List<WallType> WallType_Options => GetElements<WallType>()
-    .Where(t => t.Name.Contains("Generic")).ToList();
+public List<WallType> WallType_Options => [.. GetElements<WallType>()
+    .Where(t => t.Name.Contains("Generic"))];
 
 // Conditional visibility
 public bool ShowAdvanced_Visible => IsActive;
