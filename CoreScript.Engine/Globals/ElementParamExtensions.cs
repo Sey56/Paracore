@@ -3,6 +3,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
@@ -48,8 +49,14 @@ namespace CoreScript.Engine.Globals
         /// Gets the parameter value as a string.
         /// Smart: Resolves ElementId names, handles Strings, falls back to C# Properties (Reflection),
         /// and finally formatted ValueStrings.
+        /// <para>
+        /// ⚠ 2026-11-12: numeric parameters are read from AsDouble() and are EXACT unless
+        /// <paramref name="decimals"/> is supplied. AsValueString() inherits the PROJECT's display
+        /// accuracy (Area accuracy 1 printed a 0.477 m2 wall as "0 m2"); this overload no longer
+        /// does. Text / ElementId / yes-no values are still Revit's own strings.
+        /// </para>
         /// </summary>
-        public static string GetStr(this Element e, string name)
+        public static string GetStr(this Element e, string name, int decimals = -1)
         {
             // ⚠ Guarded: step 5 below re-enters this method on the element's TYPE. That hop is gated
             //   (the type must actually declare the parameter) and terminates today, but it is a
@@ -81,13 +88,15 @@ namespace CoreScript.Engine.Globals
             //    clashes like "Structural" matching a generic BIP instead of the
             //    element's actual parameter).
             var p = e.ResolveParam(name);
-            if (p != null && p.HasValue) return FormatParamValue(e, p);
+            if (p != null && p.HasValue)
+                return _numericParamDisplay(p, decimals, false) ?? FormatParamValue(e, p);
 
             // 2. Fall back to BuiltInParameter enum match
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
-                if (bp != null && bp.HasValue) return FormatParamValue(e, bp);
+                if (bp != null && bp.HasValue)
+                    return _numericParamDisplay(bp, decimals, false) ?? FormatParamValue(e, bp);
             }
 
             // 2b. "Id" is the element's own handle, not a parameter — and it is the handle every
@@ -114,11 +123,17 @@ namespace CoreScript.Engine.Globals
 
                     if (val is double d)
                     {
+                        // A native double is in Revit internal units. Convert with the project's
+                        // own length unit, then apply ONLY the precision the caller asked for.
                         try
                         {
-                            return UnitFormatUtils.Format(e.Document.GetUnits(), SpecTypeId.Length, d, false);
+                            string token = UnitExtensions._unitToken(
+                                e.Document.GetUnits().GetFormatOptions(SpecTypeId.Length).GetUnitTypeId());
+                            if (token != null) return d.FormatValueOnly(token, decimals);
                         }
-                        catch { return d.ToString("F3"); }
+                        catch { }
+                        double n = decimals < 0 ? d : Math.Round(d, decimals, MidpointRounding.AwayFromZero);
+                        return n.ToString(CultureInfo.InvariantCulture);
                     }
 
                     return val.ToString() ?? "";
@@ -169,7 +184,7 @@ namespace CoreScript.Engine.Globals
             if (typeId != null && typeId != ElementId.InvalidElementId)
             {
                 var type = e.Document.GetElement(typeId);
-                if (type != null && _declaresParameter(type, name)) return type.GetStr(name);
+                if (type != null && _declaresParameter(type, name)) return type.GetStr(name, decimals);
             }
 
             // ⚠⚠ "NOT FOUND" IS A CLAIM, SO CHECK IT BEFORE MAKING IT (fixed 2026-10-27).
@@ -762,8 +777,9 @@ namespace CoreScript.Engine.Globals
             return prev[b.Length];
         }
 
-        /// <summary> Gets the parameter value converted to a specific unit as a string (no suffix). </summary>
-        public static string GetStr(this Element e, string name, string unit, int decimals = 2)
+        /// <summary> Gets the parameter value converted to a specific unit as a string (no suffix).
+        /// Exact by default (decimals = -1); pass decimals to round. </summary>
+        public static string GetStr(this Element e, string name, string unit, int decimals = -1)
         {
             if (e == null) return "";
             return e.GetNum(name).FormatValueOnly(unit, decimals);
@@ -935,9 +951,18 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Gets the formatted value string exactly as seen in the Revit Properties palette.
+        /// Gets a formatted value string.
+        /// <para>
+        /// ⚠⚠ NO LONGER WYSIWYG (2026-11-12). Numeric parameters are read from AsDouble(),
+        /// converted to the parameter's OWN display unit and returned EXACT unless
+        /// <paramref name="decimals"/> is supplied. It used to return AsValueString() verbatim,
+        /// which inherits the PROJECT's display accuracy: with Area accuracy 1, a 0.477 m2
+        /// wall printed as "0 m2" — faithful to the Properties palette, but the caller had no
+        /// way to ask for more precision and a whole quantity disappeared. Text / ElementId /
+        /// yes-no values are still Revit's own strings.
+        /// </para>
         /// </summary>
-        public static string GetVal(this Element e, string name)
+        public static string GetVal(this Element e, string name, int decimals = -1)
         {
             // ⚠ Guarded because THIS method is one leg of the cycle that killed Revit on 2026-10-27:
             //   GetVal → GetTypeVal → GetElementType (returns self) → GetVal. The stack check fires
@@ -954,12 +979,14 @@ namespace CoreScript.Engine.Globals
 
             if (p != null)
             {
+                var exact = _numericParamDisplay(p, decimals, true);
+                if (exact != null) return exact;
                 var formatted = p.AsValueString();
                 if (!string.IsNullOrEmpty(formatted)) return formatted;
                 if (p.StorageType == StorageType.String) return p.AsString() ?? "-";
             }
 
-            var fallback = e.GetStr(name);
+            var fallback = e.GetStr(name, decimals);
             if (!string.IsNullOrEmpty(fallback)) return fallback;
 
             // ⚠⚠ A TYPE IS ITS OWN TYPE — so this fallback MUST NOT fire on a type receiver.
@@ -978,12 +1005,13 @@ namespace CoreScript.Engine.Globals
             //   the correct answer, not a short-circuit.
             if (e is ElementType) return "-";
 
-            var typeVal = e.GetTypeVal(name);
+            var typeVal = e.GetTypeVal(name, decimals);
             return string.IsNullOrEmpty(typeVal) || typeVal == "-" ? "-" : typeVal;
         }
 
-        /// <summary> Gets the formatted value string in a specific unit (with suffix). </summary>
-        public static string GetVal(this Element e, string name, string unit, int decimals = 2)
+        /// <summary> Gets the formatted value string in a specific unit (with suffix).
+        /// Exact by default (decimals = -1); pass decimals to round. </summary>
+        public static string GetVal(this Element e, string name, string unit, int decimals = -1)
         {
             if (e == null) return "-";
             return e.GetNum(name).FormatUnit(unit, decimals);
@@ -996,8 +1024,9 @@ namespace CoreScript.Engine.Globals
         /// pass a number only when you want the rounded value. This used to default to 2, which
         /// made the reported QUANTITY a rounded approximation of the model: a 5.065 m wall came
         /// back as 5.07, a 915 mm door as 0.91 m, and a sum of 2-dp areas lost 0.012 m² on a
-        /// nine-wall test model — the loss growing with the building. Rounding is a display
-        /// concern: FormatUnit / GetVal / GetStr(unit) do it for you.
+        /// nine-wall test model — the loss growing with the building. Since 2026-11-12 this is
+        /// ONE rule: no value accessor rounds by default; pass `decimals` to any of them to
+        /// round deliberately.
         /// </para>
         /// </summary>
         public static double GetNum(this Element e, string name, string unit, int decimals = -1)
@@ -1033,16 +1062,43 @@ namespace CoreScript.Engine.Globals
             return e.Document.GetElement(id);
         }
 
-        public static string GetTypeStr(this Element e, string name) => e.GetElementType()?.GetStr(name) ?? "";
-        public static string GetTypeStr(this Element e, string name, string unit, int decimals = 2) => e.GetElementType()?.GetStr(name, unit, decimals) ?? "";
+        public static string GetTypeStr(this Element e, string name, int decimals = -1) => e.GetElementType()?.GetStr(name, decimals) ?? "";
+        public static string GetTypeStr(this Element e, string name, string unit, int decimals = -1) => e.GetElementType()?.GetStr(name, unit, decimals) ?? "";
         public static double GetTypeNum(this Element e, string name) => e.GetElementType()?.GetNum(name) ?? 0.0;
         /// <summary>Type-parameter twin of GetNum(name, unit) — exact by default, decimals = -1 means no rounding.</summary>
         public static double GetTypeNum(this Element e, string name, string unit, int decimals = -1) => e.GetElementType()?.GetNum(name, unit, decimals) ?? 0.0;
         public static int GetTypeInt(this Element e, string name) => e.GetElementType()?.GetInt(name) ?? 0;
-        public static string GetTypeVal(this Element e, string name) => e.GetElementType()?.GetVal(name) ?? "-";
-        public static string GetTypeVal(this Element e, string name, string unit, int decimals = 2) => e.GetElementType()?.GetVal(name, unit, decimals) ?? "-";
+        public static string GetTypeVal(this Element e, string name, int decimals = -1) => e.GetElementType()?.GetVal(name, decimals) ?? "-";
+        public static string GetTypeVal(this Element e, string name, string unit, int decimals = -1) => e.GetElementType()?.GetVal(name, unit, decimals) ?? "-";
 
         // ── Helpers ──────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The EXACT display value of a numeric parameter, built from AsDouble() instead of
+        /// AsValueString(). AsValueString() inherits the project's display accuracy, so its
+        /// precision was never the caller's choice. Returns null when the value is not a plain
+        /// unit-bearing double (text, ElementId, integer, unitless, or a fractional unit we
+        /// cannot convert) — the caller then falls back to Revit's own value string.
+        /// </summary>
+        internal static string _numericParamDisplay(Parameter p, int decimals, bool withSuffix)
+        {
+            if (p == null || p.StorageType != StorageType.Double || !p.HasValue) return null;
+            try
+            {
+                string token = UnitExtensions._unitToken(p.GetUnitTypeId());
+                if (token == null) return null;
+                double raw = p.AsDouble();
+                if (token.Length == 0)
+                {
+                    double n = decimals < 0 ? raw : Math.Round(raw, decimals, MidpointRounding.AwayFromZero);
+                    return n.ToString(CultureInfo.InvariantCulture);
+                }
+                return withSuffix
+                    ? raw.FormatUnit(token, decimals)
+                    : raw.FormatValueOnly(token, decimals);
+            }
+            catch { return null; }   // no unit / unsupported unit — keep Revit's string
+        }
 
         private static string FormatParamValue(Element e, Parameter p)
         {

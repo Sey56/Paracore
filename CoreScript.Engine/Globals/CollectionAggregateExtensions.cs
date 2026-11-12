@@ -19,8 +19,8 @@ namespace CoreScript.Engine.Globals
         /// default to `decimals = 3`, so the returned DOUBLE was already rounded — the review
         /// measured a 95.2417 m² sum reported as 95.242. That is a display concern leaking into
         /// a value: the caller cannot tell a rounded total from a real one, and any arithmetic
-        /// on it carries the error. Pass a `decimals` argument to round deliberately;
-        /// `FormatUnit` / `FormatValueOnly` are the places that round for a human.
+        /// on it carries the error. Pass a `decimals` argument to round deliberately on the
+        /// display helpers; since 2026-11-12 none of them round by default either.
         ///
         /// Sums raw internal values first, then converts once — no per-element rounding loss.
         /// </summary>
@@ -233,11 +233,14 @@ namespace CoreScript.Engine.Globals
                     dynamic obj = new System.Dynamic.ExpandoObject();
                     obj.Group = g.Key;
                     obj.Count = g.Count();
-                    obj.Total = Math.Round(g.Sum(e =>
+                    // ⚠ 2026-11-12: a grouped total is a QUANTITY, so it is exact like SumParam.
+                    //   It used to be Math.Round(..., 3) with no way to opt out — the last
+                    //   unconditional rounding in the engine.
+                    obj.Total = g.Sum(e =>
                     {
                         if (e is Element el) return el.GetNum(sum, string.IsNullOrEmpty(unit) ? "ft" : unit);
                         return GetNumGeneric(e, sum);
-                    }), 3);
+                    });
                     return (object)obj;
                 }).ToList();
             ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(results.Count);

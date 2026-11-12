@@ -174,14 +174,20 @@ wall.GetNum("Length", "m", 2)         // 5.07     ← rounded, because you asked
 wall.GetNum("Width", "mm")            // 915.000… exact
 ```
 
-⚠⚠ **The value is EXACT by default — `decimals` is `-1`, meaning "do not round".** Rounding is a
-DISPLAY concern. A rounded number that is then summed is a wrong number: before 2026-10-27 this
-defaulted to 2, so 5.065 m came back as 5.07, a 915 mm door became 0.91 m, and summing 2-dp wall
-areas gave **95.23 m² against 95.2417 exact** on a nine-wall model — the loss growing with the
-building, which is exactly the error a quantity takeoff cannot afford.
+⚠⚠ **ONE RULE FOR EVERY ACCESSOR (2026-11-12): `decimals = -1` means "do not round".**
+`GetNum`, `GetStr`, `GetVal`, `GetTypeStr`, `GetTypeVal`, `OutputUnit`, `FormatUnit`,
+`FormatValueOnly` and `RoundTo` ALL accept `decimals` and ALL default to `-1`. Omit it and the value
+is exact; pass it and the value is rounded to that many decimals. There is no accessor left whose
+precision is hidden, and none whose precision you cannot choose.
+
+A rounded number that is then summed is a wrong number: before 2026-10-27 `GetNum` defaulted to 2,
+so 5.065 m came back as 5.07, a 915 mm door became 0.91 m, and summing 2-dp wall areas gave
+**95.23 m² against 95.2417 exact** on a nine-wall model — the loss growing with the building.
+Until 2026-11-12 the *display* helpers still defaulted to 2, so the same trap existed on the SHOW
+side; that asymmetry is gone.
 
 - For a number to COMPUTE with: `.GetNum(name, unit)`.
-- For a number to SHOW: `.GetVal(name, unit)` or `.FormatUnit(unit, decimals)` — both round to 2.
+- For a string to SHOW: `.GetVal(name, unit, 2)` or `.FormatUnit(unit, 2)` — state the precision.
 - The rounding mode is **half away from zero** (5.065 → 5.07), not .NET's default banker's
   rounding, which would give 5.06 on a value that lands a hair below the midpoint.
 
@@ -194,17 +200,29 @@ wall.GetInt("Room Bounding")          // 1 or 0 (yes/no checkbox)
 beam.GetInt("Number of Studs")        // 3
 ```
 
-### GetVal — formatted value string as seen in Revit Properties
+### GetVal — formatted value string
 
 ```csharp
-wall.GetVal("Area")                   // "14.52 m²"
-wall.GetVal("Volume", "m3")           // "2.450 m³"
+// Measured on TestModel.rvt, first wall (Area 15.645 m²; project Area accuracy = 1):
+wall.GetVal("Area", "m2", -1)         // "15.644999999999998 m²"   exact
+wall.GetVal("Area", "m2", 2)          // "15.64 m²"                 rounded, because you asked
+wall.GetVal("Area", "m2", 3)          // "15.645 m²"
 ```
+
+⚠⚠ **NO LONGER WYSIWYG (2026-11-12).** `GetVal(name)` used to return `AsValueString()` verbatim —
+exactly the string in the Revit Properties palette. That string inherits the PROJECT's display
+accuracy, which the caller cannot change: with Area accuracy set to 1, a wall of 0.477 m² printed as
+**`0 m²`** and the quantity disappeared. Numeric parameters are now read from `AsDouble()`,
+converted to the parameter's OWN display unit and returned exact unless `decimals` is supplied, so
+`GetVal("Area")` and `GetStr("Length")` take `decimals` too. Text, ElementId and yes/no values are
+still Revit's own strings. If you actually want the palette string, read `AsValueString()` off the
+`Parameter` yourself.
 
 ### GetVal with unit
 
 ```csharp
-wall.GetVal("Area", "m2")             // "14.52 m²"
+wall.GetVal("Area", "m2")             // "15.644999999999998 m²"   exact — decimals defaults to -1
+wall.GetVal("Area", "m2", 2)          // "15.64 m²"                 explicit rounding
 ```
 
 ---
@@ -419,7 +437,9 @@ GetElements("Walls").Peek()           // snoop each element in turn; returns the
 
 `Peek` is the discovery shortcut for *"what does this thing actually have?"* — one row per parameter
 with `Parameter | Storage | StringValue | NumericValue | UIValue`, the last being the exact string
-Revit's Properties palette shows. Both overloads are **read-only** and chainable.
+Revit's Properties palette shows. ⚠ `StringValue` follows `GetStr`, so since 2026-11-12 numeric
+values in that column are EXACT rather than palette-rounded; `UIValue` is still Revit's own string.
+Both overloads are **read-only** and chainable.
 
 ### Identity helpers
 
@@ -707,12 +727,12 @@ GetElements("Structural Framing").SumParam("Volume", "m3")  // exact total in m3
 
 ⚠ Returns the **exact** sum. It used to default to `decimals = 3`, which rounded the value
 itself (95.2417 m² came back as 95.242). Pass a third argument only when you deliberately want
-a rounded number; round for display with `FormatUnit`/`FormatValueOnly`.
+a rounded number; round for display with `FormatUnit`/`FormatValueOnly` and an explicit `decimals`.
 
-⚠⚠ **A GROUPED sum still rounds — to 3 decimals.** `GroupByParam(groupBy, sum, unit)` applies
-`Math.Round(…, 3)` to each group's `Total`, so the group totals need not add up to the exact
-`SumParam` figure. Measured on TestModel: the groups give **95.241** against a `SumParam` total of
-**95.2417**. Carry the `SumParam` number when you need one figure for a BOQ, and say which you used.
+⚠ `GroupByParam(groupBy, sum, unit)` is **exact too (2026-11-12)**. Its `Total` used to be
+`Math.Round(…, 3)` with no way to opt out — the last unconditional rounding in the engine — so
+group totals could disagree with `SumParam` (measured on TestModel: **95.241** against **95.2417**).
+Both totals are now raw sums. Round at the point of display, not in the quantity.
 
 ---
 
@@ -787,9 +807,9 @@ area.OutputUnit("mm", 0)             // 18300     rounded, because you asked
 area.OutputUnit("mm", 2)             // 18289.50
 
 // ⚠⚠ OutputUnit CONVERTS; it does not round unless you pass `decimals` (default -1 = exact).
-//    Use it for a number you will compute with, and FormatUnit / FormatValueOnly / GetVal
-//    for a number a human will read. A converter that silently rounds is a trap: the caller
-//    cannot tell a rounded value from an exact one, and every downstream sum inherits the error.
+//    Same default on FormatUnit / FormatValueOnly / GetVal / GetStr since 2026-11-12 — pass the
+//    decimals when a human will read the value. A converter that silently rounds is a trap: the
+//    caller cannot tell a rounded value from an exact one, and every downstream sum inherits it.
 
 // String dimension parser
 "50mm".ToMeters()                    // 0.05
@@ -799,21 +819,19 @@ area.OutputUnit("mm", 2)             // 18289.50
 ### Formatting
 
 ```csharp
-value.FormatUnit("m2")               // "18.29 m²"
+value.FormatUnit("m2")               // "18.288… m²"   full precision — no decimals passed
+value.FormatUnit("m2", 2)            // "18.29 m²"     explicit rounding
 value.FormatValueOnly("m2", 1)       // "18.3"
-value.RoundTo("mm")                  // 2 decimals OF mm — 37.63 mm comes back 37.63
-value.RoundTo("mm", 0)               // WHOLE mm — 37.63 mm comes back 38 mm
-value.RoundTo("m")                   // 2 decimals of m = centimetres
+value.RoundTo("mm")                  // exact conversion — no snap at all
+value.RoundTo("mm", 2)               // 2 decimals OF mm — 37.63 mm comes back 37.63
+value.RoundTo("mm", 0)               // WHOLE mm — 37.63 mm comes back 38
 ```
 
-⚠ **`decimals` counts decimals IN THE GIVEN UNIT, and the default is 2.** So `RoundTo("mm")`
-snaps to 0.01 mm, not to the nearest millimetre — this line used to say "round internal value to
-nearest mm", which was simply false and sent a caller looking for a rounding bug. Measured
-2026-10-29: `37.63 mm .RoundTo("mm")` → 37.63, `.RoundTo("mm", 0)` → 38.
-
-⚠ The default is 2 on purpose, and it is why this is a doc fix and not a code change: `RoundTo("m")`
-at 2 decimals gives centimetres, which is useful; at 0 decimals it would give whole METRES and
-throw the value away. Pass the precision you mean.
+⚠ **`decimals` counts decimals IN THE GIVEN UNIT, and the default is `-1` = no rounding.**
+`RoundTo("mm")` used to snap to 0.01 mm (a hidden 2 decimals), not to the nearest millimetre — the
+line "round internal value to nearest mm" was simply false and sent callers looking for a rounding
+bug. Measured 2026-10-29: `37.63 mm .RoundTo("mm", 2)` → 37.63, `.RoundTo("mm", 0)` → 38. Since
+2026-11-12 there is no hidden default: state the precision you mean, or get the exact value.
 
 ### Unit Type Resolution
 
@@ -1215,21 +1233,21 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 | Method | Signature |
 | --- | --- |
 | `HasParam` | `bool HasParam(this Element e, string name)` |
-| `GetStr` | `string GetStr(this Element e, string name)` |
-| `GetStr` | `string GetStr(this Element e, string name, string unit, int decimals = 2)` |
+| `GetStr` | `string GetStr(this Element e, string name, int decimals = -1)` |
+| `GetStr` | `string GetStr(this Element e, string name, string unit, int decimals = -1)` |
 | `GetNum` | `double GetNum(this Element e, string name)` |
 | `GetInt` | `int GetInt(this Element e, string name)` |
-| `GetVal` | `string GetVal(this Element e, string name)` |
-| `GetVal` | `string GetVal(this Element e, string name, string unit, int decimals = 2)` |
+| `GetVal` | `string GetVal(this Element e, string name, int decimals = -1)` |
+| `GetVal` | `string GetVal(this Element e, string name, string unit, int decimals = -1)` |
 | `GetNum` | `double GetNum(this Element e, string name, string unit, int decimals = -1)` |
 | `GetElementType` | `Element GetElementType(this Element e)` |
-| `GetTypeStr` | `string GetTypeStr(this Element e, string name)` |
-| `GetTypeStr` | `string GetTypeStr(this Element e, string name, string unit, int decimals = 2)` |
+| `GetTypeStr` | `string GetTypeStr(this Element e, string name, int decimals = -1)` |
+| `GetTypeStr` | `string GetTypeStr(this Element e, string name, string unit, int decimals = -1)` |
 | `GetTypeNum` | `double GetTypeNum(this Element e, string name)` |
 | `GetTypeNum` | `double GetTypeNum(this Element e, string name, string unit, int decimals = -1)` |
 | `GetTypeInt` | `int GetTypeInt(this Element e, string name)` |
-| `GetTypeVal` | `string GetTypeVal(this Element e, string name)` |
-| `GetTypeVal` | `string GetTypeVal(this Element e, string name, string unit, int decimals = 2)` |
+| `GetTypeVal` | `string GetTypeVal(this Element e, string name, int decimals = -1)` |
+| `GetTypeVal` | `string GetTypeVal(this Element e, string name, string unit, int decimals = -1)` |
 
 #### `Globals/ElementSwapExtensions.cs`
 
@@ -1291,9 +1309,9 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 | `IsGreaterThanOrEqual` | `bool IsGreaterThanOrEqual(this double value, double limit, double tolerance = 1e-9)` |
 | `IsPositive` | `bool IsPositive(this double value, double tolerance = 1e-9)` |
 | `IsNegative` | `bool IsNegative(this double value, double tolerance = 1e-9)` |
-| `RoundTo` | `double RoundTo(this double value, string unit, int decimals = 2)` |
-| `FormatUnit` | `string FormatUnit(this double value, string unit, int decimals = 2)` |
-| `FormatValueOnly` | `string FormatValueOnly(this double value, string unit, int decimals = 2)` |
+| `RoundTo` | `double RoundTo(this double value, string unit, int decimals = -1)` |
+| `FormatUnit` | `string FormatUnit(this double value, string unit, int decimals = -1)` |
+| `FormatValueOnly` | `string FormatValueOnly(this double value, string unit, int decimals = -1)` |
 | `ToMeters` | `double ToMeters(this string value)` |
 
 #### `Globals/VisualizationExtensions.cs`

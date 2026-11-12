@@ -60,9 +60,15 @@ namespace CoreScript.Engine.Globals
         /// Converts an internal Revit value (feet/sqft) TO the specified unit.
         /// <para>
         /// ⚠⚠ THE VALUE IS NOT ROUNDED UNLESS YOU ASK (2026-10-27). <c>decimals</c> defaults to
-        /// <b>-1</b>, meaning "return the exact conversion". Rounding belongs to DISPLAY —
-        /// FormatUnit / FormatValueOnly / GetVal / GetStr pass an explicit 2 — because a rounded
-        /// number that is then summed, compared or re-used is a wrong number with a tidy face.
+        /// <b>-1</b>, meaning "return the exact conversion". A rounded number that is then
+        /// summed, compared or re-used is a wrong number with a tidy face.
+        /// <para>
+        /// ⚠ ONE RULE FOR THE WHOLE ENGINE (2026-11-12): every value accessor that takes
+        /// <c>decimals</c> defaults to <b>-1</b> = no rounding. FormatUnit, FormatValueOnly,
+        /// RoundTo, GetStr, GetVal and the type-level twins no longer round to 2 behind the
+        /// caller's back. The palette overloads GetVal(name) / GetStr(name) also take
+        /// <c>decimals</c> now, so there is no accessor left whose precision is unchoosable.
+        /// </para>
         /// Measured before the fix: <c>GetNum("Length","m")</c> returned <b>5.07</b> for a wall
         /// whose exact length is <b>5.065 m</b>, a 915 mm door width became <b>0.91 m</b>, and
         /// summing 2-dp wall areas gave <b>95.23 m²</b> against <b>95.2417</b> exact — per-element
@@ -157,9 +163,15 @@ namespace CoreScript.Engine.Globals
         /// rounded number flows onward. Use it only when you want the rounded value (matching a
         /// dimension string); use OutputUnit for a plain conversion.
         /// </para>
+        /// <para>
+        /// ⚠ 2026-11-12: <c>decimals</c> defaults to <b>-1</b> = no snap at all. State the
+        /// precision explicitly — `RoundTo("mm", 0)` snaps to whole mm. A hidden default of 2
+        /// was the last place in the engine that rounded without being asked.
+        /// </para>
         /// </summary>
-        public static double RoundTo(this double value, string unit, int decimals = 2)
+        public static double RoundTo(this double value, string unit, int decimals = -1)
         {
+            if (decimals < 0) return value;   // no rounding was asked for — leave the exact value
             var unitTypeId = GetUnitTypeId(unit);
             if (unitTypeId == null) return Math.Round(value, decimals, MidpointRounding.AwayFromZero);
 
@@ -169,10 +181,11 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// DISPLAY helper — converts and rounds to <paramref name="decimals"/> for a human to read.
+        /// DISPLAY helper — converts to the unit and, ONLY WHEN ASKED, rounds to
+        /// <paramref name="decimals"/> for a human to read.
         /// <para>
-        /// ⚠ Rounding lives HERE and in FormatValueOnly, never in OutputUnit/GetNum. If you need a
-        /// number to compute with, call OutputUnit; if you need one to show, call this.
+        /// ⚠ 2026-11-12: <c>decimals</c> defaults to <b>-1</b> = exact. If you need a number to
+        /// compute with, call OutputUnit; if you need one to show rounded, pass the decimals.
         /// </para>
         /// <para>
         /// The suffix is CANONICALISED, not echoed: <c>"m2"</c> renders as <c>m²</c> and
@@ -183,7 +196,7 @@ namespace CoreScript.Engine.Globals
         /// that stops.
         /// </para>
         /// </summary>
-        public static string FormatUnit(this double value, string unit, int decimals = 2)
+        public static string FormatUnit(this double value, string unit, int decimals = -1)
         {
             // Resolve first so an unknown unit reports THIS helper's name, not OutputUnit's.
             _resolveUnitOrThrow(unit, "FormatUnit");
@@ -229,13 +242,36 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// DISPLAY helper — the converted value as a string with no unit suffix, rounded to
-        /// <paramref name="decimals"/>. See FormatUnit for why rounding belongs here.
+        /// DISPLAY helper — the converted value as a string with no unit suffix, rounded only
+        /// when <paramref name="decimals"/> is supplied (default -1 = exact).
         /// </summary>
-        public static string FormatValueOnly(this double value, string unit, int decimals = 2)
+        public static string FormatValueOnly(this double value, string unit, int decimals = -1)
         {
             double converted = value.OutputUnit(unit, decimals);
             return converted.ToString();
+        }
+
+        /// <summary>
+        /// Maps a Revit unit ForgeTypeId to the unit token the Paracore helpers accept.
+        /// Returns "" for a unitless number and null for a unit we cannot convert exactly
+        /// (e.g. feet + fractional inches) — the caller then keeps Revit's own value string
+        /// rather than printing a converted-looking wrong number.
+        /// </summary>
+        internal static string _unitToken(ForgeTypeId unitTypeId)
+        {
+            if (unitTypeId == null) return "";
+            string id = unitTypeId.TypeId;
+            if (id == UnitTypeId.General.TypeId) return "";
+            if (id == UnitTypeId.Millimeters.TypeId) return "mm";
+            if (id == UnitTypeId.Centimeters.TypeId) return "cm";
+            if (id == UnitTypeId.Meters.TypeId) return "m";
+            if (id == UnitTypeId.Feet.TypeId) return "ft";
+            if (id == UnitTypeId.Inches.TypeId) return "in";
+            if (id == UnitTypeId.SquareMeters.TypeId) return "m2";
+            if (id == UnitTypeId.SquareFeet.TypeId) return "ft2";
+            if (id == UnitTypeId.CubicMeters.TypeId) return "m3";
+            if (id == UnitTypeId.CubicFeet.TypeId) return "ft3";
+            return null;
         }
 
         public static ForgeTypeId? GetUnitTypeId(string unit)

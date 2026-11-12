@@ -69,13 +69,21 @@ category-specific fallback chain (Reference Level → Base Level → Base Constr
 
 ```csharp
 el.GetStr("Comments")                 // string; resolves ElementIds → names, falls back to Type params
-el.GetStr("Length", "mm")             // unit-converted string, 2 decimals
-el.GetStr("Area", "m2", 4)            // …with an explicit decimal count
+el.GetStr("Length", "mm")             // unit-converted string, exact by default
+el.GetStr("Length", "mm", 2)          // …rounded to 2 decimals because you asked
 el.GetNum("Area")                     // double, raw internal feet
-el.GetNum("Length", "m")              // double, converted
-el.GetVal("Width")                    // WYSIWYG — exactly what Revit's Properties palette shows
+el.GetNum("Length", "m")              // double, converted — exact
+el.GetVal("Area")                     // exact value in the parameter's own unit (NOT palette-rounded)
+el.GetVal("Area", "m2", 3)            // "0.477 m²" — explicit precision
 el.GetInt("Is External")              // int (yes/no → 1 or 0)
 ```
+
+⚠ **One rule (2026-11-12):** `GetNum`, `GetStr`, `GetVal`, the `GetType*` twins, `OutputUnit`,
+`FormatUnit`, `FormatValueOnly` and `RoundTo` all take `decimals` and all default to `-1` = **no
+rounding**. Pass it when a human will read the value. `GetVal(name)` / `GetStr(name)` are no longer
+the WYSIWYG Properties-palette string for numeric parameters — that string follows the PROJECT's
+display accuracy, which printed a 0.477 m² wall as `0 m²`. Text / ElementId / yes-no values are
+still Revit's own strings.
 
 Instance getters **auto-fall back to Type parameters**, so `GetTypeStr` / `GetTypeNum` /
 `GetTypeInt` / `GetTypeVal` are only needed when instance and type share a parameter name.

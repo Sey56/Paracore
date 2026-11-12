@@ -22,11 +22,16 @@ namespace CoreScript.Engine.Globals
         /// spelling</c> — accusing the caller of a typo in a name it never typed, on the
         /// discovery call the instructions tell an agent to make FIRST.</para>
         /// <para>The row already has the Parameter object. Reading it cannot miss, and it is
-        /// what <c>GetVal</c> does anyway (AsValueString → AsString), minus the resolution.</para>
+        /// what <c>GetVal</c> does anyway (exact numeric → value string), minus the resolution.</para>
         /// </summary>
         internal static string _valueOf(Parameter p, Element e = null)
         {
             if (p == null) return "-";
+            // ⚠ 2026-11-12: one rule — numeric rows are EXACT, like GetVal(name). AsValueString()
+            //   inherits the project's display accuracy (Area accuracy 1 printed a 0.477 m2 wall
+            //   as "0 m2"), which is fine for a palette but not for a parameter value dump.
+            var exact = _numericParamDisplay(p, -1, true);
+            if (exact != null) return exact;
             var formatted = p.AsValueString();
             if (!string.IsNullOrEmpty(formatted)) return formatted;
             if (p.StorageType == StorageType.String)

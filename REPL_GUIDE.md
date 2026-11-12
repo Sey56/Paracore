@@ -95,20 +95,26 @@ Every element has smart accessors — see `EXTENSION_METHODS.md` for the full ca
 
 ```csharp
 wall.GetStr("Level")          // "Level 1" (ElementId → name)
-wall.GetNum("Length", "m")    // 3.6
-wall.GetNum("Width", "mm")    // 200
+wall.GetNum("Length", "m")    // 3.6        exact
+wall.GetNum("Width", "mm")    // 200        exact
 wall.GetInt("Room Bounding")  // 1 or 0
-wall.GetVal("Area")           // "14.52 m²" (WYSIWYG)
+wall.GetVal("Area")           // "15.644999999999998 m²" — exact, in the parameter's own unit
+wall.GetVal("Area", "m2", 2)  // "15.64 m²" — rounded, because you asked
 wall.GetStr("HandFlipped")    // "True" (C# property fallback)
 ```
 
 | Quick reference | |
 |---|---|
 | `GetStr("Level")` | String — resolves ElementIds to names |
-| `GetNum("Area", "m2")` | Double — with unit conversion |
+| `GetNum("Area", "m2")` | Double — with unit conversion, exact |
 | `GetInt("Room Bounding")` | Integer — yes/no → 1/0 |
-| `GetVal("Area")` | Formatted string with unit suffix |
+| `GetVal("Area")` | Exact formatted string with unit suffix |
 | `GetTypeStr`, `GetTypeNum`, `GetTypeInt` | Type-level equivalents |
+
+⚠ **One rule (2026-11-12):** every value accessor accepts `decimals` and defaults to `-1` — no
+rounding. `GetVal(name)` is no longer the WYSIWYG Properties-palette string for numeric parameters:
+that string inherits the project's display accuracy, which once printed a 0.477 m² wall as `0 m²`.
+Pass `decimals` when a human will read the number.
 
 ---
 
