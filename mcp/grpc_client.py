@@ -543,8 +543,31 @@ def execute_script(script_content, parameters_json, compiled_assembly=None,
             compiled_assembly=compiled_assembly if compiled_assembly else b"",
             source=source
         )
+        # ⚠⚠ THE IN-FLIGHT GATE — the SAME contract execute_repl has below.
+        #   Forge runs gallery tools over ExecuteScript, NOT ExecuteRepl, so without
+        #   this the resident dialog watcher is NEVER allowed to answer a modal Revit
+        #   warning that blocks OUR OWN call. MEASURED 2026-11-11: "Highlighted floors
+        #   overlap." stayed on screen through a whole preview_tool run and Forge timed
+        #   out with the dialog still up; DialogWatcher.txt showed only startup lines,
+        #   because every scan hit `if not call_in_flight(): continue` and logged nothing.
+        #   ⚠ Resolved via sys.modules, NEVER re-imported by path — a second copy of the
+        #   module owns a DIFFERENT _call_depth and the gate would silently never open.
+        #   ⚠ No watcher module in this process => NO gate. That is the DESKTOP
+        #   rap-server path (manual REPL script / manual Gallery script): the operator
+        #   sees and closes those dialogs by hand, and must never have them auto-closed.
+        import sys as _sys
+        _gate = None
+        for _name in ("mcp_core.dialog_watcher", "forge_core.dialog_watcher"):
+            _mod = _sys.modules.get(_name)
+            if _mod is not None and hasattr(_mod, "revit_call"):
+                _gate = _mod.revit_call
+                break
         try:
-            response = stub.ExecuteScript(request, timeout=timeout)
+            if _gate is None:
+                response = stub.ExecuteScript(request, timeout=timeout)
+            else:
+                with _gate():
+                    response = stub.ExecuteScript(request, timeout=timeout)
             # logging.info("gRPC ExecuteScript call successful.")
             # Process and return the successful response
             # ⚠ `cap_exempt` (proto field 4, 2026-10-27): the ENGINE says whether the MCP may
