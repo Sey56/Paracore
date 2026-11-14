@@ -1,6 +1,6 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faMinus } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faPlus, faMinus } from '@/components/ui/iconAliases';
 
 interface StepperInputProps {
     value: number;
@@ -57,7 +57,7 @@ export const StepperInput: React.FC<StepperInputProps> = ({ value, min, max, ste
     };
 
     return (
-        <div className="flex items-center w-full h-9 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden shadow-sm">
+        <div className="flex items-center w-full h-9 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden ">
             <button
                 type="button"
                 onClick={handleDecrement}

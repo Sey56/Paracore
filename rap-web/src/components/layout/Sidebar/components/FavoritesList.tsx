@@ -1,7 +1,7 @@
 import React from 'react';
 import { SidebarSection } from '../SidebarSection';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faStar, faBroom } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
+import { faStar, faBroom } from "@/components/ui/iconAliases";
 import { Script } from '@/types/index';
 import { InspectorTab } from '@/context/providers/UIContext';
 
@@ -55,7 +55,7 @@ export const FavoritesList: React.FC<FavoritesListProps> = ({
           </li>
         ))}
         {favoriteScripts.length === 0 && (
-          <li className="text-xs text-muted-foreground px-3 py-1.5 italic">No favorites yet</li>
+          <li className="text-xs text-muted-foreground px-3 py-1.5 ">No favorites yet</li>
         )}
       </ul>
     </SidebarSection>

@@ -1,5 +1,5 @@
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt, faHouse, faThLarge, faColumns } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt, faHouse, faThLarge, faColumns } from '@/components/ui/iconAliases';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
@@ -74,7 +74,7 @@ export const TopBar: React.FC = () => {
 
   return (
     <div 
-      className="h-16 border-b border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between px-4 z-40 relative tooltip-bottom"
+      className="h-16 border-b border-slate-200 dark:border-slate-700/50  flex items-center justify-between px-4 z-40 relative tooltip-bottom"
       style={{ 
         backgroundColor: theme === 'dark' ? 'var(--bg-card)' : undefined,
         backdropFilter: theme === 'dark' ? 'none' : undefined
@@ -91,8 +91,8 @@ export const TopBar: React.FC = () => {
         </button>
 
         <div className="flex items-center gap-2 pr-4 border-r border-slate-100 dark:border-slate-800">
-          <img src="/RAP.png" alt="Paracore Logo" className="h-7 w-auto drop-shadow-sm" />
-          <h1 className="font-black text-sm text-slate-800 dark:text-white tracking-[0.15em] uppercase">
+          <img src="/RAP.png" alt="Paracore Logo" className="h-7 w-auto drop-" />
+          <h1 className="font-semibold text-sm text-slate-800 dark:text-white tracking-wide ">
             Paracore
           </h1>
         </div>
@@ -112,7 +112,7 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* 2. Central Navigation Center (Segmented Switcher) */}
-      <div className="flex items-center p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
+      <div className="flex items-center p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 ">
         {[
           { id: 'repl', label: 'REPL', icon: faCode },
           { id: 'gallery', label: 'Gallery', icon: faThLarge },
@@ -124,9 +124,9 @@ export const TopBar: React.FC = () => {
             <button
               key={nav.id}
               onClick={() => setActiveMainView(nav.id as 'gallery' | 'repl' | 'playlists')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all duration-300
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl text-caption sm:text-caption font-bold  tracking-wide transition-all duration-300
                 ${isActive
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md scale-[1.02]'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400  scale-[1.02]'
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
             >
@@ -140,22 +140,22 @@ export const TopBar: React.FC = () => {
       {/* 3. Status & System Cluster */}
       <div className="flex items-center gap-3">
         {/* Connection Status Badge (Live Feed Style) */}
-        <div className={`hidden xl:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-500 shadow-sm
+        <div className={`hidden xl:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-500
           ${!ParacoreConnected
             ? "bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-800/50 text-rose-600 dark:text-rose-400"
             : "bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400"
           }`}>
           <div className="relative flex h-2 w-2">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${!ParacoreConnected ? 'bg-rose-400' : 'bg-emerald-400'}`}></span>
+            <span className={` absolute inline-flex h-full w-full rounded-full opacity-75 ${!ParacoreConnected ? 'bg-rose-400' : 'bg-emerald-400'}`}></span>
             <span className={`relative inline-flex rounded-full h-2 w-2 ${!ParacoreConnected ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
           </div>
-          <span className="text-[11px] font-bold uppercase tracking-tight">
+          <span className="text-caption font-bold  tracking-tight">
             {ParacoreConnected ? 'Connected' : 'Disconnected'}
           </span>
           {ParacoreConnected && revitStatus.document && (
             <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 ml-1 pl-2">
               <span className="relative" data-tooltip={revitStatus.document}>
-                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px] italic block">
+                <span className="text-caption font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px]  block">
                   {revitStatus.document}
                 </span>
               </span>
@@ -204,7 +204,7 @@ export const TopBar: React.FC = () => {
               <FontAwesomeIcon icon={faQuestionCircle} />
             </button>
             {isHelpDropdownOpen && (
-              <div className="absolute right-0 mt-3 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-2 animate-in slide-in-from-top-2 duration-200">
+              <div className="absolute right-0 mt-3 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 py-2 animate-in slide-in-from-top-2 duration-200">
                 <button onClick={handleHelpClick} className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 w-full text-left transition-colors">
                   Online Help
                 </button>
@@ -234,35 +234,35 @@ export const TopBar: React.FC = () => {
       <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="About Paracore" size="sm">
         <div className="p-10 space-y-8 text-center bg-white dark:bg-slate-900">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-xl shadow-blue-500/20 active:scale-95 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center">
               <img src="/RAP.png" alt="Paracore Logo" className="h-8 w-auto brightness-0 invert" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-[0.25em]">Paracore</h2>
-              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1.5">High-Performance BIM Automations</p>
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white  tracking-wide">Paracore</h2>
+              <p className="text-caption font-semibold text-blue-500  tracking-wide mt-1.5">High-Performance BIM Automations</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-2.5">
             <div className="flex justify-between items-center px-5 py-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/50">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">App Engine</span>
-              <span className="text-[13px] font-black text-slate-700 dark:text-slate-200 font-mono">v{packageJson.version}</span>
+              <span className="text-caption font-semibold text-slate-400  tracking-wide">App Engine</span>
+              <span className="text-body-sm font-semibold text-slate-700 dark:text-slate-200 font-mono">v{packageJson.version}</span>
             </div>
             <div className="flex justify-between items-center px-5 py-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/50">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revit Addin</span>
-              <span className="text-[13px] font-black text-slate-700 dark:text-slate-200 font-mono">v{packageJson.version}</span>
+              <span className="text-caption font-semibold text-slate-400  tracking-wide">Revit Addin</span>
+              <span className="text-body-sm font-semibold text-slate-700 dark:text-slate-200 font-mono">v{packageJson.version}</span>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="flex flex-col gap-1 text-center">
-              <span className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.2em]">Developed By</span>
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Paras Codarch (Ethiopia)</span>
+              <span className="text-caption font-semibold text-slate-300 dark:text-slate-600  tracking-wide">Developed By</span>
+              <span className="text-caption font-bold text-slate-500 dark:text-slate-400">Paras Codarch (Ethiopia)</span>
             </div>
 
             <button
               onClick={() => shell.open('https://sey56.github.io/paracore-help')}
-              className="w-full py-3.5 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.25em] shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white rounded-xl text-caption font-semibold  tracking-wide shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
             >
               Documentation
             </button>

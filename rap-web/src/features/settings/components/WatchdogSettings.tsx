@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { open } from '@tauri-apps/api/dialog';
 import { invoke } from '@tauri-apps/api';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder, faTrash, faShieldHeart, faChevronRight, faChevronDown, faSpinner, faCheckCircle, faMousePointer, faEye, faGlobe, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faFolder, faTrash, faShieldHeart, faChevronRight, faChevronDown, faSpinner, faCheckCircle, faMousePointer, faEye, faGlobe, faExclamationTriangle } from '@/components/ui/iconAliases';
 import { Script } from '@/types/scriptModel';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -129,7 +129,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
       </div>
 
       {/* Show Sentinel FAB Toggle */}
-      <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-6 shadow-sm mb-12 flex flex-col md:flex-row items-center justify-between gap-6 hover:border-indigo-500/30 transition-all">
+      <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-6  mb-12 flex flex-col md:flex-row items-center justify-between gap-6 hover:border-indigo-500/30 transition-all">
         <div className="flex gap-4 items-center flex-1">
           <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shrink-0">
             <FontAwesomeIcon icon={faMousePointer} className="text-xl" />
@@ -171,20 +171,20 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
         <div className="flex items-center gap-4">
           <button
             onClick={handleAddFolder}
-            className="px-6 py-3 bg-indigo-600 text-white text-[11px] font-bold uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2"
+            className="px-6 py-3 bg-indigo-600 text-white text-caption font-bold  tracking-wide rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2"
           >
             Add Sentinel Source
           </button>
           <button
             onClick={handleArmAll}
-            className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-bold uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all active:scale-95"
+            className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-caption font-bold  tracking-wide rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all active:scale-95"
           >
             Deploy All
           </button>
           {(watchdogSources.length > 0) && (
             <button
               onClick={() => setIsDecommissionModalOpen(true)}
-              className="px-6 py-3 bg-white dark:bg-slate-800 text-rose-500 dark:text-rose-400 text-[11px] font-bold uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all active:scale-95"
+              className="px-6 py-3 bg-white dark:bg-slate-800 text-rose-500 dark:text-rose-400 text-caption font-bold  tracking-wide rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all active:scale-95"
             >
               Undeploy All
             </button>
@@ -193,7 +193,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
       </div>
 
       <div className="space-y-6">
-        <h4 className="text-[11px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-[0.25em] px-4">Sentinel Sources</h4>
+        <h4 className="text-caption font-semibold  text-slate-400 dark:text-slate-500 tracking-wide px-4">Sentinel Sources</h4>
         {configuredWatchdogRoots.length > 0 ? (
           configuredWatchdogRoots.map((folder) => {
             const isExpanded = expandedRoots[folder];
@@ -207,23 +207,23 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
             const armedCount = scripts.filter(s => watchdogSources.includes(normalize(s.absolutePath))).length;
 
             return (
-              <div key={folder} className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-sm hover:border-indigo-500/30 transition-all group animate-in zoom-in-95 duration-500">
+              <div key={folder} className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden  hover:border-indigo-500/30 transition-all group animate-in zoom-in-95 duration-500">
                 <div
                   className={`p-6 flex items-center justify-between cursor-pointer transition-colors ${isExpanded ? 'bg-slate-50/50 dark:bg-slate-800/20' : 'hover:bg-slate-50/30 dark:hover:bg-slate-800/10'}`}
                   onClick={() => toggleRootExpansion(folder)}
                 >
                   <div className="flex items-center gap-5 min-w-0">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${isExpanded ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'bg-slate-50 dark:bg-slate-800 text-slate-400'}`}>
-                      <FontAwesomeIcon icon={isExpanded ? faChevronDown : faChevronRight} className="text-[11px]" />
+                      <FontAwesomeIcon icon={isExpanded ? faChevronDown : faChevronRight} className="text-caption" />
                     </div>
                     <div className="flex flex-col gap-1.5 min-w-0">
                       <div className="flex items-center space-x-2 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/30 w-fit max-w-full">
-                        <FontAwesomeIcon icon={faGlobe} className="text-[11px] text-slate-400 flex-shrink-0" />
-                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 truncate italic">
+                        <FontAwesomeIcon icon={faGlobe} className="text-caption text-slate-400 flex-shrink-0" />
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 truncate ">
                           {folder}
                         </span>
                       </div>
-                      <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] pl-1">
+                      <span className="text-caption font-semibold text-slate-400 dark:text-slate-500  tracking-wide pl-1">
                         {scriptsState?.loading ? 'Scanning...' : `${scripts.length} Sentinels · ${armedCount} Active`}
                       </span>
                     </div>
@@ -240,16 +240,16 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                       const isArmed = watchdogSources.includes(path);
                       const status = getScriptStatus(path);
                       return (
-                        <div key={path} className="px-6 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/60 rounded-xl flex items-center justify-between hover:border-indigo-500/20 transition-all shadow-sm">
+                        <div key={path} className="px-6 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/60 rounded-xl flex items-center justify-between hover:border-indigo-500/20 transition-all ">
                           <div className="flex items-center gap-4">
-                            <div className={`w-2.5 h-2.5 rounded-full relative ${isArmed ? (status?.type === 'active' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'bg-rose-500 animate-pulse') : 'bg-slate-200 dark:bg-slate-800'}`}>
-                              {isArmed && status?.type === 'active' && <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-20"></div>}
+                            <div className={`w-2.5 h-2.5 rounded-full relative ${isArmed ? (status?.type === 'active' ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse') : 'bg-slate-200 dark:bg-slate-800'}`}>
+                              {isArmed && status?.type === 'active' && <div className="absolute inset-0 rounded-full bg-emerald-500  opacity-20"></div>}
                             </div>
                             <div className="flex flex-col gap-0.5">
                               <div className="text-sm font-bold text-slate-700 dark:text-slate-200 tracking-tight leading-tight flex flex-wrap items-center gap-2">
                                 <span className="truncate">{s.name.replace(/\.(wtool|ptool|cs)$/i, '')}</span>
                                 {path.endsWith('.wtool') && (
-                                  <span className="shrink-0 inline-flex px-1.5 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[9px] font-black uppercase tracking-widest leading-none items-center self-center">BIN</span>
+                                  <span className="shrink-0 inline-flex px-1.5 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-caption font-semibold  tracking-wide leading-none items-center self-center">BIN</span>
                                 )}
                               </div>
                               {(() => {
@@ -258,10 +258,10 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                                 return isDocMismatch ? (
                                   <div className="relative group/mismatch inline-block ml-2 align-middle">
                                     <span className="text-amber-500 cursor-help">
-                                      <FontAwesomeIcon icon={faExclamationTriangle} className="text-[11px]" />
+                                      <FontAwesomeIcon icon={faExclamationTriangle} className="text-caption" />
                                     </span>
-                                    <div className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/mismatch:opacity-100 group-hover/mismatch:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch:translate-y-0 pointer-events-none">
-                                      <div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest pb-1">
+                                    <div className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-caption font-bold leading-relaxed w-48 opacity-0 invisible group-hover/mismatch:opacity-100 group-hover/mismatch:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch:translate-y-0 pointer-events-none">
+                                      <div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5  tracking-wide pb-1">
                                         <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
                                       </div>
                                       Deployed for <span className="text-blue-600 dark:text-blue-400">'{deployedDoc}'</span>.
@@ -272,7 +272,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                                 ) : null;
                               })()}
                               {status?.summary && (
-                                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 tracking-tight leading-tight">
+                                <span className="text-caption font-medium text-slate-400 dark:text-slate-500 tracking-tight leading-tight">
                                   {status.summary}
                                 </span>
                               )}
@@ -286,7 +286,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                                 toggleScriptArm(path, paramsSnapshot);
                                 if (!isArmed) trackEvent('sentinel_deployed', { method: 'single' });
                               }}
-                              className={`px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all active:scale-95
+                              className={`px-4 py-1.5 rounded-lg text-caption font-bold  tracking-wide transition-all active:scale-95
                                 ${isArmed ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 border border-amber-200 dark:border-amber-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-indigo-600 border border-transparent hover:border-indigo-100'}`}
                             >
                               {isArmed ? 'Deployed' : 'Deploy'}
@@ -304,7 +304,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
           <div className="py-20 text-center bg-white dark:bg-slate-900/20 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800/60 animate-in zoom-in-95 duration-700">
             <FontAwesomeIcon icon={faShieldHeart} className="text-slate-200 dark:text-slate-700 text-4xl mb-6" />
             <br />
-            <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">No sentinel sources added yet.</span>
+            <span className="text-sm font-bold text-slate-400  tracking-wide">No sentinel sources added yet.</span>
           </div>
         )}
       </div>

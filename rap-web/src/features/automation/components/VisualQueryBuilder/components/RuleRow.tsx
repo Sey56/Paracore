@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowUp, faArrowDown, faTrash, faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faArrowUp, faArrowDown, faTrash, faChevronDown, faSearch } from '@/components/ui/iconAliases';
 import { ParameterDefinition, QueryRule, OPERATORS, getAvailableUnits } from '../types/queryBuilderTypes';
 
 interface RuleRowProps {
@@ -34,19 +34,19 @@ const CustomMiniSelect: React.FC<CustomMiniSelectProps> = ({ value, options, onC
     <div className={`relative ${className}`} ref={containerRef}>
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white dark:bg-slate-900/50 border border-slate-100/50 dark:border-slate-700/30 rounded-lg px-2 py-1.5 text-xs font-bold flex items-center justify-between cursor-pointer hover:border-blue-500/30 hover:bg-white dark:hover:bg-slate-900 transition-all shadow-sm"
+        className="w-full bg-white dark:bg-slate-900/50 border border-slate-100/50 dark:border-slate-700/30 rounded-lg px-2 py-1.5 text-xs font-bold flex items-center justify-between cursor-pointer hover:border-blue-500/30 hover:bg-white dark:hover:bg-slate-900 transition-all "
       >
-        <span className="truncate dark:text-white uppercase tracking-tighter">{value || placeholder}</span>
-        <FontAwesomeIcon icon={faChevronDown} className={`text-[9px] text-slate-400 transition-transform ml-1.5 ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="truncate dark:text-white  tracking-tighter">{value || placeholder}</span>
+        <FontAwesomeIcon icon={faChevronDown} className={`text-caption text-slate-400 transition-transform ml-1.5 ${isOpen ? 'rotate-180' : ''}`} />
       </div>
       {isOpen && (
-        <div className="absolute top-full left-0 min-w-full w-max mt-1 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 overflow-hidden">
+        <div className="absolute top-full left-0 min-w-full w-max mt-1 bg-white dark:bg-slate-900 rounded-xl shadow-lg z-[110] border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 overflow-hidden">
           <div className="max-h-48 overflow-y-auto custom-scrollbar">
             {options.map(opt => (
               <div
                 key={opt}
                 onClick={() => { onChange(opt); setIsOpen(false); }}
-                className={`px-4 py-2 text-[11px] font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 ${value === opt ? 'text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10' : 'text-slate-600 dark:text-slate-300'}`}
+                className={`px-4 py-2 text-caption font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 ${value === opt ? 'text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10' : 'text-slate-600 dark:text-slate-300'}`}
               >
                 {opt}
               </div>
@@ -116,14 +116,14 @@ export const RuleRow: React.FC<RuleRowProps> = ({
       <div className="flex-[2] min-w-[150px] relative" ref={dropdownRef}>
         <div
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full bg-white dark:bg-slate-900/50 border border-blue-500/10 dark:border-blue-400/10 rounded-lg px-3 py-1.5 text-xs font-bold flex items-center justify-between cursor-pointer hover:border-blue-500/30 transition-all shadow-sm"
+          className="w-full bg-white dark:bg-slate-900/50 border border-blue-500/10 dark:border-blue-400/10 rounded-lg px-3 py-1.5 text-xs font-bold flex items-center justify-between cursor-pointer hover:border-blue-500/30 transition-all "
         >
           <span className="truncate dark:text-white">{child.name}</span>
-          <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] text-slate-400 transition-transform ml-1.5 ${isOpen ? 'rotate-180' : ''}`} />
+          <FontAwesomeIcon icon={faChevronDown} className={`text-caption text-slate-400 transition-transform ml-1.5 ${isOpen ? 'rotate-180' : ''}`} />
         </div>
 
         {isOpen && (
-          <div className="absolute top-full left-0 min-w-full w-max max-w-[400px] mt-1 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[100] border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1">
+          <div className="absolute top-full left-0 min-w-full w-max max-w-[400px] mt-1 bg-white dark:bg-slate-900 rounded-xl shadow-lg z-[100] border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1">
             <div className="p-2 border-b border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
               <div className="relative">
                 <input
@@ -138,7 +138,7 @@ export const RuleRow: React.FC<RuleRowProps> = ({
             </div>
             <div className="max-h-60 overflow-y-auto custom-scrollbar">
               {filteredParams.length === 0 ? (
-                <div className="px-4 py-3 text-xs font-bold text-slate-400 text-center uppercase">No matches</div>
+                <div className="px-4 py-3 text-xs font-bold text-slate-400 text-center ">No matches</div>
               ) : (
                 filteredParams.map(p => (
                   <div
@@ -152,13 +152,13 @@ export const RuleRow: React.FC<RuleRowProps> = ({
                   >
                     <span className={`text-sm font-bold ${child.name === p.name ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}>{p.name}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{p.storage_type}</span>
+                      <span className="text-caption font-semibold text-slate-400  tracking-tighter">{p.storage_type}</span>
                       <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-                      <span className={`text-[10px] font-black uppercase tracking-tighter ${p.is_type ? 'text-amber-500/70' : 'text-indigo-500/70'}`}>{p.is_type ? 'Type' : 'Instance'}</span>
+                      <span className={`text-caption font-semibold  tracking-tighter ${p.is_type ? 'text-amber-500/70' : 'text-indigo-500/70'}`}>{p.is_type ? 'Type' : 'Instance'}</span>
                       {p.builtin_name && (
                         <>
                           <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-                          <span className="text-[10px] font-bold text-slate-400/60 font-mono tracking-tight">{p.builtin_name}</span>
+                          <span className="text-caption font-bold text-slate-400/60 font-mono tracking-tight">{p.builtin_name}</span>
                         </>
                       )}
                     </div>
@@ -176,14 +176,14 @@ export const RuleRow: React.FC<RuleRowProps> = ({
           value={child.operator}
           options={OPERATORS[child.storage_type] || ['==', '!=']}
           onChange={(val) => updateRootGroupRecursive(childPath, { operator: val }, 'update')}
-          className="border border-blue-500/10 dark:border-blue-400/10 rounded-lg shadow-sm"
+          className="border border-blue-500/10 dark:border-blue-400/10 rounded-lg "
         />
       </div>
 
       {/* 3. Value Input: Matches Trigger Styling */}
       <div className="flex-[1.5] min-w-[120px]">
         {child.storage_type === 'ElementId' && child.revit_element_type && child.revit_element_type !== 'ElementId' ? (
-          <div className="px-3 py-1.5 bg-blue-50/30 dark:bg-blue-900/10 border border-blue-500/10 dark:border-blue-400/10 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 italic text-center uppercase tracking-tight">Select {child.revit_element_type}</div>
+          <div className="px-3 py-1.5 bg-blue-50/30 dark:bg-blue-900/10 border border-blue-500/10 dark:border-blue-400/10 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400  text-center  tracking-tight">Select {child.revit_element_type}</div>
         ) : (
           <input
             type="text"
@@ -193,7 +193,7 @@ export const RuleRow: React.FC<RuleRowProps> = ({
               if (child.storage_type === 'String' || val === "" || /^-?\d*\.?\d*$/.test(val)) updateRootGroupRecursive(childPath, { value: val }, 'update');
             }}
             placeholder="Value..."
-            className="w-full bg-white dark:bg-slate-900/50 border border-blue-500/10 dark:border-blue-400/10 rounded-lg px-4 py-1.5 text-xs font-bold outline-none dark:text-white transition-all hover:border-blue-500/30 shadow-sm"
+            className="w-full bg-white dark:bg-slate-900/50 border border-blue-500/10 dark:border-blue-400/10 rounded-lg px-4 py-1.5 text-xs font-bold outline-none dark:text-white transition-all hover:border-blue-500/30 "
             inputMode={child.storage_type === 'String' ? 'text' : 'decimal'}
           />
         )}
@@ -207,15 +207,15 @@ export const RuleRow: React.FC<RuleRowProps> = ({
             placeholder="UNIT"
             options={relevantUnits}
             onChange={(val) => updateRootGroupRecursive(childPath, { unit: val || undefined }, 'update')}
-            className="border border-blue-500/10 dark:border-blue-400/10 rounded-lg shadow-sm"
+            className="border border-blue-500/10 dark:border-blue-400/10 rounded-lg "
           />
         </div>
       )}
 
       <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity">
-        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'move_up')} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-blue-500 transition-all"><FontAwesomeIcon icon={faArrowUp} className="text-[10px]" /></button>
-        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'move_down')} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-blue-500 transition-all"><FontAwesomeIcon icon={faArrowDown} className="text-[10px]" /></button>
-        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'remove')} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-rose-500 transition-all active:scale-90"><FontAwesomeIcon icon={faTrash} className="text-[10px]" /></button>
+        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'move_up')} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-blue-500 transition-all"><FontAwesomeIcon icon={faArrowUp} className="text-caption" /></button>
+        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'move_down')} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-blue-500 transition-all"><FontAwesomeIcon icon={faArrowDown} className="text-caption" /></button>
+        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'remove')} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-rose-500 transition-all active:scale-90"><FontAwesomeIcon icon={faTrash} className="text-caption" /></button>
       </div>
     </div>
   );

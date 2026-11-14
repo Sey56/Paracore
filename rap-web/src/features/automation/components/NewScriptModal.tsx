@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
 import { 
     faPlus, 
     faCode, 
@@ -14,7 +14,7 @@ import {
     faCheckCircle,
     faChevronDown,
     faTimesCircle
-} from '@fortawesome/free-solid-svg-icons';
+} from '@/components/ui/iconAliases';
 import { useScripts } from '../hooks/useScripts';
 import { useScriptExecution } from '../hooks/useScriptExecution';
 import { VisualQueryBuilder } from './VisualQueryBuilder/VisualQueryBuilder';
@@ -55,15 +55,15 @@ const QueryTemplateSelector: React.FC<{
             {/* Custom Minimalist Trigger: Displays selected template name */}
             <div 
                 onClick={() => setIsOpen(!isOpen)}
-                className={`bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50 border rounded-lg px-4 py-1.5 text-[13px] font-bold outline-none cursor-pointer min-w-[240px] flex items-center justify-between transition-all ${selectedTemplateName ? 'border-blue-500/20 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                className={`bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50 border rounded-lg px-4 py-1.5 text-body-sm font-bold outline-none cursor-pointer min-w-[240px] flex items-center justify-between transition-all ${selectedTemplateName ? 'border-blue-500/20 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
             >
                 <span className="truncate">{selectedTemplateName || "Start from template..."}</span>
-                <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] transition-transform ml-2 ${isOpen ? 'rotate-180' : ''} ${selectedTemplateName ? 'text-blue-400' : 'text-slate-400'}`} />
+                <FontAwesomeIcon icon={faChevronDown} className={`text-caption transition-transform ml-2 ${isOpen ? 'rotate-180' : ''} ${selectedTemplateName ? 'text-blue-400' : 'text-slate-400'}`} />
             </div>
 
             {/* Custom High-Contrast Dropdown Menu */}
             {isOpen && (
-                <div className="absolute top-full right-0 mt-2 min-w-[240px] w-max bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 overflow-hidden">
+                <div className="absolute top-full right-0 mt-2 min-w-[240px] w-max bg-white dark:bg-slate-900 rounded-xl shadow-lg z-[110] border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 overflow-hidden">
                     <div className="max-h-64 overflow-y-auto custom-scrollbar">
                         {/* None / Clear Option */}
                         <div
@@ -71,9 +71,9 @@ const QueryTemplateSelector: React.FC<{
                                 onSelect(null, null);
                                 setIsOpen(false);
                             }}
-                            className="px-4 py-2.5 text-[13px] font-bold cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors border-b border-slate-50 dark:border-slate-800 text-rose-500 flex items-center gap-3"
+                            className="px-4 py-2.5 text-body-sm font-bold cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors border-b border-slate-50 dark:border-slate-800 text-rose-500 flex items-center gap-3"
                         >
-                            <FontAwesomeIcon icon={faTimesCircle} className="text-[11px] opacity-60" />
+                            <FontAwesomeIcon icon={faTimesCircle} className="text-caption opacity-60" />
                             Clear Canvas
                         </div>
 
@@ -84,7 +84,7 @@ const QueryTemplateSelector: React.FC<{
                                     onSelect(t.data, t.name);
                                     setIsOpen(false);
                                 }}
-                                className={`px-4 py-2.5 text-[13px] font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 flex items-center gap-3 ${selectedTemplateName === t.name ? 'bg-blue-50/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300'}`}
+                                className={`px-4 py-2.5 text-body-sm font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 flex items-center gap-3 ${selectedTemplateName === t.name ? 'bg-blue-50/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300'}`}
                             >
                                 <div className={`w-1.5 h-1.5 rounded-full ${selectedTemplateName === t.name ? 'bg-blue-500' : 'bg-blue-500/40'}`} />
                                 {t.name}
@@ -284,9 +284,9 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                             value={scriptName}
                                             onChange={(e) => setScriptName(e.target.value.replace(/\s+/g, ''))}
                                             placeholder={mode === 'sentinel' ? "Sentinel Name..." : "Script Name..."}
-                                            className={`w-full bg-transparent border-b-2 rounded-none px-1 py-2 text-[14px] font-bold text-slate-700 dark:text-slate-200 outline-none transition-all ${isDuplicate ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700 focus:border-blue-500'}`}
+                                            className={`w-full bg-transparent border-b-2 rounded-none px-1 py-2 text-body font-bold text-slate-700 dark:text-slate-200 outline-none transition-all ${isDuplicate ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700 focus:border-blue-500'}`}
                                         />
-                                        {isDuplicate && <span className="absolute -bottom-4 left-1 text-[10px] font-black text-rose-500 uppercase tracking-widest">Name Taken</span>}
+                                        {isDuplicate && <span className="absolute -bottom-4 left-1 text-caption font-semibold text-rose-500  tracking-wide">Name Taken</span>}
                                     </div>
                                     <div className="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
                                     <input
@@ -294,16 +294,16 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                         placeholder="Describe operational intent..."
-                                        className="flex-grow bg-transparent border-none px-2 py-2 text-[14px] font-medium text-slate-500 dark:text-slate-400 outline-none focus:text-slate-800 dark:focus:text-slate-200 transition-colors"
+                                        className="flex-grow bg-transparent border-none px-2 py-2 text-body font-medium text-slate-500 dark:text-slate-400 outline-none focus:text-slate-800 dark:focus:text-slate-200 transition-colors"
                                     />
                                 </>
                             ) : (
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${mode === 'sentinel' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}`}>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center  ${mode === 'sentinel' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}`}>
                                         <FontAwesomeIcon icon={faCogs} className="text-sm" />
                                     </div>
                                     <span className="text-[15px] font-bold text-slate-800 dark:text-slate-100">{targetPath?.split(/[\\/]/).pop()}</span>
-                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-2">Surgical Update</span>
+                                    <span className="text-caption font-semibold  tracking-wide text-slate-400 dark:text-slate-500 ml-2">Surgical Update</span>
                                 </div>
                             )}
                         </div>
@@ -327,12 +327,12 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                     <button
                                         key={tab.id}
                                         onClick={() => handleTabChange(tab.id as 'query' | 'blank')}
-                                        className={`px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800/50 ${activeTab === tab.id
+                                        className={`px-4 py-1.5 rounded-lg text-caption font-semibold  tracking-wide transition-all flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800/50 ${activeTab === tab.id
                                             ? 'text-slate-900 dark:text-white'
                                             : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                                             }`}
                                     >
-                                        <FontAwesomeIcon icon={tab.icon} className={`text-[10px] ${activeTab === tab.id ? (mode === 'sentinel' ? 'text-amber-500' : 'text-blue-500') : ''}`} />
+                                        <FontAwesomeIcon icon={tab.icon} className={`text-caption ${activeTab === tab.id ? (mode === 'sentinel' ? 'text-amber-500' : 'text-blue-500') : ''}`} />
                                         {tab.label}
                                     </button>
                                 ))}
@@ -360,12 +360,12 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                     </div>
                                 ) : (
                                     <div className="h-full flex items-center justify-center py-12">
-                                        <div className="max-w-md w-full text-center p-8 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/40 shadow-sm">
-                                            <div className="w-16 h-16 mx-auto bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                        <div className="max-w-md w-full text-center p-8 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/40 ">
+                                            <div className="w-16 h-16 mx-auto bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700 ">
                                                 <FontAwesomeIcon icon={faFileCode} className="text-slate-400 dark:text-slate-500 text-2xl" />
                                             </div>
-                                            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Pure Code Archetype</h3>
-                                            <p className="text-[14px] font-medium text-slate-400 dark:text-slate-500 mt-3 leading-relaxed px-4">
+                                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white  tracking-tight">Pure Code Archetype</h3>
+                                            <p className="text-body font-medium text-slate-400 dark:text-slate-500 mt-3 leading-relaxed px-4">
                                                 Initializes a clean {mode === 'sentinel' ? 'Sentinel' : 'C#'} script for professional IDE development.
                                             </p>
                                         </div>
@@ -376,10 +376,10 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                     </div>
 
                     {/* 3. COMPACT FOOTER: Focused on confirmation (12px Buttons) */}
-                    <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0 shadow-sm">
+                    <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0 ">
                         <div className="flex items-center gap-3">
-                            <FontAwesomeIcon icon={faInfoCircle} className="text-slate-300 text-[11px]" />
-                            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                            <FontAwesomeIcon icon={faInfoCircle} className="text-slate-300 text-caption" />
+                            <span className="text-caption font-bold text-slate-400 dark:text-slate-500  tracking-wide">
                                 {activeTab === 'query' ? (isCompiled ? 'Ready for Deployment' : 'Definition Incomplete') : 'Archetype Ready'}
                             </span>
                         </div>
@@ -387,14 +387,14 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => onClose()}
-                                className="px-5 py-2 rounded-xl text-[12px] font-black text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all uppercase tracking-widest"
+                                className="px-5 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all  tracking-wide"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleMainActionClick}
                                 disabled={isSubmitting || isDuplicate || (activeTab === 'query' && !isCompiled) || (!isReplacing && !scriptName.trim())}
-                                className={`px-10 py-2.5 rounded-xl text-[12px] font-black text-white shadow-lg transition-all disabled:opacity-40 disabled:grayscale hover:scale-[1.02] active:scale-95 flex items-center gap-3 relative group ${mode === 'sentinel'
+                                className={`px-10 py-2.5 rounded-xl text-xs font-semibold text-white shadow-lg transition-all disabled:opacity-40 disabled:grayscale hover:scale-[1.02] active:scale-95 flex items-center gap-3 relative group ${mode === 'sentinel'
                                     ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20'
                                     : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30'
                                     }`}
@@ -404,7 +404,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                 ) : (
                                     <FontAwesomeIcon icon={mode === 'sentinel' ? faShieldHeart : (isReplacing ? faCheckCircle : faPlus)} className="text-sm group-hover:scale-110 transition-transform" />
                                 )}
-                                <span className="uppercase tracking-[0.1em]">
+                                <span className=" tracking-wide">
                                     {isSubmitting ? 'Processing...' : (mode === 'sentinel' ? (isReplacing ? 'Update Sentinel' : 'Create Sentinel') : (isReplacing ? 'Deploy Update' : 'Generate Script'))}
                                 </span>
                             </button>
@@ -422,15 +422,15 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                 <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-600 dark:text-amber-400 text-2xl" />
                             </div>
                             <div>
-                                <div className="text-xs font-black text-amber-800 dark:text-amber-200 uppercase tracking-widest">Overwriting Component</div>
-                                <p className="text-[13px] text-amber-700/60 dark:text-amber-400/60 font-bold mt-1 leading-relaxed">
+                                <div className="text-xs font-semibold text-amber-800 dark:text-amber-200  tracking-wide">Overwriting Component</div>
+                                <p className="text-body-sm text-amber-700/60 dark:text-amber-400/60 font-bold mt-1 leading-relaxed">
                                     This will overwrite the current {mode === 'sentinel' ? 'sentinel detection' : 'filtering'} logic. Professional IDE scaffolding will be preserved.
                                 </p>
                             </div>
                         </div>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setShowConfirmReplace(false)} className="px-6 py-2 rounded-xl text-[12px] font-black text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 uppercase tracking-widest transition-all">Cancel</button>
-                            <button onClick={() => handleExecuteAction()} className="px-8 py-3 rounded-xl text-[12px] font-black bg-blue-600 text-white shadow-xl hover:bg-blue-700 uppercase tracking-widest transition-all">Confirm Overwrite</button>
+                            <button onClick={() => setShowConfirmReplace(false)} className="px-6 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800  tracking-wide transition-all">Cancel</button>
+                            <button onClick={() => handleExecuteAction()} className="px-8 py-3 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-xl hover:bg-blue-700  tracking-wide transition-all">Confirm Overwrite</button>
                         </div>
                     </div>
                 </Modal>

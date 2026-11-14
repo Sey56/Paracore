@@ -113,7 +113,7 @@ export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
               <h4 className="font-medium text-slate-600 dark:text-slate-300">Last Commit</h4>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {metadata.gitInfo.lastCommitAuthor || 'N/A'} on {metadata.gitInfo.lastCommitDate ? new Date(metadata.gitInfo.lastCommitDate).toLocaleDateString() : 'N/A'}
-                {metadata.gitInfo.lastCommitMessage && <span className="block italic">"{metadata.gitInfo.lastCommitMessage}"</span>}
+                {metadata.gitInfo.lastCommitMessage && <span className="block ">"{metadata.gitInfo.lastCommitMessage}"</span>}
               </p>
             </div>
           )}

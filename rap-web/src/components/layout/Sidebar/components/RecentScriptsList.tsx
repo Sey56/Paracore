@@ -1,7 +1,7 @@
 import React from 'react';
 import { SidebarSection } from '../SidebarSection';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClock, faBroom } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
+import { faClock, faBroom } from "@/components/ui/iconAliases";
 import { Script } from '@/types/index';
 import { InspectorTab } from '@/context/providers/UIContext';
 
@@ -59,7 +59,7 @@ export const RecentScriptsList: React.FC<RecentScriptsListProps> = ({
           </li>
         ))}
         {scriptsToRender.length === 0 && (
-          <li className="text-xs text-muted-foreground px-3 py-1.5 italic">No recent scripts</li>
+          <li className="text-xs text-muted-foreground px-3 py-1.5 ">No recent scripts</li>
         )}
       </ul>
     </SidebarSection>

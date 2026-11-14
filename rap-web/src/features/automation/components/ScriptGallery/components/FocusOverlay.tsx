@@ -96,7 +96,7 @@ export const FocusOverlay: React.FC<FocusOverlayProps> = ({
     >
       <div
         ref={overlayRef}
-        className="w-full h-full flex items-center justify-center p-8 overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl"
+        className="w-full h-full flex items-center justify-center p-8 overflow-hidden bg-white/85 dark:bg-slate-900/85"
       >
         <div ref={containerRef} className="w-full max-w-sm">
           <ScriptCard

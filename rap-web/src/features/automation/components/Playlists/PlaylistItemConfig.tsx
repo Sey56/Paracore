@@ -5,8 +5,8 @@ import { Script, ScriptParameter } from '@/types/scriptModel';
 import { ParameterInput } from '../ScriptInspector/ParameterInput';
 import { ParameterGroupSection } from '../ScriptInspector/ParameterGroupSection';
 import { filterVisibleParameters } from '@/utils/parameterVisibility';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faArrowLeft } from '@/components/ui/iconAliases';
 
 interface PlaylistItemConfigProps {
     scriptPath: string;
@@ -129,7 +129,7 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
         return (
             <div className="p-8 flex flex-col items-center justify-center space-y-3">
                 <div className="w-4 h-4 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Loading</p>
+                <p className="text-caption text-gray-400 font-medium  tracking-wide">Loading</p>
             </div>
         );
     }
@@ -149,7 +149,7 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
                 <div className="w-10 h-10 bg-gray-50 dark:bg-gray-800/50 rounded-full flex items-center justify-center mb-3 text-gray-300">
                     <FontAwesomeIcon icon={faArrowLeft} className="rotate-45 opacity-40" size="xs" />
                 </div>
-                <p className="text-xs text-gray-400 italic">
+                <p className="text-xs text-gray-400 ">
                     This script does not have any configurable parameters.
                 </p>
             </div>

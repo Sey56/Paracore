@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 // Force TS re-index
 import { Modal } from '@/components/common/Modal';
 import { useScripts } from '../../index';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faSearch } from '@/components/ui/iconAliases';
 
 interface ScriptPickerModalProps {
     isOpen: boolean;

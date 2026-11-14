@@ -1,7 +1,7 @@
 import React from 'react';
 import { Playlist } from '@/types/playlistModel';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faStar, faListUl } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faStar, faListUl } from '@/components/ui/iconAliases';
 import { Tooltip } from '@/components/common/Tooltip';
 
 interface PlaylistCardProps {
@@ -22,7 +22,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
             className={`w-full rounded-xl transition-all duration-[400ms] cursor-pointer flex flex-col relative group
                 ${isHighlighted
                     ? 'bg-blue-50 dark:bg-blue-900/20 border-[#3b82f6] border shadow-[inset_0_0_0_1px_#3b82f6,0_4px_6px_-1px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_0_0_1px_#3b82f6,0_10px_15px_-3px_rgba(0,0,0,0.3)]'
-                    : 'bg-[var(--bg-card)] border border-[var(--border-main)] shadow-sm hover:border-[rgba(59,130,246,0.3)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] dark:border-[rgba(255,255,255,0.05)] dark:hover:border-[rgba(59,130,246,0.4)] dark:hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)]'
+                    : 'bg-[var(--bg-card)] border border-[var(--border-main)]  hover:border-[rgba(59,130,246,0.3)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] dark:border-[rgba(255,255,255,0.05)] dark:hover:border-[rgba(59,130,246,0.4)] dark:hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)]'
                 }
             `}
             onClick={onSelect}

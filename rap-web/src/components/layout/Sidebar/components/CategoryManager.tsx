@@ -1,7 +1,7 @@
 import React from 'react';
 import { SidebarSection } from '../SidebarSection';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTh, faPlus, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
+import { faTh, faPlus, faTimes } from "@/components/ui/iconAliases";
 
 interface CategoryManagerProps {
   customCategories: string[];
@@ -44,7 +44,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
             key={category}
             className={`group flex items-center justify-between py-1.5 px-3 rounded-xl cursor-pointer transition-all border
               ${selectedCategory === category
-                ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 border-purple-100 dark:border-purple-900/50 shadow-sm"
+                ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 border-purple-100 dark:border-purple-900/50 "
                 : "hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 border-transparent active:scale-[0.98]"}
             `}
             onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
@@ -58,12 +58,12 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
               }}
               title="Remove category"
             >
-              <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+              <FontAwesomeIcon icon={faTimes} className="text-caption" />
             </button>
           </li>
         ))}
         {customCategories.length === 0 && (
-          <li className="text-xs text-muted-foreground px-3 py-1.5 italic">No custom category</li>
+          <li className="text-xs text-muted-foreground px-3 py-1.5 ">No custom category</li>
         )}
       </ul>
     </SidebarSection>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner, faTags, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faSpinner, faTags, faTimes } from '@/components/ui/iconAliases';
 import { Script } from '@/types/scriptModel';
 import { Modal } from '@/components/common/Modal';
 import api from '@/api/axios';
@@ -203,7 +203,7 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
                     <>
                         {/* DocumentType */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400  tracking-wider">
                                 Document Type
                             </label>
                             <select
@@ -215,14 +215,14 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
                                     <option key={dt} value={dt}>{dt}</option>
                                 ))}
                             </select>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                            <p className="text-caption text-slate-400 dark:text-slate-500">
                                 Restricts this {isGuard ? 'sentinel' : 'script'} to a specific Revit document environment.
                             </p>
                         </div>
 
                         {/* Categories */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400  tracking-wider">
                                 Categories <span className="text-slate-300 dark:text-slate-600 font-normal">({categoryList.length}/3)</span>
                             </label>
                             <div className="flex flex-wrap gap-2 mb-2">
@@ -236,7 +236,7 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
                                             onClick={() => removeCategory(i)}
                                             className="hover:text-red-500 transition-colors"
                                         >
-                                            <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                                            <FontAwesomeIcon icon={faTimes} className="text-caption" />
                                         </button>
                                     </span>
                                 ))}
@@ -264,7 +264,7 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
 
                         {/* Author */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400  tracking-wider">
                                 Author
                             </label>
                             <input
@@ -278,7 +278,7 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
 
                         {/* Dependencies */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400  tracking-wider">
                                 Dependencies
                             </label>
                             <input
@@ -288,14 +288,14 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
                                 placeholder="e.g. RevitAPI 2025+, Paracore.Addin"
                                 className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
                             />
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                            <p className="text-caption text-slate-400 dark:text-slate-500">
                                 Separate multiple dependencies with commas.
                             </p>
                         </div>
 
                         {/* Description */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400  tracking-wider">
                                 Description
                             </label>
                             <textarea
@@ -315,14 +315,14 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
                 <button
                     onClick={onClose}
                     disabled={isSaving}
-                    className="px-5 py-2.5 text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl uppercase tracking-wider transition-all"
+                    className="px-5 py-2.5 text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl  tracking-wider transition-all"
                 >
                     Cancel
                 </button>
                 <button
                     onClick={handleSave}
                     disabled={isLoading || isSaving}
-                    className="px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl uppercase tracking-wider transition-all shadow-lg shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl  tracking-wider transition-all shadow-lg shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                     {isSaving ? (
                         <FontAwesomeIcon icon={faSpinner} spin />

@@ -1,6 +1,6 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck, faCode, faSpinner, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faCheck, faCode, faSpinner, faInfoCircle } from '@/components/ui/iconAliases';
 
 interface GenerationFooterProps {
   isLoadingParams: boolean;
@@ -27,11 +27,11 @@ export const GenerationFooter: React.FC<GenerationFooterProps> = ({
       <div className="flex items-center gap-3 shrink-0">
         <div className={`w-2 h-2 rounded-full ${isLoadingParams || isGenerating ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
         <div className="flex flex-col">
-          <span className="text-xs font-black text-gray-400 uppercase tracking-widest leading-tight">
+          <span className="text-xs font-semibold text-gray-400  tracking-wide leading-tight">
             {isLoadingParams ? 'Syncing...' : (isGenerating ? 'Forging...' : 'System Ready')}
           </span>
           {lastGeneratedTimestamp && !isGenerating && (
-            <span className="text-[11px] font-bold text-green-600 dark:text-green-400 animate-in fade-in duration-500 italic block">
+            <span className="text-caption font-bold text-green-600 dark:text-green-400 animate-in fade-in duration-500  block">
               Logic Sync
             </span>
           )}
@@ -45,7 +45,7 @@ export const GenerationFooter: React.FC<GenerationFooterProps> = ({
             <FontAwesomeIcon icon={faInfoCircle} className="text-blue-500 text-xs" />
             <p className="text-xs text-blue-600/70 dark:text-blue-400/70 font-bold truncate">
               {(!isReplacing && !hasName) ? (
-                <span className="text-rose-500 font-black animate-pulse">SET A NAME AT THE TOP TO ENABLE THE CREATE BUTTON.</span>
+                <span className="text-rose-500 font-semibold animate-pulse">SET A NAME AT THE TOP TO ENABLE THE CREATE BUTTON.</span>
               ) : (
                 <>Rules converted to Revit API code. Click <strong>{isReplacing ? 'Update' : 'Create'}</strong> below.</>
               )}

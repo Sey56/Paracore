@@ -1,8 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useConsole, ConsoleItem } from '../../store/ConsoleContext';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faSpinner } from '@/components/ui/iconAliases';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '@/context/ThemeContext';
@@ -106,7 +106,7 @@ export const ExecutionHistory: React.FC<{ showPipeline?: boolean }> = ({ showPip
           <div key={i} className={`mb-1 px-3 break-words whitespace-pre-wrap ${
             item.type === 'input' ? 'text-blue-600 dark:text-blue-400 font-bold' :
             item.type === 'error' ? 'text-red-600 dark:text-red-400 font-bold' :
-            item.type === 'status' ? 'text-indigo-600 dark:text-indigo-400 font-semibold italic text-xs mt-2' :
+            item.type === 'status' ? 'text-indigo-600 dark:text-indigo-400 font-semibold  text-xs mt-2' :
             'text-gray-800 dark:text-gray-200'
           }`}>
             {item.type === 'input' ? (

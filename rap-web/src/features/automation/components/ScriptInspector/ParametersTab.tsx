@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
+import Portal from '@/components/common/Portal';
 import { filterVisibleParameters, validateParameters } from '@/utils/parameterVisibility';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
 import {
   faCheckCircle,
   faTimesCircle,
@@ -13,7 +14,7 @@ import {
   faExternalLinkAlt,
   faUndo,
   faLayerGroup,
-} from "@fortawesome/free-solid-svg-icons";
+} from "@/components/ui/iconAliases";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
 import { useScriptExecution } from "@/features/automation";
@@ -199,6 +200,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   };
 
   const isDefaultPreset = selectedPreset === "<Default Parameters>";
+  const showPresetControls = (activeMainView === 'gallery' || activeMainView === 'repl')
+    && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0));
 
   const validationErrors = validateParameters(filterVisibleParameters(editedParameters));
   const isParamsValid = validationErrors.length === 0;
@@ -210,113 +213,110 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
   return (
     <div className={`tab-content flex flex-col h-full overflow-hidden`}>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-6 pl-5 pr-3">
-        <div className="space-y-8 pb-6 pr-2">
-        {/* 1. Configuration Presets */}
-        {(activeMainView === 'gallery' || activeMainView === 'repl') && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
-          <div className="flex flex-col space-y-4">
-
-            <div className="flex items-center gap-3 p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-inner tooltip-bottom">
-              <div className="relative flex-1 group">
-                <select
-                  className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-transparent rounded-lg px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 focus:ring-4 focus:ring-blue-500/5 transition-all cursor-pointer shadow-sm"
-                  value={selectedPreset}
-                  onChange={(e) => {
-                    const presetName = e.target.value;
-                    internalSetSelectedPreset(presetName);
-                    if (presetName === "<Default Parameters>") {
-                      const draftParams = defaultDraftParameters[script.id];
-                      const finalDefaultParams = draftParams || initializeParameters(script.parameters ?? []);
-                      updateUserEditedParameters(script.id, finalDefaultParams, true);
-                      setEditedParameters(finalDefaultParams);
-                    } else {
-                      const preset = presets.find((p) => p.name === presetName);
-                      if (preset) {
-                        const mergedParams = (script.parameters ?? []).map(scriptParam => {
-                          const presetParam = preset.parameters.find(p => p.name === scriptParam.name);
-                          if (presetParam) {
-                            let newValue = presetParam.value;
-                            if (scriptParam.multiSelect && typeof newValue === 'string') {
-                              try {
-                                const parsed = JSON.parse(newValue);
-                                if (Array.isArray(parsed)) newValue = JSON.stringify(parsed);
-                              } catch {
-                                const arrayValue = newValue.split(',').map(v => v.trim()).filter(v => v.length > 0);
-                                newValue = JSON.stringify(arrayValue);
-                              }
+      {showPresetControls && (
+        <Portal wrapperId="preset-controls-slot">
+          <div className="flex items-center gap-2 min-w-0 w-full">
+            <div className="relative min-w-[5rem] max-w-[9rem] flex-1">
+              <select
+                className="w-full h-8 appearance-none bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-md pl-2 pr-6 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+                value={selectedPreset}
+                onChange={(e) => {
+                  const presetName = e.target.value;
+                  internalSetSelectedPreset(presetName);
+                  if (presetName === "<Default Parameters>") {
+                    const draftParams = defaultDraftParameters[script.id];
+                    const finalDefaultParams = draftParams || initializeParameters(script.parameters ?? []);
+                    updateUserEditedParameters(script.id, finalDefaultParams, true);
+                    setEditedParameters(finalDefaultParams);
+                  } else {
+                    const preset = presets.find((p) => p.name === presetName);
+                    if (preset) {
+                      const mergedParams = (script.parameters ?? []).map(scriptParam => {
+                        const presetParam = preset.parameters.find(p => p.name === scriptParam.name);
+                        if (presetParam) {
+                          let newValue = presetParam.value;
+                          if (scriptParam.multiSelect && typeof newValue === 'string') {
+                            try {
+                              const parsed = JSON.parse(newValue);
+                              if (Array.isArray(parsed)) newValue = JSON.stringify(parsed);
+                            } catch {
+                              const arrayValue = newValue.split(',').map(v => v.trim()).filter(v => v.length > 0);
+                              newValue = JSON.stringify(arrayValue);
                             }
-                            const finalOptions = presetParam.options && presetParam.options.length > 0 ? presetParam.options : scriptParam.options;
-                            return { ...scriptParam, value: newValue, options: finalOptions };
                           }
-                          return { ...scriptParam };
-                        });
-                        updateUserEditedParameters(script.id, mergedParams, true);
-                        setEditedParameters(mergedParams);
-                      }
+                          const finalOptions = presetParam.options && presetParam.options.length > 0 ? presetParam.options : scriptParam.options;
+                          return { ...scriptParam, value: newValue, options: finalOptions };
+                        }
+                        return { ...scriptParam };
+                      });
+                      updateUserEditedParameters(script.id, mergedParams, true);
+                      setEditedParameters(mergedParams);
                     }
-                  }}
-                >
-                  <option value="<Default Parameters>">Parameter Defaults</option>
-                  {presets.map((preset, i) => (
-                    <option key={i} value={preset.name}>{preset.name}</option>
-                  ))}
-                </select>
-                <FontAwesomeIcon icon={faSync} className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none opacity-50" />
-              </div>
+                  }
+                }}
+              >
+                <option value="<Default Parameters>">Parameter Defaults</option>
+                {presets.map((preset, i) => (
+                  <option key={i} value={preset.name}>{preset.name}</option>
+                ))}
+              </select>
+              <FontAwesomeIcon icon={faSync} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none opacity-50" />
+            </div>
 
-              <div className="flex items-center gap-1.5 pr-1">
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button
+                onClick={toggleAllGroups}
+                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors duration-150 ${areGroupsExpanded
+                  ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                  : "text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                title={areGroupsExpanded ? "Collapse All Groups" : "Expand All Groups"}
+              >
+                <div className="relative">
+                  <FontAwesomeIcon icon={faLayerGroup} className="text-xs" />
+                  <div className={`absolute -right-1 -bottom-1 w-1.5 h-1.5 rounded-full border border-slate-100 dark:border-slate-800 transition-colors ${areGroupsExpanded ? "bg-blue-500" : "bg-slate-400"}`}></div>
+                </div>
+              </button>
+
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
+              {isDefaultPreset ? (
                 <button
-                  onClick={toggleAllGroups}
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 ${areGroupsExpanded
-                    ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 shadow-sm"
-                    : "text-slate-400 hover:text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-900/20"
-                    }`}
-                  title={areGroupsExpanded ? "Collapse All Groups" : "Expand All Groups"}
+                  className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                  onClick={() => setIsResetModalOpen(true)}
+                  disabled={!isActionable || isRunning}
+                  title="Reset to Defaults"
                 >
-                  <div className="relative">
-                    <FontAwesomeIcon icon={faLayerGroup} className="text-xs" />
-                    <div className={`absolute -right-1 -bottom-1 w-2 h-2 rounded-full border-2 border-slate-100 dark:border-slate-800 transition-colors ${areGroupsExpanded ? "bg-blue-500" : "bg-slate-400"}`}></div>
-                  </div>
+                  <FontAwesomeIcon icon={faUndo} className="text-xs" />
                 </button>
-
-                <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
-
-                {isDefaultPreset ? (
-                  <button
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-300"
-                    onClick={() => setIsResetModalOpen(true)}
-                    disabled={!isActionable || isRunning}
-                    title="Reset to Defaults"
-                  >
-                    <FontAwesomeIcon icon={faUndo} className="text-xs" />
+              ) : (
+                <>
+                  <button title="Rename Configuration" className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" onClick={handleRenamePreset}>
+                    <FontAwesomeIcon icon={faEdit} className="text-xs" />
                   </button>
-                ) : (
-                  <>
-                    <button title="Rename Configuration" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" onClick={handleRenamePreset}>
-                      <FontAwesomeIcon icon={faEdit} className="text-xs" />
-                    </button>
-                    <button title="Update Configuration" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" onClick={handleUpdatePreset}>
-                      <FontAwesomeIcon icon={faSync} className="text-xs" />
-                    </button>
-                    <button title="Delete Configuration" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all" onClick={handleDeletePreset}>
-                      <FontAwesomeIcon icon={faTrash} className="text-xs" />
-                    </button>
-                  </>
-                )}
-                <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
-                <button
-                  title="Save New Preset"
-                  className="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-90"
-                  onClick={handleNewPreset}
-                >
-                  <FontAwesomeIcon icon={faPlus} className="text-xs" />
-                </button>
-              </div>
+                  <button title="Update Configuration" className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" onClick={handleUpdatePreset}>
+                    <FontAwesomeIcon icon={faSync} className="text-xs" />
+                  </button>
+                  <button title="Delete Configuration" className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors" onClick={handleDeletePreset}>
+                    <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                  </button>
+                </>
+              )}
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+              <button
+                title="Save New Preset"
+                className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                onClick={handleNewPreset}
+              >
+                <FontAwesomeIcon icon={faPlus} className="text-xs" />
+              </button>
             </div>
           </div>
-        )}
-
-        {/* 2. Parameter Form */}
+        </Portal>
+      )}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-6 pl-5 pr-3">
+        <div className="space-y-8 pb-6 pr-2">
+        {/* 1. Parameter Form */}
         <div className="relative">
           <ScriptParametersForm
             script={script}
@@ -329,13 +329,13 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
           />
         </div>
 
-        {/* 3. Execution Controls */}
+        {/* 2. Execution Controls */}
         {(activeMainView === 'gallery' || activeMainView === 'repl') && (
           <div className="pt-8 mt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 relative">
                 <button
-                  className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-2xl active:scale-95
+                  className={`flex items-center gap-3 px-8 py-4 rounded-xl font-semibold text-xs  tracking-wide transition-all duration-500 shadow-lg active:scale-95
                     ${isRunning
                       ? 'bg-blue-600 text-white cursor-wait opacity-90'
                       : isRunDisabled
@@ -353,7 +353,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               {!isProtectedTool && (
                 <button
                   title="View Source Code"
-                  className="w-12 h-12 rounded-xl text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center shadow-sm group tooltip-left"
+                  className="w-12 h-12 rounded-xl text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center  group tooltip-left"
                   onClick={onViewCodeClick}
                 >
                   <FontAwesomeIcon icon={faExternalLinkAlt} className="text-sm group-hover:scale-110 transition-transform" />
@@ -366,7 +366,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               <div className="flex items-start gap-3 px-4 py-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800 animate-in slide-in-from-bottom-2 duration-300">
                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse mt-1.5 shrink-0" />
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 tracking-[0.2em] uppercase mb-1">
+                  <span className="text-caption font-semibold text-rose-600 dark:text-rose-400 tracking-wide  mb-1">
                     Configuration Issues
                   </span>
                   <div className="space-y-1">

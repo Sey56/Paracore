@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
 import {
   faPlay, faSpinner, faStar as fasStar,
   faCode, faBullseye, faEdit, faSlidersH,
   faICursor, faSyncAlt, faTags, faTrash, faTools, faBroom,
   faExclamationTriangle, faBook, faFolderOpen
-} from '@fortawesome/free-solid-svg-icons';
-import { faStar as farStar } from '@fortawesome/free-regular-svg-icons';
+} from '@/components/ui/iconAliases';
+import { faStar as farStar } from '@/components/ui/iconAliases';
 import { Script } from '@/types/scriptModel';
 import { useScriptExecution, useScripts } from '@/features/automation';
 import api from '@/api/axios';
@@ -136,11 +136,11 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
   return (
     <>
       <div className="w-full mb-1 px-0.5 animate-in fade-in slide-in-from-top-2 duration-200">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-blue-200/50 dark:border-blue-700/30 shadow-sm">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-blue-200/50 dark:border-blue-700/30 ">
           {/* Name */}
           <div className="flex items-center gap-2 shrink-0 w-[140px]">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate" title={script.metadata?.displayName || script.name}>
+            <span className="text-caption font-bold text-slate-600 dark:text-slate-300 truncate" title={script.metadata?.displayName || script.name}>
               {script.metadata?.displayName || script.name}
             </span>
           </div>
@@ -149,18 +149,18 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
           {/* ── Group 1: Execute & Inspect ── */}
           <Tooltip text={runTooltip}>
             <button onClick={handleRun} disabled={runDisabled}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shrink-0
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-caption font-bold transition-all shrink-0
                 ${runDisabled ? 'text-slate-400 cursor-not-allowed' : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}>
-              <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={`text-[10px] ${isRunning ? 'animate-spin' : ''}`} />
+              <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={`text-caption ${isRunning ? 'animate-spin' : ''}`} />
               <span>Run</span>
             </button>
           </Tooltip>
 
           {onConfigure && (
             <button onClick={(e) => { e.stopPropagation(); onConfigure(script); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-caption font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all shrink-0"
               title="Configure Parameters">
-              <FontAwesomeIcon icon={faSlidersH} className="text-[10px]" />
+              <FontAwesomeIcon icon={faSlidersH} className="text-caption" />
               <span>Configure</span>
             </button>
           )}
@@ -198,14 +198,14 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
               onChange={(e) => setRenameValue(e.target.value.replace(/\s+/g, ''))}
               onKeyDown={handleRenameKeyDown} onBlur={handleRenameSubmit}
               onClick={(e) => e.stopPropagation()}
-              className="w-32 px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-600 rounded-lg outline-none text-slate-800 dark:text-slate-200 shrink-0"
+              className="w-32 px-2 py-1 text-caption font-bold bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-600 rounded-lg outline-none text-slate-800 dark:text-slate-200 shrink-0"
               autoFocus />
           )}
           {canCreateScripts && !isProtectedTool && (
             <button onClick={(e) => { e.stopPropagation(); setShowMetadataModal(true); }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-purple-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
               title="Edit Metadata">
-              <FontAwesomeIcon icon={faTags} className="text-[10px]" />
+              <FontAwesomeIcon icon={faTags} className="text-caption" />
             </button>
           )}
           <button onClick={handleFavorite}
@@ -228,28 +228,28 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
             <button onClick={(e) => { e.stopPropagation(); editScript(script, true); }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
               title="Fix Scaffolding">
-              <FontAwesomeIcon icon={faTools} className="text-[10px]" />
+              <FontAwesomeIcon icon={faTools} className="text-caption" />
             </button>
           )}
           {canCreateScripts && !isProtectedTool && (
             <button onClick={(e) => { e.stopPropagation(); deleteScriptApi(script, true); }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
               title="Remove Scaffolding">
-              <FontAwesomeIcon icon={faBroom} className="text-[10px]" />
+              <FontAwesomeIcon icon={faBroom} className="text-caption" />
             </button>
           )}
           {canCreateScripts && (
             <button onClick={handleOpenFolder}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
               title="Open Project Folder">
-              <FontAwesomeIcon icon={faFolderOpen} className="text-[10px]" />
+              <FontAwesomeIcon icon={faFolderOpen} className="text-caption" />
             </button>
           )}
           {canCreateScripts && !isProtectedTool && onReplace && (
             <button onClick={(e) => { e.stopPropagation(); onReplace(script); }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-green-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
               title="Replace Code">
-              <FontAwesomeIcon icon={faSyncAlt} className="text-[10px]" />
+              <FontAwesomeIcon icon={faSyncAlt} className="text-caption" />
             </button>
           )}
           <Sep />
@@ -259,7 +259,7 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
             <button onClick={(e) => { e.stopPropagation(); setShowDeleteModal(true); }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
               title={isGuard ? 'Delete Sentinel' : 'Delete Script'}>
-              <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+              <FontAwesomeIcon icon={faTrash} className="text-caption" />
             </button>
           )}
         </div>
@@ -274,24 +274,24 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
               <p className="text-sm font-bold text-red-700 dark:text-red-400">
                 Delete "{script.metadata?.displayName || script.name}"?
               </p>
-              <p className="text-[11px] text-red-600/80 dark:text-red-400/80 mt-1">
+              <p className="text-caption text-red-600/80 dark:text-red-400/80 mt-1">
                 This will permanently delete the script file and all associated scaffolding. This action cannot be undone.
               </p>
             </div>
           </div>
           {deleteError && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800/50 text-[11px] text-red-600 dark:text-red-400 font-bold">
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800/50 text-caption text-red-600 dark:text-red-400 font-bold">
               {deleteError}
             </div>
           )}
           <div className="flex justify-end gap-3">
             <button onClick={() => setShowDeleteModal(false)} disabled={isDeleting}
-              className="px-4 py-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors">
+              className="px-4 py-2 text-caption font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors">
               Cancel
             </button>
             <button onClick={handleDelete} disabled={isDeleting}
-              className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-bold transition-colors disabled:opacity-50 flex items-center gap-2">
-              {isDeleting && <FontAwesomeIcon icon={faSpinner} spin className="text-[10px]" />}
+              className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-caption font-bold transition-colors disabled:opacity-50 flex items-center gap-2">
+              {isDeleting && <FontAwesomeIcon icon={faSpinner} spin className="text-caption" />}
               {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
           </div>

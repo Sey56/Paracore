@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeProvider';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { initTelemetry } from './utils/telemetry';
+import '@fontsource-variable/geist';
 import './styles/globals.css';
 
 // Initialize anonymous telemetry tracking if user is opted-in

@@ -3,8 +3,8 @@ import type { Script, ScriptParameter } from '@/types/scriptModel';
 import { ParameterInput } from "./ParameterInput";
 import { ParameterGroupSection } from "./ParameterGroupSection";
 import { filterVisibleParameters, isParameterEnabled } from '@/utils/parameterVisibility';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExpandAlt, faCompressAlt } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
+import { faExpandAlt, faCompressAlt } from "@/components/ui/iconAliases";
 
 interface ScriptParametersFormProps {
     script: Script | null; // Nullable for Generation View where we might not have a full script entity
@@ -100,7 +100,7 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
 
     if (parameters.length === 0) {
         return (
-            <div className="text-center py-8 text-gray-400 italic">
+            <div className="text-center py-8 text-gray-400 ">
                 Script has no parameters.
             </div>
         );

@@ -1,6 +1,6 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldHeart } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faShieldHeart } from '@/components/ui/iconAliases';
 import { Script } from '@/types/scriptModel';
 import { ScriptCard } from '../../ScriptCard/ScriptCard';
 import { useScriptExecution } from '@/features/automation/hooks/useScriptExecution';
@@ -43,8 +43,8 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
         <div className="mb-8 w-full order-1">
           <div className="flex items-center gap-4 mb-6 opacity-60">
             <div className="flex items-center gap-2 shrink-0">
-              <FontAwesomeIcon icon={faShieldHeart} className="text-[10px] text-yellow-500" />
-              <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.25em]">
+              <FontAwesomeIcon icon={faShieldHeart} className="text-caption text-yellow-500" />
+              <span className="text-caption font-semibold text-muted-foreground  tracking-wide">
                 Pinned Units
               </span>
             </div>
@@ -74,7 +74,7 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
         <div className="flex items-center gap-4 mt-2 mb-8 order-2 w-full opacity-60">
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-1 h-1 rounded-full bg-slate-400" />
-            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.25em]">
+            <span className="text-caption font-semibold text-muted-foreground  tracking-wide">
               General Registry
             </span>
           </div>
@@ -105,7 +105,7 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
 
       {/* Empty States */}
       {favoriteScripts.length === 0 && otherScripts.length === 0 && (
-        <div className="text-muted-foreground text-sm italic py-20 text-center order-4 w-full uppercase font-black tracking-widest opacity-40">
+        <div className="text-muted-foreground text-sm  py-20 text-center order-4 w-full  font-semibold tracking-wide opacity-40">
           {isAuthenticated ? (searchTerm ? 'No matching units found.' : 'No units stationed in this source.') : 'Sign in to load scripts.'}
         </div>
       )}

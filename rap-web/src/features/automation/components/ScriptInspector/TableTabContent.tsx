@@ -3,8 +3,8 @@ import { StructuredOutputViewer } from './StructuredOutputViewer';
 import type { ExecutionResult } from "@/types/common";
 import { Script, StructuredOutput } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faChevronLeft, faChevronRight } from '@/components/ui/iconAliases';
 
 interface TableTabContentProps {
   executionResult: ExecutionResult | null;

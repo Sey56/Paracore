@@ -1,6 +1,6 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFilter } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faFilter } from '@/components/ui/iconAliases';
 
 // Hooks
 import { useQueryBuilderLogic } from './hooks/useQueryBuilderLogic';
@@ -100,7 +100,7 @@ export const VisualQueryBuilder: React.FC<VisualQueryBuilderProps> = ({
             <div className="text-xs font-bold text-gray-400">No logic defined. Click 'ADD FIRST FILTER' to begin.</div>
             <button
               onClick={() => updateRootGroupRecursive([], {}, 'add_rule')}
-              className="mt-4 text-[10px] font-black text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-lg hover:bg-blue-100 transition-all"
+              className="mt-4 text-caption font-semibold text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-lg hover:bg-blue-100 transition-all"
             >
               ADD FIRST FILTER
             </button>

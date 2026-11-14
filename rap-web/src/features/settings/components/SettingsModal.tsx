@@ -49,14 +49,14 @@ const SettingsModal: React.FC = () => {
   return (
     <Modal isOpen={isSettingsModalOpen} onClose={closeSettingsModal} title="Settings" size="2xl">
       <div className="flex overflow-hidden max-h-[80vh] animate-in fade-in slide-in-from-bottom-4 duration-500 bg-slate-50 dark:bg-slate-900">
-        <div className="w-64 border-r border-slate-200/60 dark:border-slate-800/60 p-6 flex-shrink-0 overflow-y-auto custom-scrollbar bg-white/50 dark:bg-slate-950/40 backdrop-blur-sm">
+        <div className="w-64 border-r border-slate-200/60 dark:border-slate-800/60 p-6 flex-shrink-0 overflow-y-auto custom-scrollbar bg-white/80 dark:bg-slate-950/70">
           <nav className="flex flex-col space-y-2">
             <div className="flex flex-col space-y-1.5">
               {coreFeaturesTabs.map((tab: TabItem) => (
                 <button
                   key={tab.name}
                   onClick={() => setActiveTab(tab.name)}
-                  className={`px-5 py-3.5 text-[11px] font-black uppercase tracking-widest text-left rounded-2xl transition-all group relative overflow-hidden ${activeTab === tab.name
+                  className={`px-5 py-3.5 text-caption font-semibold  tracking-wide text-left rounded-2xl transition-all group relative overflow-hidden ${activeTab === tab.name
                     ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1)] border border-blue-100/50 dark:border-blue-900/20'
                     : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800'
                     }`}

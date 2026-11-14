@@ -1,6 +1,6 @@
 import React from 'react';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUser } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
+import { faUser } from "@/components/ui/iconAliases";
 import { useAuth } from '@/features/auth';
 
 export const SidebarHeader: React.FC = () => {
@@ -10,12 +10,12 @@ export const SidebarHeader: React.FC = () => {
 
   return (
     <div className="mb-4 mt-2 px-1">
-      <div className="flex items-center gap-3 p-3 rounded-[1.25rem] bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden group">
+      <div className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800  relative overflow-hidden group">
         <div className="w-10 h-10 rounded-xl bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0 transform group-hover:scale-105 transition-transform">
           <FontAwesomeIcon icon={faUser} className="text-sm" />
         </div>
         <div className="flex flex-col overflow-hidden">
-          <span className="text-sm font-black text-gray-800 dark:text-gray-100 truncate tracking-tight uppercase">
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate tracking-tight ">
             {displayName}
           </span>
         </div>

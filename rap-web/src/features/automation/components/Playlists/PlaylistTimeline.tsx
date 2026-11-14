@@ -1,7 +1,7 @@
 import React from 'react';
 import { PlaylistItem } from '@/types/playlistModel';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faTrash, faArrowUp, faArrowDown, faArrowLeft, faPlay, faSave, faCheck, faTimes, faSpinner, faPen } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faPlus, faTrash, faArrowUp, faArrowDown, faArrowLeft, faPlay, faSave, faCheck, faTimes, faSpinner, faPen } from '@/components/ui/iconAliases';
 import { Tooltip } from '@/components/common/Tooltip';
 
 interface PlaylistTimelineProps {
@@ -64,7 +64,7 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
                                 </button>
                             </Tooltip>
                         </div>
-                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">{items.length} STEPS</p>
+                        <p className="text-caption text-slate-500 font-mono mt-0.5">{items.length} STEPS</p>
                     </div>
                 </div>
 
@@ -73,7 +73,7 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
                     <button
                         onClick={onRun}
                         disabled={isAnyRunning}
-                        className={`flex-1 px-3 py-1.5 rounded-md transition-all font-bold flex items-center justify-center border text-xs uppercase tracking-wide ${isAnyRunning
+                        className={`flex-1 px-3 py-1.5 rounded-md transition-all font-bold flex items-center justify-center border text-xs  tracking-wide ${isAnyRunning
                             ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200'
                             : 'text-green-700 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30 border-green-200 dark:border-green-800'
                             }`}
@@ -87,8 +87,8 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
                     <button
                         onClick={onSave}
                         disabled={!isDirty || isAnyRunning}
-                        className={`flex-1 px-3 py-1.5 rounded-md font-bold flex items-center justify-center border transition-all active:scale-95 text-xs uppercase tracking-wide ${isDirty && !isAnyRunning
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700 shadow-sm'
+                        className={`flex-1 px-3 py-1.5 rounded-md font-bold flex items-center justify-center border transition-all active:scale-95 text-xs  tracking-wide ${isDirty && !isAnyRunning
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700 '
                             : 'bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600 border-slate-200 dark:border-slate-800'
                             }`}
                     >
@@ -101,11 +101,11 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
             {/* Timeline Stream */}
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative">
                 <div className="flex items-center justify-between mb-4 px-1">
-                    <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Execution Steps</h2>
+                    <h2 className="text-caption font-semibold  tracking-wide text-slate-400 dark:text-slate-500">Execution Steps</h2>
                     <button
                         onClick={onAdd}
                         disabled={isAnyRunning}
-                        className={`text-[10px] font-bold px-2 py-1 rounded transition-colors uppercase tracking-wide ${isAnyRunning
+                        className={`text-caption font-bold px-2 py-1 rounded transition-colors  tracking-wide ${isAnyRunning
                             ? 'text-slate-300 cursor-not-allowed'
                             : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
                             }`}
@@ -126,7 +126,7 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
                                 <FontAwesomeIcon icon={faPlus} className="text-slate-300" />
                             </div>
                             <p className="text-xs font-medium text-slate-500">Empty Playlist</p>
-                            <button onClick={onAdd} className="text-[10px] text-blue-500 mt-1 hover:underline">Add script</button>
+                            <button onClick={onAdd} className="text-caption text-blue-500 mt-1 hover:underline">Add script</button>
                         </div>
                     )}
 
@@ -140,23 +140,23 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
                                         status === 'success' ? 'border-green-200 bg-green-500 text-white' :
                                             status === 'error' ? 'border-red-200 bg-red-500 text-white' :
                                                 selectedIndex === index
-                                                    ? 'border-slate-50 dark:border-slate-900 bg-blue-600 text-white shadow-md scale-110'
+                                                    ? 'border-slate-50 dark:border-slate-900 bg-blue-600 text-white  scale-110'
                                                     : 'border-slate-50 dark:border-slate-900 bg-white dark:bg-slate-800 text-slate-400 hover:border-blue-400 hover:text-blue-500'
                                         }`}
                                     onClick={() => onSelect(index)}
                                 >
-                                    {status === 'running' ? <FontAwesomeIcon icon={faSpinner} spin className="text-[10px]" /> :
-                                        status === 'success' ? <FontAwesomeIcon icon={faCheck} className="text-[10px]" /> :
-                                            status === 'error' ? <FontAwesomeIcon icon={faTimes} className="text-[10px]" /> :
-                                                <span className="text-[10px] font-bold font-mono">{index + 1}</span>
+                                    {status === 'running' ? <FontAwesomeIcon icon={faSpinner} spin className="text-caption" /> :
+                                        status === 'success' ? <FontAwesomeIcon icon={faCheck} className="text-caption" /> :
+                                            status === 'error' ? <FontAwesomeIcon icon={faTimes} className="text-caption" /> :
+                                                <span className="text-caption font-bold font-mono">{index + 1}</span>
                                     }
                                 </div>
 
                                 {/* Card (Thinner) */}
                                 <div
-                                    className={`ml-3 flex-1 py-2 px-3 rounded-lg border transition-all cursor-pointer relative group-hover:shadow-sm ${status === 'error' ? 'border-red-300 bg-red-50 dark:bg-red-900/10' :
+                                    className={`ml-3 flex-1 py-2 px-3 rounded-lg border transition-all cursor-pointer relative  ${status === 'error' ? 'border-red-300 bg-red-50 dark:bg-red-900/10' :
                                         selectedIndex === index
-                                            ? 'bg-white dark:bg-slate-800 border-blue-500 shadow-sm ring-1 ring-blue-500/10'
+                                            ? 'bg-white dark:bg-slate-800 border-blue-500  ring-1 ring-blue-500/10'
                                             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700'
                                         }`}
                                     onClick={() => onSelect(index)}
@@ -178,21 +178,21 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
                                                     disabled={index === 0}
                                                     className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-blue-500 disabled:opacity-20 transition-colors"
                                                 >
-                                                    <FontAwesomeIcon icon={faArrowUp} className="text-[10px]" />
+                                                    <FontAwesomeIcon icon={faArrowUp} className="text-caption" />
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onReorder(index, 'down'); }}
                                                     disabled={index === items.length - 1}
                                                     className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-blue-500 disabled:opacity-20 transition-colors"
                                                 >
-                                                    <FontAwesomeIcon icon={faArrowDown} className="text-[10px]" />
+                                                    <FontAwesomeIcon icon={faArrowDown} className="text-caption" />
                                                 </button>
                                                 <div className="w-px h-3 bg-slate-200 dark:bg-slate-700 mx-1" />
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onDelete(index); }}
                                                     className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-slate-300 hover:text-red-500 transition-colors"
                                                 >
-                                                    <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+                                                    <FontAwesomeIcon icon={faTrash} className="text-caption" />
                                                 </button>
                                             </div>
                                         )}

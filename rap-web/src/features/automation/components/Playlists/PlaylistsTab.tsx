@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { usePlaylist } from '../../index';
 import { useUI } from '@/hooks/useUI';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSync, faPlus, faPlay, faListUl, faTrash, faSearch, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faSync, faPlus, faPlay, faListUl, faTrash, faSearch, faTimes } from '@/components/ui/iconAliases';
 import { NewPlaylistModal } from './NewPlaylistModal';
 import { DeletePlaylistModal } from './DeletePlaylistModal';
 import { PlaylistEditor } from './PlaylistEditor';
@@ -147,7 +147,7 @@ export const PlaylistsTab: React.FC = () => {
                 {highlightedPlaylist ? (
                     <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
                         <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 min-w-0">
-                            <FontAwesomeIcon icon={faListUl} className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0" />
+                            <FontAwesomeIcon icon={faListUl} className="text-caption text-slate-400 dark:text-slate-500 shrink-0" />
                             <Tooltip text={highlightedPlaylist.name} position="bottom" className="min-w-0">
                                 <span className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate block max-w-[160px]">
                                     {highlightedPlaylist.name}
@@ -168,7 +168,7 @@ export const PlaylistsTab: React.FC = () => {
                         <Tooltip text="Run Playlist" position="bottom">
                             <button
                                 onClick={() => runPlaylist(highlightedPlaylist)}
-                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md transition-all active:scale-95"
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-blue-500 hover:bg-blue-600 text-white  hover: transition-all active:scale-95"
                             >
                                 <FontAwesomeIcon icon={faPlay} />
                                 <span>Run</span>
@@ -214,7 +214,7 @@ export const PlaylistsTab: React.FC = () => {
                         {/* Favorites Section */}
                         {favorites.length > 0 && (
                             <div>
-                                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+                                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400  tracking-wider mb-3 px-1">
                                     Favorites
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -234,7 +234,7 @@ export const PlaylistsTab: React.FC = () => {
                         {/* All Playlists */}
                         {others.length > 0 && (
                             <div>
-                                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+                                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400  tracking-wider mb-3 px-1">
                                     {favorites.length > 0 ? 'Other Playlists' : 'All Playlists'}
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

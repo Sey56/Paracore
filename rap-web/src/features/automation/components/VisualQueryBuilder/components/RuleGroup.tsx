@@ -1,6 +1,6 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faPlus, faTrash } from '@/components/ui/iconAliases';
 import { ParameterDefinition, QueryGroup, QueryRule } from '../types/queryBuilderTypes';
 import { RuleRow } from './RuleRow';
 
@@ -28,16 +28,16 @@ export const RuleGroup: React.FC<RuleGroupProps> = ({
           <select
             value={group.combinator}
             onChange={(e) => setGroupCombinator(path, e.target.value as 'AND' | 'OR')}
-            className={`text-xs font-black px-3 py-1 rounded-full outline-none cursor-pointer transition-colors ${group.combinator === 'AND' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'}`}
+            className={`text-xs font-semibold px-3 py-1 rounded-full outline-none cursor-pointer transition-colors ${group.combinator === 'AND' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'}`}
           >
             <option value="AND">AND</option>
             <option value="OR">OR</option>
           </select>
-          {isRoot && <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">Logic Canvas</span>}
+          {isRoot && <span className="text-xs font-bold text-gray-400 dark:text-gray-500  tracking-wide px-1">Logic Canvas</span>}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => updateRootGroupRecursive(path, {}, 'add_rule')} className="text-xs font-black text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all flex items-center gap-1.5"><FontAwesomeIcon icon={faPlus} /> FILTER</button>
-          <button onClick={() => updateRootGroupRecursive(path, {}, 'add_group')} className="text-xs font-black text-gray-600 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all flex items-center gap-1.5"><FontAwesomeIcon icon={faPlus} /> GROUP</button>
+          <button onClick={() => updateRootGroupRecursive(path, {}, 'add_rule')} className="text-xs font-semibold text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all flex items-center gap-1.5"><FontAwesomeIcon icon={faPlus} /> FILTER</button>
+          <button onClick={() => updateRootGroupRecursive(path, {}, 'add_group')} className="text-xs font-semibold text-gray-600 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all flex items-center gap-1.5"><FontAwesomeIcon icon={faPlus} /> GROUP</button>
           {!isRoot && <button onClick={() => updateRootGroupRecursive(path, {}, 'remove')} className="w-7 h-7 flex items-center justify-center text-xs text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"><FontAwesomeIcon icon={faTrash} /></button>}
         </div>
       </div>

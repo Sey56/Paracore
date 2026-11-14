@@ -1,5 +1,5 @@
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldHeart, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faShieldHeart, faSpinner } from '@/components/ui/iconAliases';
 import { TopBar } from "@/components/layout/TopBar/TopBar";
 import { Sidebar } from "@/components/layout/Sidebar/Sidebar";
 import { ScriptGallery } from "@/features/automation/components/ScriptGallery/ScriptGallery";
@@ -215,11 +215,11 @@ export const AppLayout: React.FC = () => {
     <div className="flex flex-col h-screen semantic-bg-panel semantic-text font-sans overflow-hidden">
       {/* Startup Gate Overlay */}
       {showGate && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-black/60 backdrop-blur-[100px] transition-all duration-700">
-          <div className="flex flex-col items-center justify-center space-y-8 w-88 aspect-square rounded-[3rem] bg-white/60 dark:bg-slate-800/40 shadow-2xl text-center backdrop-blur-md">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-black/70 transition-all duration-700">
+          <div className="flex flex-col items-center justify-center space-y-8 w-88 aspect-square rounded-2xl bg-white/85 dark:bg-slate-800/75 text-center">
             <div className="relative">
-              <div className="absolute inset-0 rounded-[2rem] bg-blue-500/20 animate-ping"></div>
-              <div className="relative bg-blue-500 rounded-[2rem] p-5 shadow-lg shadow-blue-500/30 dark:shadow-blue-900/40">
+              <div className="absolute inset-0 rounded-xl bg-blue-500/15 "></div>
+              <div className="relative bg-blue-500 rounded-xl p-5">
                 <FontAwesomeIcon icon={faShieldHeart} className="text-white text-3xl animate-pulse" />
               </div>
             </div>
@@ -234,7 +234,7 @@ export const AppLayout: React.FC = () => {
 
       {/* Welcome Gate Overlay (accessible from main UI when authenticated) */}
       {isAuthenticated && isWelcomeGateOpen && (
-        <div className="fixed inset-0 z-[9998] bg-white/95 dark:bg-black/60 backdrop-blur-[100px] transition-all duration-300">
+        <div className="fixed inset-0 z-[9998] bg-white/95 dark:bg-black/70 transition-all duration-300">
           <WelcomeGate login={login} loginLocal={loginLocal} isAuthenticated onDismiss={closeWelcomeGate} />
         </div>
       )}
@@ -314,10 +314,10 @@ export const AppLayout: React.FC = () => {
                     <div className={`rounded-full transition-all duration-500
                       ${layoutOrientation === 'vertical'
                         ? (isResizing
-                            ? 'bg-blue-500 w-24 h-1 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                            ? 'bg-blue-500 w-24 h-1 '
                             : 'bg-slate-400/60 dark:bg-slate-500/40 w-12 h-1 group-hover:bg-blue-400 group-hover:w-20')
                         : (isResizing
-                            ? 'bg-blue-500 h-20 w-1 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                            ? 'bg-blue-500 h-20 w-1 '
                             : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 w-1 group-hover:bg-blue-400 group-hover:h-16')}`}
                     />
                   </div>

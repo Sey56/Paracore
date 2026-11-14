@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Script } from '@/types/scriptModel';
 import { PlaylistItemConfig } from './PlaylistItemConfig';
 import { PlaylistItemMetadata } from './PlaylistItemMetadata';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faInfoCircle, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faInfoCircle, faArrowLeft } from '@/components/ui/iconAliases';
 import { Tooltip } from '@/components/common/Tooltip';
 
 interface PlaylistStepConfigProps {
@@ -30,11 +30,11 @@ export const PlaylistStepConfig: React.FC<PlaylistStepConfigProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 shrink-0">
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
+                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-caption font-semibold px-2 py-0.5 rounded  tracking-wider flex-shrink-0">
                         Step {stepIndex + 1}
                     </span>
                     <span
-                        className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate"
+                        className="text-caption font-bold text-slate-700 dark:text-slate-200 truncate"
                         title={script.metadata?.displayName || scriptPath.split(/[\\/]/).pop()?.replace('.cs', '')}
                     >
                         {script.metadata?.displayName || scriptPath.split(/[\\/]/).pop()?.replace('.cs', '')}
@@ -68,7 +68,7 @@ export const PlaylistStepConfig: React.FC<PlaylistStepConfigProps> = ({
             {isMetadataOpen && script.metadata && (
                 <div className="border-b border-slate-200/60 dark:border-slate-700/40 bg-slate-50/80 dark:bg-slate-900/60 animate-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center px-5 pt-3 pb-1">
-                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Script Info</span>
+                        <span className="text-xs font-semibold text-slate-400  tracking-wide">Script Info</span>
                     </div>
                     <div className="px-5 pb-4 max-h-[200px] overflow-y-auto custom-scrollbar">
                         <PlaylistItemMetadata script={script} />

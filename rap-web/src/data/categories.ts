@@ -1,4 +1,4 @@
-import { faLandmark, faIndustry, faFan } from "@fortawesome/free-solid-svg-icons";
+import { faLandmark, faIndustry, faFan } from "@/components/ui/iconAliases";
 
 export const defaultCategories = [
   { name: "Architectural", icon: faLandmark, color: "text-red-500" },

@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faMousePointer, faEye, faTable, faExclamationTriangle, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faMousePointer, faEye, faTable, faExclamationTriangle, faExternalLinkAlt } from '@/components/ui/iconAliases';
 import { useWatchdog, WatchdogStatus } from '@/context/providers/WatchdogProvider';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useContext } from 'react';
@@ -119,15 +119,15 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
         <div className={`p-4 space-y-3 ${isDetached ? 'h-full bg-slate-900 overflow-y-auto custom-scrollbar' : 'max-h-[32rem] overflow-y-auto custom-scrollbar'}`}>
             {watchdogs.length === 0 ? (
                 <div className="py-16 px-6 text-center">
-                    <div className="w-16 h-16 rounded-[2rem] bg-white/5 dark:bg-slate-100 flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 dark:bg-slate-100 flex items-center justify-center mx-auto mb-6 ">
                         <FontAwesomeIcon icon={faShieldHeart} className="text-2xl text-slate-500 dark:text-slate-300" />
                     </div>
                     <span className="block text-sm font-bold tracking-wide text-slate-300 dark:text-slate-400">No Active Sentinels</span>
-                    <span className="block text-[11px] text-slate-500 dark:text-slate-500 mt-2 uppercase tracking-widest">Deploy a source to begin monitoring</span>
+                    <span className="block text-caption text-slate-500 dark:text-slate-500 mt-2  tracking-wide">Deploy a source to begin monitoring</span>
                 </div>
             ) : (
                 watchdogs.map((w, idx) => (
-                    <div key={idx} className="p-5 rounded-[1.75rem] bg-slate-800/40 dark:bg-slate-50/50 hover:bg-slate-800/60 dark:hover:bg-white transition-all duration-300 group mb-2 border border-transparent dark:hover:border-slate-200 hover:shadow-xl shadow-inner">
+                    <div key={idx} className="p-5 rounded-2xl bg-slate-800/40 dark:bg-slate-50/50 hover:bg-slate-800/60 dark:hover:bg-white transition-all duration-300 group mb-2 border border-transparent dark:hover:border-slate-200 hover:shadow-xl ">
                         <div className="flex items-start gap-4">
                             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${w.status === 'success' ? 'bg-emerald-500/20' :
                                 w.status === 'warning' ? 'bg-amber-500/20' : 'bg-rose-500/20'
@@ -138,7 +138,7 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                                 <div className="text-sm font-bold text-slate-100 dark:text-slate-800 leading-tight tracking-tight mb-0.5 flex flex-wrap items-center gap-2 min-w-0">
                                     <span className="truncate">{w.script_name.replace(/\.(wtool|ptool|cs)$/i, '')}</span>
                                     {w.script_name.endsWith('.wtool') && (
-                                        <span className="shrink-0 inline-flex px-1.5 py-0.5 rounded-md bg-violet-500/20 text-violet-400 dark:text-violet-500 text-[8px] font-black uppercase tracking-widest leading-none items-center self-center">BIN</span>
+                                        <span className="shrink-0 inline-flex px-1.5 py-0.5 rounded-md bg-violet-500/20 text-violet-400 dark:text-violet-500 text-caption font-semibold  tracking-wide leading-none items-center self-center">BIN</span>
                                     )}
                                     {(() => {
                                         const deployedDoc = deployedDocumentMap[normalize(w.script_path)];
@@ -146,10 +146,10 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                                         return isDocMismatch ? (
                                             <div className="relative group/mismatch shrink-0">
                                                 <span className="text-amber-500 cursor-help">
-                                                    <FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px]" />
+                                                    <FontAwesomeIcon icon={faExclamationTriangle} className="text-caption" />
                                                 </span>
-                                                <div className="absolute z-[130] left-1/2 -translate-x-1/2 top-full mt-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/mismatch:opacity-100 group-hover/mismatch:visible transition-all duration-300 transform -translate-y-1 group-hover/mismatch:translate-y-0 pointer-events-none">
-                                                    <div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest pb-1">
+                                                <div className="absolute z-[130] left-1/2 -translate-x-1/2 top-full mt-2 p-3 rounded-xl shadow-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-caption font-bold leading-relaxed w-48 opacity-0 invisible group-hover/mismatch:opacity-100 group-hover/mismatch:visible transition-all duration-300 transform -translate-y-1 group-hover/mismatch:translate-y-0 pointer-events-none">
+                                                    <div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5  tracking-wide pb-1">
                                                         <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
                                                     </div>
                                                     Deployed for <span className="text-blue-600 dark:text-blue-400">'{deployedDoc}'</span>.
@@ -160,7 +160,7 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                                         ) : null;
                                     })()}
                                 </div>
-                                <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed line-clamp-2">
+                                <div className="text-caption text-slate-400 dark:text-slate-500 font-medium leading-relaxed line-clamp-2">
                                     {w.summary}
                                 </div>
                             </div>
@@ -169,7 +169,7 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                         <div className="mt-5 pt-4 dark:border-slate-200/60 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="w-1 h-1 rounded-full bg-slate-500" />
-                                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
+                                <span className="text-caption font-bold text-slate-500 dark:text-slate-400  tracking-wide">
                                     {new Date(w.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
@@ -178,21 +178,21 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                                     <>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleAction(w.script_path, 'select'); }}
-                                            className="w-10 h-10 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/5 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all flex items-center justify-center border border-indigo-500/20 hover:scale-105 active:scale-95 shadow-sm"
+                                            className="w-10 h-10 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/5 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all flex items-center justify-center border border-indigo-500/20 hover:scale-105 active:scale-95 "
                                             title="Select Elements"
                                         >
                                             <FontAwesomeIcon icon={faMousePointer} className="text-sm" />
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleAction(w.script_path, 'isolate'); }}
-                                            className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 text-amber-500 hover:bg-amber-500 hover:text-white transition-all flex items-center justify-center border border-amber-500/20 hover:scale-105 active:scale-95 shadow-sm"
+                                            className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 text-amber-500 hover:bg-amber-500 hover:text-white transition-all flex items-center justify-center border border-amber-500/20 hover:scale-105 active:scale-95 "
                                             title="Isolate in View"
                                         >
                                             <FontAwesomeIcon icon={faEye} className="text-sm" />
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleAction(w.script_path, 'table'); }}
-                                            className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center border border-emerald-500/20 hover:scale-105 active:scale-95 shadow-sm"
+                                            className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center border border-emerald-500/20 hover:scale-105 active:scale-95 "
                                             title="Show in Table"
                                         >
                                             <FontAwesomeIcon icon={faTable} className="text-sm" />
@@ -200,8 +200,8 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                                     </>
                                 )}
                                 {w.status === 'success' && (
-                                    <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold uppercase tracking-widest border border-emerald-500/20 flex items-center gap-2">
-                                        <FontAwesomeIcon icon={faCheckCircle} className="text-[11px]" />
+                                    <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-caption font-bold  tracking-wide border border-emerald-500/20 flex items-center gap-2">
+                                        <FontAwesomeIcon icon={faCheckCircle} className="text-caption" />
                                         Clear
                                     </div>
                                 )}

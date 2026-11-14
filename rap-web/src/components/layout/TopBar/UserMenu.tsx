@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faSignOutAlt } from '@/components/ui/iconAliases';
 import { SessionTimer } from './SessionTimer';
 
 interface User {
@@ -64,13 +64,13 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogin, onLoginLocal,
         <div className="flex items-center space-x-2">
           <button
             onClick={onLoginLocal}
-            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none text-[11px] font-black uppercase tracking-widest transition-colors duration-200"
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none text-caption font-semibold  tracking-wide transition-colors duration-200"
           >
             Continue Offline
           </button>
           <button
             onClick={onLogin}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 text-[11px] font-black uppercase tracking-widest transition-colors duration-200"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 text-caption font-semibold  tracking-wide transition-colors duration-200"
           >
             Sign in with Google
           </button>

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faExpandAlt, faCompressAlt, faChevronDown, faSortAmountDown, faClock, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faSearch, faExpandAlt, faCompressAlt, faChevronDown, faSortAmountDown, faClock, faTimes } from '@/components/ui/iconAliases';
 
 const SEARCH_HISTORY_KEY = 'paracore_search_history';
 const MAX_HISTORY = 10;
@@ -101,12 +101,12 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
         <div className="flex-1 min-w-[140px] relative" ref={searchRef}>
           <FontAwesomeIcon
             icon={faSearch}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] z-10"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-caption z-10"
           />
           <input
             type="text"
             placeholder="Search..."
-            className="w-full pl-8 py-1.5 bg-transparent rounded-lg text-[12px] font-medium text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 transition-colors border border-transparent focus:border-blue-300/50 dark:focus:border-blue-600/50 focus:bg-white/60 dark:focus:bg-slate-800/80"
+            className="w-full pl-8 py-1.5 bg-transparent rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 transition-colors border border-transparent focus:border-blue-300/50 dark:focus:border-blue-600/50 focus:bg-white/60 dark:focus:bg-slate-800/80"
             style={{ paddingRight: totalUnits > 0 ? '3.5rem' : '0.75rem' }}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -120,7 +120,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
             disabled={!isAuthenticated}
           />
           {totalUnits > 0 && (
-            <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-medium tabular-nums select-none pointer-events-none
+            <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-caption font-medium tabular-nums select-none pointer-events-none
               ${filteredCount !== totalUnits
                 ? 'text-blue-500 dark:text-blue-400'
                 : 'text-slate-300 dark:text-slate-600'
@@ -131,20 +131,20 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
 
           {/* Search History Dropdown */}
           {showHistory && searchHistory.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[120] border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 rounded-xl shadow-lg z-[120] border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
               <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Recent</span>
-                <button onClick={clearHistory} className="text-[9px] text-slate-400 hover:text-red-500 transition-colors">
-                  <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                <span className="text-caption font-bold  tracking-wide text-slate-400">Recent</span>
+                <button onClick={clearHistory} className="text-caption text-slate-400 hover:text-red-500 transition-colors">
+                  <FontAwesomeIcon icon={faTimes} className="text-caption" />
                 </button>
               </div>
               {searchHistory.map((item, i) => (
                 <button
                   key={i}
                   onClick={() => handleSearchSubmit(item)}
-                  className="w-full text-left px-3 py-2 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
+                  className="w-full text-left px-3 py-2 text-caption font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
                 >
-                  <FontAwesomeIcon icon={faClock} className="text-[9px] text-slate-400 shrink-0" />
+                  <FontAwesomeIcon icon={faClock} className="text-caption text-slate-400 shrink-0" />
                   <span className="truncate">{item}</span>
                 </button>
               ))}
@@ -162,9 +162,9 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
             <button
               key={t.id}
               onClick={() => setTypeFilter(t.id as 'all' | 'scripts' | 'guards')}
-              className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all
+              className={`px-3 py-1 rounded-md text-caption font-bold  tracking-wider transition-all
                 ${typeFilter === t.id
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 '
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                 }`}
             >
@@ -178,21 +178,21 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
           <div className="relative" ref={sortRef}>
             <button
               onClick={() => setIsSortOpen(!isSortOpen)}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-caption font-bold  text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
             >
-              <FontAwesomeIcon icon={faSortAmountDown} className="text-[10px]" />
+              <FontAwesomeIcon icon={faSortAmountDown} className="text-caption" />
               <span className="hidden sm:inline">{activeSortLabel}</span>
-              <FontAwesomeIcon icon={faChevronDown} className={`text-[7px] transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
+              <FontAwesomeIcon icon={faChevronDown} className={`text-caption transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isSortOpen && (
-              <div className="absolute top-full right-0 mt-1.5 min-w-[180px] bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-1 overflow-hidden">
+              <div className="absolute top-full right-0 mt-1.5 min-w-[180px] bg-white dark:bg-slate-900 rounded-xl shadow-lg z-[110] border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-1 overflow-hidden">
                 <div className="max-h-56 overflow-y-auto custom-scrollbar py-1">
                   {SORT_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
                       onClick={() => { setSortOrder(opt.value); setIsSortOpen(false); }}
-                      className={`w-full text-left px-4 py-2 text-[11px] font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${sortOrder === opt.value ? 'text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10' : 'text-slate-600 dark:text-slate-300'}`}
+                      className={`w-full text-left px-4 py-2 text-caption font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${sortOrder === opt.value ? 'text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10' : 'text-slate-600 dark:text-slate-300'}`}
                     >
                       {opt.label}
                       {sortOrder === opt.value && <div className="w-1 h-1 rounded-full bg-blue-500" />}
@@ -212,7 +212,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
               }`}
             title={isCompactView ? "Standard Grid" : "Compact Grid"}
           >
-            <FontAwesomeIcon icon={isCompactView ? faExpandAlt : faCompressAlt} className="text-[10px]" />
+            <FontAwesomeIcon icon={isCompactView ? faExpandAlt : faCompressAlt} className="text-caption" />
           </button>
         </div>
       </div>

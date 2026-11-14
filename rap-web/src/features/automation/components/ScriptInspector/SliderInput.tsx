@@ -94,7 +94,7 @@ export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value,
                                 onChange(min);
                             }
                         }}
-                        className="w-28 h-9 border border-gray-300 dark:border-gray-600 rounded px-3 text-sm font-semibold bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"
+                        className="w-28 h-9 border border-gray-300 dark:border-gray-600 rounded px-3 text-sm font-semibold bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 "
                         disabled={disabled}
                     />
                 </div>

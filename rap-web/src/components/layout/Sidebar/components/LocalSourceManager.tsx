@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SidebarSection } from '../SidebarSection';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFolder, faPlus, faBroom, faChevronDown, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
+import { faFolder, faPlus, faBroom, faChevronDown, faTrash } from "@/components/ui/iconAliases";
 import { ActiveScriptSource } from '@/context/providers/UIContext';
 import { getFolderNameFromPath, normalizePath } from '@/utils/pathHelpers';
 
@@ -75,7 +75,7 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
                     ? getFolderNameFromPath(activeScriptSource.path || '')
                     : 'Select source...'}
                 </span>
-                <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] transition-transform duration-300 ${localDropdownOpen ? 'rotate-180' : ''}`} />
+                <FontAwesomeIcon icon={faChevronDown} className={`text-caption transition-transform duration-300 ${localDropdownOpen ? 'rotate-180' : ''}`} />
               </div>
 
               {localDropdownOpen && (
@@ -101,7 +101,7 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
             <div className="w-[34px] flex items-center justify-center shrink-0">
               {activeScriptSource?.type === 'local' && activeScriptSource.path && (
                 <div className="opacity-100 transition-all duration-300" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-lg p-0.5 shrink-0">
+                  <div className="flex items-center bg-white dark:bg-gray-800  border border-gray-100 dark:border-gray-700 rounded-lg p-0.5 shrink-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -115,7 +115,7 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
                       className="text-rose-400 hover:text-rose-600 transition-colors p-1.5 tooltip-left"
                       title="Unload active source"
                     >
-                      <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+                      <FontAwesomeIcon icon={faTrash} className="text-caption" />
                     </button>
                   </div>
                 </div>
@@ -123,7 +123,7 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
             </div>
           </div>
         ) : (
-          <div className="text-sm text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No folders added</div>
+          <div className="text-sm text-gray-400  px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No folders added</div>
         )}
       </div>
     </SidebarSection>

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner, faMousePointer, faEye, faTable, faExclamationTriangle, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner, faMousePointer, faEye, faTable, faExclamationTriangle, faExternalLinkAlt } from '@/components/ui/iconAliases';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
@@ -199,15 +199,15 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
       <div className="relative" ref={dropdownRef}>
         {/* Dropdown Menu (Pop-upwards and to the Left) - INVERTED THEME for Contrast */}
         {isOpen && !isArmingWatchdogs && isWatchdogInitialized && (
-          <div className="absolute bottom-full right-0 mb-4 w-80 bg-slate-900 dark:bg-white rounded-[2rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] z-[100] animate-in fade-in slide-in-from-bottom-4 duration-500 origin-bottom-right cursor-default backdrop-blur-3xl"
+          <div className="absolute bottom-full right-0 mb-4 w-80 bg-slate-900 dark:bg-white rounded-xl shadow-md z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300 origin-bottom-right cursor-default"
           >
             {/* Watchtower Header — acts as a drag handle (rounded-t-2rem ensures clipping matches parent) */}
             <div
               className="p-6 pb-4 relative rounded-t-[2rem] cursor-grab active:cursor-grabbing select-none flex items-center justify-between z-10"
             >
               <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent opacity-50 rounded-t-[2rem]" />
-              <h3 className="relative text-[11px] font-bold text-white/60 dark:text-slate-400 uppercase tracking-[0.25em] flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
+              <h3 className="relative text-caption font-bold text-white/60 dark:text-slate-400  tracking-wide flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-blue-500  animate-pulse" />
                 Sentinel Control
               </h3>
               <button
@@ -244,12 +244,12 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
             <FontAwesomeIcon icon={fabIcon} className={`text-base text-white ${isArmingWatchdogs || !isWatchdogInitialized ? 'animate-spin' : ''}`} />
             {!isHealthy && !isArmingWatchdogs && (
               <div
-                className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-amber-500 animate-ping"
+                className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-amber-500 "
                 style={{ animationDuration: '3s' }}
               />
             )}
           </div>
-          <span className="text-[11px] font-bold tracking-normal text-white">
+          <span className="text-caption font-bold tracking-normal text-white">
             {fabText}
           </span>
         </button>

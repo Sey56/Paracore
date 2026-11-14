@@ -44,12 +44,12 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
   return (
     <Portal wrapperId="portal-wrapper">
       <div
-        className={`fixed inset-0 z-[99999] flex justify-center items-center p-4 transition-all duration-200 ease-out ${show ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'bg-black/0 opacity-0'
+        className={`fixed inset-0 z-[99999] flex justify-center items-center p-4 transition-all duration-200 ease-out ${show ? 'bg-black/50 opacity-100' : 'bg-black/0 opacity-0'
           }`}
         onClick={onClose}
       >
         <div
-          className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} flex flex-col border border-slate-100 dark:border-slate-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden max-h-[92vh] ${show ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
+          className={`bg-white dark:bg-slate-900 rounded-2xl shadow-lg w-full ${maxWidthClass} flex flex-col border border-slate-100 dark:border-slate-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden max-h-[92vh] ${show ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
             }`}
           style={size === 'full' ? { height: '90vh' } : {}}
           onClick={(e) => e.stopPropagation()}

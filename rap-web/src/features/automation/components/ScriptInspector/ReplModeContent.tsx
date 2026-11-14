@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useConsole } from '../../store/ConsoleContext';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport, faHistory, faThumbtack, faPlus, faMinus, faIndent } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport, faHistory, faThumbtack, faPlus, faMinus, faIndent } from '@/components/ui/iconAliases';
 import { MonacoReplEditor, type MonacoReplEditorHandle } from './MonacoReplEditor';
 import { Modal } from '@/components/common/Modal';
 import { Tooltip } from '@/components/common/Tooltip';
@@ -111,13 +111,13 @@ export const ReplModeContent: React.FC = () => {
       <div className="flex items-center justify-between px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
-            <FontAwesomeIcon icon={faTerminal} className="text-[10px]" />
-            <span className="text-[11px] font-bold whitespace-nowrap">REPL Playground</span>
+            <FontAwesomeIcon icon={faTerminal} className="text-caption" />
+            <span className="text-caption font-bold whitespace-nowrap">REPL Playground</span>
           </div>
           {activeSnippetName && (
             <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 border-l border-slate-200 dark:border-slate-700 ml-2 pl-3">
-              <FontAwesomeIcon icon={faCode} className="text-[10px]" />
-              <span className="text-[10px] font-bold tracking-wider italic truncate max-w-[320px]" title={activeSnippetName}>
+              <FontAwesomeIcon icon={faCode} className="text-caption" />
+              <span className="text-caption font-bold tracking-wider  truncate max-w-[320px]" title={activeSnippetName}>
                 {activeSnippetName}
               </span>
             </div>
@@ -133,14 +133,14 @@ export const ReplModeContent: React.FC = () => {
                 disabled={replFontSize <= 11}
                 className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-blue-500 dark:text-slate-400 dark:hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold rounded"
               >
-                <FontAwesomeIcon icon={faMinus} className="text-[9px]" />
+                <FontAwesomeIcon icon={faMinus} className="text-caption" />
               </button>
             </Tooltip>
             
             <Tooltip text="Reset Font Size to 14px (Ctrl + 0)" position="bottom-center">
               <button
                 onClick={resetReplFontSize}
-                className="px-1.5 h-6 flex items-center justify-center text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 transition-colors select-none rounded hover:bg-slate-200/50 dark:hover:bg-slate-700/50"
+                className="px-1.5 h-6 flex items-center justify-center text-caption font-mono font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 transition-colors select-none rounded hover:bg-slate-200/50 dark:hover:bg-slate-700/50"
               >
                 {replFontSize}px
               </button>
@@ -152,7 +152,7 @@ export const ReplModeContent: React.FC = () => {
                 disabled={replFontSize >= 32}
                 className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-blue-500 dark:text-slate-400 dark:hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold rounded"
               >
-                <FontAwesomeIcon icon={faPlus} className="text-[9px]" />
+                <FontAwesomeIcon icon={faPlus} className="text-caption" />
               </button>
             </Tooltip>
           </div>
@@ -197,7 +197,7 @@ export const ReplModeContent: React.FC = () => {
               </button>
             </Tooltip>
             {showRecentMenu && displayFiles.length > 0 && (
-              <div className="absolute right-0 top-full mt-1 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
                 <div className="py-1 max-h-64 overflow-y-auto custom-scrollbar">
                   {displayFiles.map((file, idx) => (
                     <div
@@ -208,7 +208,7 @@ export const ReplModeContent: React.FC = () => {
                         onClick={() => { onOpenRecent(file.path); setShowRecentMenu(false); }}
                         className="flex-1 flex items-center gap-2 min-w-0 text-left"
                       >
-                        <FontAwesomeIcon icon={faCode} className="text-[10px] text-slate-400 shrink-0" />
+                        <FontAwesomeIcon icon={faCode} className="text-caption text-slate-400 shrink-0" />
                         <span className="text-xs text-slate-700 dark:text-slate-300 truncate">{file.name}</span>
                       </button>
                       <Tooltip text={file.isPinned ? 'Unpin' : 'Pin'} position={idx === 0 ? 'bottom' : 'top'}>
@@ -216,7 +216,7 @@ export const ReplModeContent: React.FC = () => {
                           onClick={() => togglePinFile(file.path, file.name)}
                           className={`shrink-0 p-0.5 transition-colors ${file.isPinned ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100'}`}
                         >
-                          <FontAwesomeIcon icon={faThumbtack} className="text-[10px]" />
+                          <FontAwesomeIcon icon={faThumbtack} className="text-caption" />
                         </button>
                       </Tooltip>
                       <Tooltip text="Remove" position={idx === 0 ? 'bottom' : 'top'}>
@@ -224,7 +224,7 @@ export const ReplModeContent: React.FC = () => {
                           onClick={() => removeRecentFile(file.path)}
                           className="shrink-0 p-0.5 text-slate-300 dark:text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-colors"
                         >
-                          <span className="text-[10px]">×</span>
+                          <span className="text-caption">×</span>
                         </button>
                       </Tooltip>
                     </div>
@@ -233,9 +233,9 @@ export const ReplModeContent: React.FC = () => {
               </div>
             )}
             {showRecentMenu && displayFiles.length === 0 && (
-              <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 p-4 text-center">
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 p-4 text-center">
                 <p className="text-xs text-slate-400">No recent files yet.</p>
-                <p className="text-[10px] text-slate-400 mt-1">Save or open a snippet to see it here.</p>
+                <p className="text-caption text-slate-400 mt-1">Save or open a snippet to see it here.</p>
               </div>
             )}
           </div>

@@ -42,7 +42,7 @@ export const NewPresetNameModal: React.FC<NewPresetNameModalProps> = ({
       <div className="space-y-4">
         <input
           type="text"
-          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-200"
+          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md  focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-200"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={handleKeyDown}

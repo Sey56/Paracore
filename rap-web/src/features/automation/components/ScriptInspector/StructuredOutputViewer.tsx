@@ -7,11 +7,11 @@ import {
 } from 'recharts';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
 import { useUI } from '@/hooks/useUI';
 import { save } from '@tauri-apps/api/dialog';
 import { writeTextFile } from '@tauri-apps/api/fs';
-import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronLeft, faChevronRight, faExclamationTriangle, faMagicWandSparkles, faLeaf, faTree } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronLeft, faChevronRight, faExclamationTriangle, faMagicWandSparkles, faLeaf, faTree } from '@/components/ui/iconAliases';
 import { trackEvent } from '@/utils/telemetry';
 
 import { StructuredOutput, Script } from '@/types/scriptModel';
@@ -38,7 +38,7 @@ const getChartColor = (index: number, total: number) => {
 const CustomChartTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white dark:bg-slate-900 shadow-2xl rounded-xl p-2 px-3 text-xs border-none">
+      <div className="bg-white dark:bg-slate-900 shadow-lg rounded-xl p-2 px-3 text-xs border-none">
         <p className="text-slate-500 dark:text-slate-400 font-medium m-0 mb-1">{label}</p>
         {payload.map((entry: any, index: number) => (
           <p key={index} className="text-blue-600 dark:text-blue-400 font-bold m-0">
@@ -54,7 +54,7 @@ const CustomChartTooltip = ({ active, payload, label }: any) => {
 const CustomPieTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white dark:bg-slate-900 shadow-2xl rounded-xl p-2 px-3 text-xs border-none">
+      <div className="bg-white dark:bg-slate-900 shadow-lg rounded-xl p-2 px-3 text-xs border-none">
         <p className="text-slate-700 dark:text-white font-bold m-0 mb-1">{payload[0].name}</p>
         <p className="text-blue-600 dark:text-blue-400 m-0">{`${payload[0].dataKey || 'value'} : ${payload[0].value}`}</p>
       </div>
@@ -65,7 +65,7 @@ const CustomPieTooltip = ({ active, payload }: any) => {
 
 const renderColorfulLegendText = (value: string) => {
   return (
-    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 ml-1 mr-4">
+    <span className="text-caption font-medium text-slate-500 dark:text-slate-400 ml-1 mr-4">
       {value}
     </span>
   );
@@ -107,14 +107,14 @@ const renderCellContent = (header: string, value: any) => {
       const y = Number(v[yKey] ?? 0).toFixed(2);
       const z = Number(v[zKey] ?? 0).toFixed(2);
       return (
-        <span className="font-mono text-[10px] text-blue-500/80 bg-blue-500/5 px-1.5 py-0.5 rounded border border-blue-500/10 shadow-sm">
+        <span className="font-mono text-caption text-blue-500/80 bg-blue-500/5 px-1.5 py-0.5 rounded border border-blue-500/10 ">
           ({x}, {y}, {z})
         </span>
       );
     }
     try {
       return (
-        <span className="text-[10px] opacity-40 font-mono italic">
+        <span className="text-caption opacity-40 font-mono ">
            {JSON.stringify(value).substring(0, 30)}{JSON.stringify(value).length > 30 ? '...' : ''}
         </span>
       );
@@ -132,7 +132,7 @@ const renderCellContent = (header: string, value: any) => {
       let color = 'text-emerald-600 dark:text-emerald-400';
       if (val > 100) color = 'text-amber-600 dark:text-amber-400';
       if (val > 500) color = 'text-rose-600 dark:text-rose-400';
-      return <span className={`font-bold ${color} flex items-center gap-1`}>{val.toLocaleString()} <span className="text-[9px] opacity-60 font-medium uppercase tracking-tighter">kgCO2e</span></span>;
+      return <span className={`font-bold ${color} flex items-center gap-1`}>{val.toLocaleString()} <span className="text-caption opacity-60 font-medium  tracking-tighter">kgCO2e</span></span>;
     }
   }
   if (normalized === 'uvalue' || normalized === 'u-value' || normalized === 'heattransfercoefficient') {
@@ -141,12 +141,12 @@ const renderCellContent = (header: string, value: any) => {
       let color = 'text-emerald-600 dark:text-emerald-400';
       if (val > 0.35) color = 'text-amber-600 dark:text-amber-400';
       if (val > 1.2) color = 'text-rose-600 dark:text-rose-400';
-      return <span className={`font-bold ${color} flex items-center gap-1`}>{val.toFixed(3)}<span className="text-[9px] opacity-60 font-medium uppercase tracking-tighter">W/m²K</span></span>;
+      return <span className={`font-bold ${color} flex items-center gap-1`}>{val.toFixed(3)}<span className="text-caption opacity-60 font-medium  tracking-tighter">W/m²K</span></span>;
     }
   }
   if (normalized === 'heatloss' || normalized === 'energy' || normalized === 'qvalue' || normalized === 'heatload') {
     const val = parseFloat(cellValue);
-    if (!isNaN(val)) return <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">{val.toLocaleString()}<span className="text-[9px] opacity-60 font-medium uppercase tracking-tighter">Watts</span></span>;
+    if (!isNaN(val)) return <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">{val.toLocaleString()}<span className="text-caption opacity-60 font-medium  tracking-tighter">Watts</span></span>;
   }
   return cellValue;
 };
@@ -256,12 +256,12 @@ const TableView: React.FC<{
       <div ref={containerRef} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)} className="flex-1 w-full min-h-0 overflow-auto bg-slate-50/5 dark:bg-black/5 custom-scrollbar relative">
         <div style={{ height: totalRows * rowHeight, width: '100%', position: 'relative' }}>
           <table className="min-w-full text-xs border-collapse absolute top-0 left-0" style={{ transform: `translateY(${offsetY}px)` }}>
-            <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-30 shadow-sm border-b border-slate-200 dark:border-slate-700/50" style={{ transform: `translateY(-${offsetY}px)` }}>
+            <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-30  border-b border-slate-200 dark:border-slate-700/50" style={{ transform: `translateY(-${offsetY}px)` }}>
               <tr>
                 {headers.map((header, index) => {
                   const width = columnWidths[header] || (header.toLowerCase() === 'id' ? 80 : 150);
                   return (
-                    <th key={index} style={{ width, minWidth: width }} className="relative px-3 py-2.5 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none group">
+                    <th key={index} style={{ width, minWidth: width }} className="relative px-3 py-2.5 text-left font-bold text-slate-500 dark:text-slate-400  tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none group">
                       <div className="flex items-center space-x-1" onClick={() => setSortConfig({ key: header, direction: sortConfig?.key === header && sortConfig.direction === 'asc' ? 'desc' : 'asc' })}>
                         <span className="truncate block">{beautifyHeader(header)}</span>
                         <span className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0">{sortConfig?.key === header ? (sortConfig.direction === 'asc' ? <FontAwesomeIcon icon={faSortUp} /> : <FontAwesomeIcon icon={faSortDown} />) : <FontAwesomeIcon icon={faSort} className="opacity-0 group-hover:opacity-50" />}</span>
@@ -289,7 +289,7 @@ const TableView: React.FC<{
 
                       const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colKey === header;
                       return (
-                         <td key={colIndex} style={{ width: columnWidths[header], minWidth: columnWidths[header] }} className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 transition-all duration-200 ${!isIdCol && !!onUpdate && hasId ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdCol ? 'font-mono font-bold cursor-pointer relative group/cell' : ''} ${isIdCol && activeElementId === Number(cellValue) && activeRowIndex === rowIndex ? 'text-white bg-blue-600 shadow-[inset_0_0_10px_rgba(0,0,0,0.1)]' : isIdCol ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
+                         <td key={colIndex} style={{ width: columnWidths[header], minWidth: columnWidths[header] }} className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 transition-all duration-200 ${!isIdCol && !!onUpdate && hasId ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdCol ? 'font-mono font-bold cursor-pointer relative group/cell' : ''} ${isIdCol && activeElementId === Number(cellValue) && activeRowIndex === rowIndex ? 'text-white bg-blue-600 ' : isIdCol ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
                            onClick={() => { if (isIdCol && !isNaN(Number(cellValue))) { setActiveRowIndex(rowIndex); setActiveElementId(Number(cellValue)); onSelect([Number(cellValue)]); } }}
                            onDoubleClick={() => { if (!isIdCol && !!onUpdate && hasId) { setEditingCell({ rowIndex, colKey: header }); setEditValue(cellValue); } }}
                         >
@@ -327,7 +327,7 @@ const TableView: React.FC<{
 
 const Navigator: React.FC<{ executionResult: ExecutionResult | null; activeAnalyticsSubTabIndex: number; handlePrev: () => void; handleNext: () => void; }> = ({ executionResult, activeAnalyticsSubTabIndex, handlePrev, handleNext }) => {
   if (!executionResult?.structuredOutput || executionResult.structuredOutput.length <= 1) return null;
-  return <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700/50 mr-2 shadow-sm"><button onClick={(e) => { e.stopPropagation(); handlePrev(); }} className="text-slate-400 hover:text-blue-600 transition-colors p-0.5" title="Previous View"><FontAwesomeIcon icon={faChevronLeft} className="text-[9px]" /></button><span className="text-[9px] font-black font-mono text-slate-500 dark:text-slate-400 min-w-[24px] text-center tracking-tighter cursor-default">{activeAnalyticsSubTabIndex + 1}/{executionResult.structuredOutput.length}</span><button onClick={(e) => { e.stopPropagation(); handleNext(); }} className="text-slate-400 hover:text-blue-600 transition-colors p-0.5" title="Next View"><FontAwesomeIcon icon={faChevronRight} className="text-[9px]" /></button></div>;
+  return <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700/50 mr-2 "><button onClick={(e) => { e.stopPropagation(); handlePrev(); }} className="text-slate-400 hover:text-blue-600 transition-colors p-0.5" title="Previous View"><FontAwesomeIcon icon={faChevronLeft} className="text-caption" /></button><span className="text-caption font-semibold font-mono text-slate-500 dark:text-slate-400 min-w-[24px] text-center tracking-tighter cursor-default">{activeAnalyticsSubTabIndex + 1}/{executionResult.structuredOutput.length}</span><button onClick={(e) => { e.stopPropagation(); handleNext(); }} className="text-slate-400 hover:text-blue-600 transition-colors p-0.5" title="Next View"><FontAwesomeIcon icon={faChevronRight} className="text-caption" /></button></div>;
 };
 
 export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = React.memo(({ item, isDashboard = false, capturedDocTitle, currentDocTitle, selectedScript, executionResult, isHeaderPortalTarget = false }) => {
@@ -666,11 +666,11 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       <div className="flex-grow flex items-center gap-3 min-w-0">
         {effectiveType === 'table' ? (
           <div className="relative w-full max-w-2xl">
-            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400"><FontAwesomeIcon icon={faSearch} className="text-[10px]" /></div>
-            <input type="text" placeholder="Filter table..." className="pl-8 block w-full text-[11px] h-8 border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 border transition-all" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400"><FontAwesomeIcon icon={faSearch} className="text-caption" /></div>
+            <input type="text" placeholder="Filter table..." className="pl-8 block w-full text-caption h-8 border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 border transition-all" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
           </div>
         ) : (
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 shrink-0 flex items-center gap-2">
+          <span className="text-caption font-semibold  tracking-wide text-slate-400 shrink-0 flex items-center gap-2">
             {isSustainData && <FontAwesomeIcon icon={faLeaf} className="text-emerald-500" />}
             {effectiveType === 'chart-bar' ? 'Bar Graph' : effectiveType === 'chart-pie' ? 'Pie Graph' : effectiveType === 'chart-line' ? 'Line Graph' : effectiveType.replace('chart-', '')}
           </span>
@@ -701,7 +701,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
   const portalEl = typeof document !== 'undefined' ? document.getElementById('bottom-panel-portal-root') : null;
 
   return (
-    <div className={`bg-white dark:bg-slate-900 group relative overflow-hidden flex flex-col ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm' : 'h-full'}`}>
+    <div className={`bg-white dark:bg-slate-900 group relative overflow-hidden flex flex-col ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800 ' : 'h-full'}`}>
       {isHeaderPortalTarget && portalEl
         ? createPortal(headerControls, portalEl)
         : <div className="flex items-center gap-2 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 min-h-[48px]">{headerControls}</div>}
@@ -712,11 +712,11 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
         ) : showAsTable === false && (item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') ? (
           <div ref={chartContainerRef} id={chartId} className="flex-1 w-full min-h-[350px] relative px-2 py-2 overflow-hidden">
             {parsedData && Array.isArray(parsedData) && parsedData.length > MAX_CHART_ITEMS ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 m-4 animate-in fade-in zoom-in-95">
-                <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4 border border-amber-200 dark:border-amber-800/50 shadow-sm"><FontAwesomeIcon icon={faExclamationTriangle} className="text-2xl text-amber-500 animate-pulse" /></div>
-                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tighter mb-2">High-Density Data Detected</h3>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-md leading-relaxed mb-6">Visualizing <span className="text-blue-600 dark:text-blue-400 font-black">{parsedData.length}</span> individual items will lead to an unreadable chart.</p>
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm max-w-sm text-left"><div className="flex items-center gap-2 mb-2"><div className="w-5 h-5 rounded-md bg-blue-600 flex items-center justify-center"><FontAwesomeIcon icon={faMagicWandSparkles} className="text-[10px] text-white" /></div><span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Pro Tip</span></div><p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-3">Use <code className="bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded text-blue-500">.GroupBy()</code> to aggregate data by Level, Category, or Type for a clean visualization.</p><button onClick={() => setShowAsTable(true)} className="w-full py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all">View as Table Instead</button></div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-50/85 dark:bg-slate-900/85 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 m-4 animate-in fade-in zoom-in-95">
+                <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4 border border-amber-200 dark:border-amber-800/50 "><FontAwesomeIcon icon={faExclamationTriangle} className="text-2xl text-amber-500 animate-pulse" /></div>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-white  tracking-tighter mb-2">High-Density Data Detected</h3>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-md leading-relaxed mb-6">Visualizing <span className="text-blue-600 dark:text-blue-400 font-semibold">{parsedData.length}</span> individual items will lead to an unreadable chart.</p>
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700  max-w-sm text-left"><div className="flex items-center gap-2 mb-2"><div className="w-5 h-5 rounded-md bg-blue-600 flex items-center justify-center"><FontAwesomeIcon icon={faMagicWandSparkles} className="text-caption text-white" /></div><span className="text-caption font-semibold  tracking-wide text-blue-600 dark:text-blue-400">Pro Tip</span></div><p className="text-caption font-bold text-slate-600 dark:text-slate-300 mb-3">Use <code className="bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded text-blue-500">.GroupBy()</code> to aggregate data by Level, Category, or Type for a clean visualization.</p><button onClick={() => setShowAsTable(true)} className="w-full py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 text-caption font-semibold  tracking-wide rounded-lg transition-all">View as Table Instead</button></div>
               </div>
             ) : (
               <div className="absolute inset-0">{isReady && dimensions.width > 0 && dimensions.height > 0 && (
@@ -757,15 +757,15 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       {(executionResult?.scriptName || (item.type === 'table' && tableData)) && (
         <div className="px-4 py-1.5 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/10 flex items-center shrink-0">
           <div className="flex-grow flex items-center gap-3">
-            {executionResult?.scriptName && <><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 select-none">Origin</span><span className="text-[11px] font-bold italic text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{executionResult.scriptName}</span></>}
+            {executionResult?.scriptName && <><span className="text-caption font-semibold  tracking-wide text-slate-400 dark:text-slate-600 select-none">Origin</span><span className="text-caption font-bold  text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{executionResult.scriptName}</span></>}
             <div className="flex items-center gap-3 border-l border-slate-200 dark:border-slate-800/40 pl-3">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 select-none">Document</span>
+              <span className="text-caption font-semibold  tracking-wide text-slate-400 dark:text-slate-600 select-none">Document</span>
               <div className="flex items-center gap-2">
-                <span className={`text-[11px] font-bold italic truncate max-w-[200px] ${isDocMismatch ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 dark:text-slate-400'}`}>{capturedDocTitle || "Unknown Document"}</span>
+                <span className={`text-caption font-bold  truncate max-w-[200px] ${isDocMismatch ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 dark:text-slate-400'}`}>{capturedDocTitle || "Unknown Document"}</span>
                 {isDocMismatch && (
                   <div className="relative group/mismatch-footer translate-y-[1px]">
-                    <span className="text-amber-500 cursor-help"><FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px] animate-pulse" /></span>
-                    <div className="absolute z-[130] left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/mismatch-footer:opacity-100 group-hover/mismatch-footer:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch-footer:translate-y-0 pointer-events-none border border-amber-500/20"><div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest pb-1 border-b border-amber-500/10"><FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch</div>This output was rendered for <span className="text-blue-600 dark:text-blue-400">'{capturedDocTitle}'</span>.<br />The active document is now <span className="text-emerald-600 dark:text-emerald-400">'{currentDocTitle}'</span>.</div>
+                    <span className="text-amber-500 cursor-help"><FontAwesomeIcon icon={faExclamationTriangle} className="text-caption animate-pulse" /></span>
+                    <div className="absolute z-[130] left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-caption font-bold leading-relaxed w-56 opacity-0 invisible group-hover/mismatch-footer:opacity-100 group-hover/mismatch-footer:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch-footer:translate-y-0 pointer-events-none border border-amber-500/20"><div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5  tracking-wide pb-1 border-b border-amber-500/10"><FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch</div>This output was rendered for <span className="text-blue-600 dark:text-blue-400">'{capturedDocTitle}'</span>.<br />The active document is now <span className="text-emerald-600 dark:text-emerald-400">'{currentDocTitle}'</span>.</div>
                   </div>
                 )}
               </div>
@@ -773,7 +773,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
           </div>
           {tableData && (
             <div className="shrink-0 pl-4 border-l border-slate-200 dark:border-slate-800/40">
-              <span className="text-[11px] font-bold italic text-slate-500 dark:text-slate-400">
+              <span className="text-caption font-bold  text-slate-500 dark:text-slate-400">
                 {filterText ? `${filteredDataCount}/${tableData.length}` : tableData.length} rows{tableData[0] ? `, ${Object.keys(tableData[0]).length} columns` : ''}
               </span>
             </div>

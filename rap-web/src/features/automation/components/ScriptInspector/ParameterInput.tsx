@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSync, faSpinner, faFolderOpen, faMousePointer, faCrosshairs, faSearch, faCheck, faExclamationTriangle } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
+import { faSync, faSpinner, faFolderOpen, faMousePointer, faCrosshairs, faSearch, faCheck, faExclamationTriangle } from "@/components/ui/iconAliases";
 import { open, save } from "@tauri-apps/api/dialog";
 import { useRevitStatus } from "@/hooks/useRevitStatus";
 import type { ScriptParameter } from "@/types/scriptModel";
@@ -82,7 +82,7 @@ const RevitPickButton: React.FC<RevitPickButtonProps> = ({
       disabled={disabled || isPicking}
       aria-busy={isPicking}
       aria-label={isPicking ? "Selecting in Revit" : `Pick ${selectionType} in Revit`}
-      className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm flex-shrink-0
+      className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all flex-shrink-0
         ${isPicking
           ? "animate-pulse bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-500/40 text-blue-500 cursor-wait"
           : "bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 active:scale-90"}`}
@@ -95,9 +95,9 @@ const RevitPickButton: React.FC<RevitPickButtonProps> = ({
 
     {isPicking ? (
       /* Persistent while picking — see cue 3 in the note above. */
-      <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-500/30 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 backdrop-blur-xl pointer-events-none">
-        <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 uppercase tracking-widest text-[9px]">
-          <FontAwesomeIcon icon={faSpinner} className="animate-spin text-[10px]" /> Selecting in Revit
+      <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-lg shadow-md bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-500/30 text-slate-700 dark:text-white text-caption font-medium leading-relaxed w-56 pointer-events-none">
+        <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 text-caption">
+          <FontAwesomeIcon icon={faSpinner} className="animate-spin text-caption" /> Selecting in Revit
         </div>
         <div className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-normal">
           {selectionType === 'Point'
@@ -107,15 +107,15 @@ const RevitPickButton: React.FC<RevitPickButtonProps> = ({
         </div>
       </div>
     ) : (
-      <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/pick:opacity-100 group-hover/pick:visible transition-all duration-300 transform translate-y-2 group-hover/pick:translate-y-0 pointer-events-none backdrop-blur-xl">
-        <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 uppercase tracking-widest text-[9px]">
-          <FontAwesomeIcon icon={selectionType === 'Point' ? faCrosshairs : faMousePointer} className="text-[10px]" /> {selectionType} Selection
+      <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-lg shadow-md bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-white text-caption font-medium leading-relaxed w-56 opacity-0 invisible group-hover/pick:opacity-100 group-hover/pick:visible transition-all duration-300 transform translate-y-2 group-hover/pick:translate-y-0 pointer-events-none">
+        <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 text-caption">
+          <FontAwesomeIcon icon={selectionType === 'Point' ? faCrosshairs : faMousePointer} className="text-caption" /> {selectionType} Selection
         </div>
         <div className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-normal">
           Click to pick a {selectionType?.toLowerCase()} directly in Revit.
         </div>
         {isContextMismatch && (
-          <div className="mt-2.5 pt-2 border-t border-amber-500/20 dark:border-amber-500/10 flex items-center gap-2 text-amber-500 font-black uppercase text-[9px] animate-pulse">
+          <div className="mt-2.5 pt-2 border-t border-amber-500/20 dark:border-amber-500/10 flex items-center gap-2 text-amber-500 font-semibold text-caption animate-pulse">
             <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
           </div>
         )}
@@ -141,16 +141,16 @@ interface RevitSelectionValueProps {
  * pick is cancelled.
  */
 const RevitSelectionValue: React.FC<RevitSelectionValueProps> = ({ value, isPicking }) => (
-  <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center shadow-inner cursor-default truncate min-w-0 tracking-wider">
+  <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center  cursor-default truncate min-w-0 tracking-wider">
     {isPicking ? (
       <span className="flex items-center gap-2 text-blue-500">
-        <FontAwesomeIcon icon={faSpinner} className="animate-spin text-[10px]" />
+        <FontAwesomeIcon icon={faSpinner} className="animate-spin text-caption" />
         Selecting in Revit…
       </span>
     ) : value !== null && value !== undefined ? (
       String(value)
     ) : (
-      <span className="text-slate-400 dark:text-slate-600 font-normal italic">None selected</span>
+      <span className="text-slate-400 dark:text-slate-600 font-normal ">None selected</span>
     )}
   </div>
 );
@@ -201,14 +201,14 @@ const ToggleSwitch = ({ checked, onChange, disabled }: { checked: boolean; onCha
     role="switch"
     aria-checked={checked}
     onClick={() => !disabled && onChange(!checked)}
-    className={`${checked ? 'bg-blue-600 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'bg-slate-200 dark:bg-slate-800'} 
+    className={`${checked ? 'bg-blue-600 ' : 'bg-slate-200 dark:bg-slate-800'}
       relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
       transition-all duration-300 ease-in-out focus:outline-none 
       ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
   >
     <span
       className={`${checked ? 'translate-x-5' : 'translate-x-0'} 
-        pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md
+        pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white
         transition duration-300 ease-in-out`}
     />
   </button>
@@ -266,13 +266,13 @@ const VirtualList: React.FC<{
                     ${isSelected
                       ? 'bg-blue-500 border-blue-500 text-white'
                       : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'}`}>
-                    {isSelected && <FontAwesomeIcon icon={faCheck} className="text-[10px]" />}
+                    {isSelected && <FontAwesomeIcon icon={faCheck} className="text-caption" />}
                   </div>
                 </div>
               )}
               {type === 'single' && isSelected && (
                 <div className="flex items-center flex-shrink-0 text-blue-600 dark:text-blue-400">
-                  <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
+                  <FontAwesomeIcon icon={faCheck} className="text-caption" />
                 </div>
               )}
             </div>
@@ -311,10 +311,10 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-left flex justify-between items-center focus:outline-none focus:border-blue-500/30 transition-all shadow-sm ${disabled ? 'opacity-50 cursor-not-allowed' : 'text-slate-600 dark:text-slate-300'}`}
+        className={`w-full h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-left flex justify-between items-center focus:outline-none focus:border-blue-500/30 transition-all  ${disabled ? 'opacity-50 cursor-not-allowed' : 'text-slate-600 dark:text-slate-300'}`}
       >
         <span className="truncate mr-2 block min-w-0 tracking-wide">
-          {value || <span className="text-slate-400 dark:text-slate-600 italic font-normal">Select configuration...</span>}
+          {value || <span className="text-slate-400 dark:text-slate-600  font-normal">Select configuration...</span>}
         </span>
         <svg className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -325,7 +325,7 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
         <>
           <div className="fixed inset-0 z-[100]" onClick={() => setIsOpen(false)} />
           <div 
-            className={`fixed z-[100] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 backdrop-blur-xl ${coords.isUp ? 'origin-bottom' : 'origin-top'}`}
+            className={`fixed z-[100] bg-white dark:bg-slate-900 rounded-lg shadow-md overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 ${coords.isUp ? 'origin-bottom' : 'origin-top'}`}
             style={{ 
               left: coords.left, 
               width: coords.width, 
@@ -360,7 +360,7 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
                   type="single"
                 />
               ) : (
-                <div className="py-6 text-center text-xs text-slate-400 font-bold uppercase tracking-widest italic">
+                <div className="py-6 text-center text-xs text-slate-400 font-bold  tracking-wide ">
                   No matches found
                 </div>
               )}
@@ -426,7 +426,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
   };
 
   return (
-    <div className="flex flex-col border border-slate-200 dark:border-slate-700/50 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20 shadow-inner w-full min-w-0">
+    <div className="flex flex-col border border-slate-200 dark:border-slate-700/50 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20  w-full min-w-0">
       <div className="flex items-center px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 rounded-t-2xl">
         <div className="relative flex-grow min-w-0">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -447,7 +447,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             <button
               onClick={() => onCompute(param.name)}
               disabled={disabled || isComputing}
-              className={`p-2 rounded-xl text-xs transition-all shadow-sm ${isComputing ? 'animate-pulse' : 'active:scale-90'} 
+              className={`p-2 rounded-xl text-xs transition-all  ${isComputing ? 'animate-pulse' : 'active:scale-90'}
                  ${param.options && param.options.length > 0
                   ? "bg-white dark:bg-slate-800 text-slate-500 hover:text-blue-600 border border-slate-200 dark:border-slate-700"
                   : "bg-blue-600 text-white shadow-lg shadow-blue-500/20"}`}
@@ -460,18 +460,18 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
 
             {/* COMPUTE TOOLTIP: Always show info when options exist */}
             {param.options && param.options.length > 0 && !isComputing && (
-              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
-                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1 uppercase tracking-widest">
-                  <FontAwesomeIcon icon={faCheck} className="text-[8px]" /> Computed Results
+              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-caption font-medium leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
+                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1  tracking-wide">
+                  <FontAwesomeIcon icon={faCheck} className="text-caption" /> Computed Results
                 </div>
                 <span className="text-slate-700 dark:text-white text-xs">{param.options.length} options discovered.</span>
                 {param.computedInDocument && (
-                  <div className="mt-1 text-slate-500 dark:text-slate-400 text-[9px] italic">
+                  <div className="mt-1 text-slate-500 dark:text-slate-400 text-caption ">
                     Source: {param.computedInDocument}
                   </div>
                 )}
                 {isContextMismatch && (
-                  <div className="mt-2 text-amber-400 font-black pt-1 uppercase">
+                  <div className="mt-2 text-amber-400 font-semibold pt-1 ">
                     ⚠ Document Mismatch!
                   </div>
                 )}
@@ -492,13 +492,13 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             disabled={disabled}
           />
         ) : (
-          <div className="h-56 py-10 text-center text-xs text-slate-400 font-bold uppercase tracking-widest italic">
+          <div className="h-56 py-10 text-center text-xs text-slate-400 font-bold  tracking-wide ">
             Discovery awaiting...
           </div>
         )}
       </div>
 
-      <div className="flex justify-between items-center px-4 py-3 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-xs font-black uppercase tracking-widest rounded-b-2xl">
+      <div className="flex justify-between items-center px-4 py-3 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold  tracking-wide rounded-b-2xl">
         <span className="text-blue-600 dark:text-blue-400 tabular-nums">
           {selectedValues.length} Selected
         </span>
@@ -602,15 +602,15 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       return (
         <div className="flex gap-2 w-full">
           {isRevitSelection ? (
-            <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center shadow-inner cursor-default truncate min-w-0 tracking-wider">
-              {param.value !== null && param.value !== undefined ? String(param.value) : <span className="text-slate-400 dark:text-slate-600 font-normal italic">None selected</span>}
+            <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center  cursor-default truncate min-w-0 tracking-wider">
+              {param.value !== null && param.value !== undefined ? String(param.value) : <span className="text-slate-400 dark:text-slate-600 font-normal ">None selected</span>}
             </div>
           ) : (
             <input
               type="text"
               value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
               onChange={(e) => onChange(index, e.target.value)}
-              className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-medium bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+              className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-medium bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all "
               disabled={disabled}
               placeholder={param.inputType === 'Folder' ? "Select source folder..." : "Select target path..."}
             />
@@ -618,7 +618,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           <button
             onClick={handleFileBrowse}
             disabled={disabled}
-            className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 transition-all flex items-center justify-center flex-shrink-0 shadow-sm active:scale-90"
+            className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 transition-all flex items-center justify-center flex-shrink-0  active:scale-90"
           >
             <FontAwesomeIcon icon={faFolderOpen} className="text-xs" />
           </button>
@@ -638,7 +638,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       return (
         <div className="flex items-center p-3 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-700/50 transition-all">
           <ToggleSwitch checked={isChecked} onChange={(checked) => onChange(index, checked)} disabled={disabled} />
-          <span className={`ml-4 text-xs font-bold uppercase tracking-[0.15em] ${isChecked ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>
+          <span className={`ml-4 text-xs font-bold  tracking-wide ${isChecked ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>
             {isChecked ? 'On' : 'Off'}
           </span>
         </div>
@@ -683,7 +683,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
                   onChange(index, 0);
                 }
               }}
-              className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+              className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all "
               disabled={disabled}
             />
           )}
@@ -717,7 +717,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             type="text"
             value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
             onChange={(e) => onChange(index, e.target.value)}
-            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all "
             disabled={disabled}
           />
         )}
@@ -737,22 +737,16 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
 
   return (
     <div key={index} className="flex flex-col space-y-2 pb-4 border-b border-slate-50 dark:border-slate-800/30 last:border-0 last:pb-0">
-      <div className="flex justify-between items-center min-w-0">
-        <label className="flex items-center text-[13px] font-semibold tracking-wide text-slate-500 dark:text-slate-200 truncate">
-          <div className="w-1 h-3 bg-slate-300 dark:bg-slate-600 rounded-full mr-2.5" />
+      <div className="min-w-0">
+        <label className="flex items-center text-body-sm font-medium text-slate-600 dark:text-slate-200">
           {param.name}
-          {param.suffix && <span className="ml-1 text-slate-400 font-medium text-xs">({param.suffix})</span>}
-          {param.required && <span className="text-rose-500 ml-1 font-bold">*</span>}
+          {param.suffix && <span className="ml-1 text-slate-400 text-xs">({param.suffix})</span>}
+          {param.required && <span className="text-rose-500 ml-1 font-semibold">*</span>}
         </label>
         {param.description && (
-          <div className="relative group/info cursor-help">
-            <span className="text-xs font-medium text-slate-400 dark:text-slate-300 italic tracking-tight truncate max-w-[120px] block">
-              {param.description}
-            </span>
-            <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-xs font-medium leading-relaxed max-w-[200px] break-words opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-300 transform translate-y-1 group-hover/info:translate-y-0">
-              {param.description}
-            </div>
-          </div>
+          <p className="mt-1 text-caption leading-snug text-slate-400 dark:text-slate-500 break-words">
+            {param.description}
+          </p>
         )}
       </div>
       <div className="flex gap-3 items-start">
@@ -778,18 +772,18 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
 
             {/* COMPUTE TOOLTIP: High-fidelity feedback for standard inputs */}
             {param.options && param.options.length > 0 && !isComputing && (
-              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
-                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1 uppercase tracking-widest">
-                  <FontAwesomeIcon icon={faCheck} className="text-[8px]" /> Computed Results
+              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-caption font-medium leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
+                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1  tracking-wide">
+                  <FontAwesomeIcon icon={faCheck} className="text-caption" /> Computed Results
                 </div>
                 <span className="text-slate-700 dark:text-white text-xs">{param.options.length} options discovered.</span>
                 {param.computedInDocument && (
-                  <div className="mt-1 text-slate-500 dark:text-slate-400 text-[9px] italic">
+                  <div className="mt-1 text-slate-500 dark:text-slate-400 text-caption ">
                     Source: {param.computedInDocument}
                   </div>
                 )}
                 {isContextMismatch && (
-                  <div className="mt-2 text-amber-400 font-black pt-1 uppercase">
+                  <div className="mt-2 text-amber-400 font-semibold pt-1 ">
                     ⚠ Document Mismatch!
                   </div>
                 )}

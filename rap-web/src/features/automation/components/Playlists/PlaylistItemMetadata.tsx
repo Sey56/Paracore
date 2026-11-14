@@ -10,7 +10,7 @@ export const PlaylistItemMetadata: React.FC<PlaylistItemMetadataProps> = ({ scri
     return (
         <div className="h-full flex flex-col overflow-hidden">
             <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                <h3 className="text-xs font-bold  tracking-wider text-gray-400 dark:text-gray-500">
                     Script Details
                 </h3>
             </div>

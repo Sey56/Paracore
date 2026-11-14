@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGoogle } from '@fortawesome/free-brands-svg-icons';
-import { faBolt, faTerminal, faShieldAlt, faBook, faUserCheck, faArrowRight, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faGoogle } from '@/components/ui/iconAliases';
+import { faBolt, faTerminal, faShieldAlt, faBook, faUserCheck, faArrowRight, faSpinner } from '@/components/ui/iconAliases';
 import { shell } from '@tauri-apps/api';
 
 interface WelcomeGateProps {
@@ -56,19 +56,19 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
       <div className="absolute bottom-1/4 right-1/4 w-[350px] lg:w-[500px] h-[350px] lg:h-[500px] rounded-full bg-indigo-500/10 dark:bg-indigo-600/5 blur-[80px] lg:blur-[120px] pointer-events-none animate-pulse" style={{ animationDuration: '12s' }} />
 
       {/* Main Glassmorphic Split Container */}
-      <div className="relative w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-stretch rounded-[2.5rem] bg-white/70 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/40 shadow-2xl p-8 lg:p-12 backdrop-blur-xl">
+      <div className="relative w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-stretch rounded-2xl bg-white/90 dark:bg-slate-900/75 border border-slate-200/60 dark:border-slate-800/40 shadow-lg p-8 lg:p-12">
         
         {/* Left Side: Product Showcase & Brand Info (7 Cols) */}
         <div className="md:col-span-7 flex flex-col justify-between space-y-8 min-w-0">
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 text-xs font-black uppercase tracking-widest border border-blue-500/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 text-xs font-semibold  tracking-wide border border-blue-500/20">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className=" absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
               </span>
               Engine Platform Active
             </div>
-            <h2 className="text-3xl lg:text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">
+            <h2 className="text-3xl lg:text-4xl font-semibold text-slate-800 dark:text-white  tracking-tight leading-none">
               Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-blue-400 dark:to-indigo-400">Paracore</span>
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-md">
@@ -106,7 +106,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
                   <FontAwesomeIcon icon={cap.icon} className="text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                  <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200  tracking-wider">
                     {cap.title}
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
@@ -121,7 +121,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
           <div className="pt-4 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center gap-6">
             <button 
               onClick={handleOpenHelp}
-              className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 uppercase tracking-widest transition-colors flex items-center gap-2"
+              className="text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400  tracking-wide transition-colors flex items-center gap-2"
             >
               <FontAwesomeIcon icon={faBook} />
               Read Documentation
@@ -135,7 +135,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
             {isAuthenticated ? (
               <>
                 <div className="space-y-1">
-                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100  tracking-wider">
                     Workspace Active
                   </h3>
                   <p className="text-xs text-slate-400 dark:text-slate-500 leading-normal">
@@ -145,7 +145,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
                 {onDismiss && (
                   <button
                     onClick={onDismiss}
-                    className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer overflow-hidden"
+                    className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs  tracking-wide shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer overflow-hidden"
                   >
                     Back to Workspace
                     <FontAwesomeIcon
@@ -158,7 +158,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
             ) : (
               <>
                 <div className="space-y-1">
-                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100  tracking-wider">
                     Establish Session
                   </h3>
                   <p className="text-xs text-slate-400 dark:text-slate-500 leading-normal">
@@ -170,7 +170,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
                   <button
                     disabled={isGoogleLoading || isOfflineLoading}
                     onClick={handleGoogleLogin}
-                    className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50 transition-all cursor-pointer overflow-hidden"
+                    className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs  tracking-wide shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50 transition-all cursor-pointer overflow-hidden"
                   >
                     {isGoogleLoading ? (
                       <FontAwesomeIcon icon={faSpinner} spin className="text-sm" />
@@ -187,7 +187,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
                   <button
                     disabled={isGoogleLoading || isOfflineLoading}
                     onClick={handleOfflineLogin}
-                    className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs uppercase tracking-widest border border-slate-300/40 dark:border-slate-700/50 active:scale-95 disabled:opacity-50 transition-all cursor-pointer overflow-hidden"
+                    className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs  tracking-wide border border-slate-300/40 dark:border-slate-700/50 active:scale-95 disabled:opacity-50 transition-all cursor-pointer overflow-hidden"
                   >
                     {isOfflineLoading ? (
                       <FontAwesomeIcon icon={faSpinner} spin className="text-xs" />
@@ -208,7 +208,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
                   </div>
                 )}
 
-                <div className="space-y-3 pt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-normal">
+                <div className="space-y-3 pt-2 text-caption text-slate-400 dark:text-slate-500 leading-normal">
                   <div className="flex gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500/60 mt-1 shrink-0" />
                     <p><span className="font-bold text-slate-500 dark:text-slate-400">Cloud Workspace:</span> Sign in with Google to sync your workspace and access AI Agent features.</p>

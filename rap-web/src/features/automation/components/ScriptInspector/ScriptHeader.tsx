@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faStar as fasStar, faChevronUp, faChevronDown, faTools } from '@fortawesome/free-solid-svg-icons';
-import { faStar as farStar } from '@fortawesome/free-regular-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faStar as fasStar, faChevronUp, faChevronDown, faTools } from '@/components/ui/iconAliases';
+import { faStar as farStar } from '@/components/ui/iconAliases';
 import { Script } from '@/types/scriptModel';
 
 interface ScriptHeaderProps {

@@ -183,7 +183,8 @@ body,
 /* ── shadcn/ui DESIGN TOKENS ── */
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
 
   /* ── shadcn/ui tokens ── */
   --color-sidebar-ring: var(--sidebar-ring);
@@ -356,4 +357,47 @@ body,
 .monaco-editor .monaco-hover,
 .monaco-editor .suggest-widget {
   z-index: 50 !important;
+}
+
+/* ── VISUAL REFRESH ──
+ * One radius scale, one selection colour, and a reduced-motion opt-out.
+ * `--radius` is re-declared here so the derived `--radius-*` scale above
+ * resolves to the tighter value at paint time. */
+:root {
+  --radius: 0.5rem;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Lucide glyphs rendered through the Icon shim scale with `text-*` utilities,
+   the same way the old font-based icons did. Explicit `w-*` / `h-*` utilities
+   still win because this lives in the base layer. */
+@layer base {
+  svg.pc-icon {
+    width: 1em;
+    height: 1em;
+    stroke-width: 1.75;
+    flex-shrink: 0;
+    vertical-align: -0.125em;
+  }
+}
+
+/* At 125–150% Windows scaling a 1366px screen exposes only ~1093 CSS px or
+   less. Tighten panel padding there so the configurator keeps room for its
+   controls instead of squeezing them into the available width. */
+@media (max-width: 1280px) {
+  #main-content .p-5 { padding: 1rem !important; }
+  #main-content .px-5 { padding-left: 1rem !important; padding-right: 1rem !important; }
+  #main-content .py-3 { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
+  #main-content .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.875rem !important; }
 }

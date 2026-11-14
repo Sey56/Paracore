@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSync, faShieldHeart, faFolderOpen, faChevronDown, faCheck, faThLarge, faList } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faSync, faShieldHeart, faFolderOpen, faChevronDown, faCheck, faThLarge, faList } from '@/components/ui/iconAliases';
 import { defaultCategories } from '@/data/categories';
 import { ActiveScriptSource } from '@/context/providers/UIContext';
 import { Tooltip } from '@/components/common/Tooltip';
@@ -53,8 +53,8 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
     <div className={`flex items-center justify-between px-3 py-1.5 gap-3 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
       {/* Left: Path */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
-        <FontAwesomeIcon icon={faFolderOpen} className="text-[10px] text-slate-400 shrink-0" />
-        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 truncate" title={displayPath ?? undefined}>
+        <FontAwesomeIcon icon={faFolderOpen} className="text-caption text-slate-400 shrink-0" />
+        <span className="text-caption font-bold text-slate-500 dark:text-slate-400 truncate" title={displayPath ?? undefined}>
           {displayPath || 'No source selected'}
         </span>
       </div>
@@ -65,14 +65,14 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
         <div className="relative" ref={catRef}>
           <button
             onClick={() => setCatOpen(!catOpen)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-muted transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-caption font-bold  tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-muted transition-colors"
           >
             <span>{activeCount > 0 ? `Category (${activeCount})` : 'Category'}</span>
-            <FontAwesomeIcon icon={faChevronDown} className={`text-[7px] transition-transform ${catOpen ? 'rotate-180' : ''}`} />
+            <FontAwesomeIcon icon={faChevronDown} className={`text-caption transition-transform ${catOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {catOpen && (
-            <div className="absolute right-0 top-full mt-1 min-w-[160px] bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="absolute right-0 top-full mt-1 min-w-[160px] bg-white dark:bg-slate-900 rounded-xl shadow-lg z-[110] border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
               <div className="py-1">
                 {defaultCategories.map(cat => {
                   const isActive = selectedDefaultCategories.includes(cat.name);
@@ -80,13 +80,13 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
                     <button
                       key={cat.name}
                       onClick={() => { handleDefaultCategoryChange(cat.name); }}
-                      className="w-full text-left px-4 py-2 text-[11px] font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
+                      className="w-full text-left px-4 py-2 text-caption font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
                     >
                       <span className="flex items-center gap-2">
-                        <FontAwesomeIcon icon={cat.icon} className={`text-[10px] ${cat.color}`} />
+                        <FontAwesomeIcon icon={cat.icon} className={`text-caption ${cat.color}`} />
                         <span className="text-slate-600 dark:text-slate-300">{cat.name}</span>
                       </span>
-                      {isActive && <FontAwesomeIcon icon={faCheck} className="text-[10px] text-blue-500" />}
+                      {isActive && <FontAwesomeIcon icon={faCheck} className="text-caption text-blue-500" />}
                     </button>
                   );
                 })}
@@ -96,7 +96,7 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
                   <div className="border-t border-slate-100 dark:border-slate-800" />
                   <button
                     onClick={() => { [...selectedDefaultCategories].forEach(c => handleDefaultCategoryChange(c)); setCatOpen(false); }}
-                    className="w-full text-left px-4 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors uppercase tracking-wider"
+                    className="w-full text-left px-4 py-2 text-caption font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors  tracking-wider"
                   >
                     Clear All
                   </button>
@@ -111,7 +111,7 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
             onClick={onToggleDensity}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-500 hover:bg-muted transition-colors"
           >
-            <FontAwesomeIcon icon={isCompactView ? faThLarge : faList} className="text-[10px]" />
+            <FontAwesomeIcon icon={isCompactView ? faThLarge : faList} className="text-caption" />
           </button>
         </Tooltip>
 
@@ -120,7 +120,7 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
             onClick={onRefresh}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-500 hover:bg-muted transition-colors"
           >
-            <FontAwesomeIcon icon={faSync} className="text-[10px]" />
+            <FontAwesomeIcon icon={faSync} className="text-caption" />
           </button>
         </Tooltip>
 
@@ -128,16 +128,16 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
           <div className="flex items-center gap-1">
             <button
               onClick={onNewScript}
-              className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-lg transition-colors whitespace-nowrap"
+              className="text-caption font-bold text-blue-600 dark:text-blue-400  tracking-wider hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-lg transition-colors whitespace-nowrap"
             >
               + New
             </button>
             <Tooltip text="New Sentinel" position="bottom">
               <button
                 onClick={onNewSentinel}
-                className="text-[10px] font-bold text-amber-500 hover:text-amber-600 uppercase tracking-wider hover:bg-amber-50 dark:hover:bg-amber-900/20 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
+                className="text-caption font-bold text-amber-500 hover:text-amber-600  tracking-wider hover:bg-amber-50 dark:hover:bg-amber-900/20 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
               >
-                <FontAwesomeIcon icon={faShieldHeart} className="text-[9px]" />
+                <FontAwesomeIcon icon={faShieldHeart} className="text-caption" />
               </button>
             </Tooltip>
           </div>

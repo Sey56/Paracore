@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useRef } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSync, faGlobe, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faSync, faGlobe, faChevronDown } from '@/components/ui/iconAliases';
 
 const COMMON_CATEGORIES = [
   { id: 'OST_Walls', label: 'Walls' },
@@ -94,7 +94,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
 
   return (
     <div className="flex-1 max-w-md relative" ref={dropdownRef}>
-      <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1">Target Category</label>
+      <label className="block text-xs font-semibold text-slate-400 dark:text-slate-500  tracking-wide mb-1.5 px-1">Target Category</label>
       <div className="relative">
         <input
           type="text"
@@ -102,15 +102,15 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
           value={categorySearch}
           onFocus={() => { setIsCategoryDropdownOpen(true); }}
           onChange={(e) => setCategorySearch(e.target.value)}
-          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all dark:text-white shadow-sm pr-10"
+          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all dark:text-white  pr-10"
         />
         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 flex items-center gap-2">
-          {isFetchingCategories ? <FontAwesomeIcon icon={faSync} spin className="text-[10px]" /> : <FontAwesomeIcon icon={faChevronDown} className="text-[10px]" />}
+          {isFetchingCategories ? <FontAwesomeIcon icon={faSync} spin className="text-caption" /> : <FontAwesomeIcon icon={faChevronDown} className="text-caption" />}
         </div>
         {isCategoryDropdownOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto custom-scrollbar border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-2">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-lg z-[100] max-h-80 overflow-y-auto custom-scrollbar border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-2">
             <div className="p-2 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">{showAllCategories ? 'All Categories' : 'Common Categories'}</span>
+              <span className="text-xs font-semibold text-slate-400  tracking-wide px-2">{showAllCategories ? 'All Categories' : 'Common Categories'}</span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -118,7 +118,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
                   setShowAllCategories(nextState);
                   if (nextState) fetchAllCategories();
                 }}
-                className={`text-[10px] font-black px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${showAllCategories ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}`}
+                className={`text-caption font-semibold px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${showAllCategories ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}`}
               >
                 <FontAwesomeIcon icon={isFetchingCategories ? faSync : faGlobe} className={isFetchingCategories ? 'animate-spin' : ''} />
                 {isFetchingCategories ? 'SYNCING...' : (showAllCategories ? 'MODE: ALL' : 'MODE: COMMON')}
@@ -127,7 +127,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
             {filteredCategories.map(cat => (
               <div key={cat.id} onClick={() => { setCategory(cat.id); setCategorySearch(''); setIsCategoryDropdownOpen(false); }} className={`px-4 py-1.5 text-sm font-bold cursor-pointer transition-colors flex items-center justify-between group ${category === cat.id ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
                 <span>{cat.label}</span>
-                <span className="text-xs font-black text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity">{cat.id}</span>
+                <span className="text-xs font-semibold text-slate-400  opacity-0 group-hover:opacity-100 transition-opacity">{cat.id}</span>
               </div>
             ))}
           </div>

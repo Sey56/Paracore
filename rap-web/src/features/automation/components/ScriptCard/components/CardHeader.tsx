@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
 import {
   faStar as fasStar,
   faShieldHeart,
@@ -7,8 +7,8 @@ import {
   faLock,
   faCompressAlt,
   faSpinner,
-} from "@fortawesome/free-solid-svg-icons";
-import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
+} from "@/components/ui/iconAliases";
+import { faStar as farStar } from "@/components/ui/iconAliases";
 import styles from '../ScriptCard.module.css';
 import { Script } from "@/types/scriptModel";
 import { Tooltip } from '@/components/common/Tooltip';
@@ -118,7 +118,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
             e.stopPropagation();
             onExitFocus();
           }}
-          className="shrink-0 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-full w-7 h-7 flex items-center justify-center transition-all shadow-sm"
+          className="shrink-0 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-full w-7 h-7 flex items-center justify-center transition-all "
         >
           <FontAwesomeIcon icon={faCompressAlt} className="text-xs" />
         </button>

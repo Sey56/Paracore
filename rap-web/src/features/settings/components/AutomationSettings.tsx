@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBolt, faTrash, faSpinner, faCheckCircle, faInfoCircle, faShieldHalved, faChartPie, faDisplay } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faBolt, faTrash, faSpinner, faCheckCircle, faInfoCircle, faShieldHalved, faChartPie, faDisplay } from '@/components/ui/iconAliases';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { isTelemetryEnabled, setTelemetryEnabled } from '@/utils/telemetry';
@@ -58,7 +58,7 @@ export const AutomationSettings: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-6">
         {/* Assembly Cache Management */}
-        <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-6 shadow-sm group hover:border-blue-500/30 transition-all">
+        <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-6  group hover:border-blue-500/30 transition-all">
           <div className="flex items-start justify-between mb-4">
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Assembly Cache</h4>
@@ -76,12 +76,12 @@ export const AutomationSettings: React.FC = () => {
             <button
               onClick={handleClearCache}
               disabled={isClearing}
-              className="flex-grow md:flex-none px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              className="flex-grow md:flex-none px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 text-caption font-semibold  tracking-wide rounded-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50"
             >
               {isClearing ? (
                 <FontAwesomeIcon icon={faSpinner} spin />
               ) : (
-                <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+                <FontAwesomeIcon icon={faTrash} className="text-caption" />
               )}
               {isClearing ? 'Purging Cache...' : 'Clear Assembly Cache'}
             </button>
@@ -91,7 +91,7 @@ export const AutomationSettings: React.FC = () => {
         {/* Technical Info Note */}
         <div className="flex gap-3 px-4 py-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100/50 dark:border-blue-800/20">
           <FontAwesomeIcon icon={faInfoCircle} className="text-blue-400 text-xs mt-0.5" />
-          <p className="text-[10px] font-bold text-blue-600/70 dark:text-blue-400/70 leading-relaxed uppercase tracking-wider">
+          <p className="text-caption font-bold text-blue-600/70 dark:text-blue-400/70 leading-relaxed  tracking-wider">
             Tip: Code changes automatically invalidate specific cache entries. You only need to use this if you want to perform a complete engine reset without restarting Revit.
           </p>
         </div>
@@ -107,7 +107,7 @@ export const AutomationSettings: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-6 shadow-sm group hover:border-indigo-500/30 transition-all flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-6  group hover:border-indigo-500/30 transition-all flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex gap-4 items-center flex-1">
             <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shrink-0">
               <FontAwesomeIcon icon={faChartPie} className="text-xl" />

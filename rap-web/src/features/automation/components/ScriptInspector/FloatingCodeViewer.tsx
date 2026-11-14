@@ -2,8 +2,8 @@ import React, { Suspense, lazy } from 'react';
 import { Rnd } from 'react-rnd';
 const CodeViewer = lazy(() => import('./CodeViewer').then(module => ({ default: module.CodeViewer })));
 import type { Script } from '@/types/scriptModel';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faEdit, faShieldAlt, faHammer } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faTimes, faEdit, faShieldAlt, faHammer } from '@/components/ui/iconAliases';
 import { useTheme } from '@/context/ThemeContext';
 import { useScriptExecution } from '@/features/automation';
 import { useAuth } from '@/features/auth';
@@ -46,7 +46,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
     <>
       {/* Backdrop overlay — click outside to close */}
       <div
-        className="fixed inset-0 z-[999] bg-black/20 backdrop-blur-sm transition-opacity duration-200"
+        className="fixed inset-0 z-[999] bg-black/30 transition-opacity duration-200"
         onClick={onClose}
       />
       <Rnd
@@ -62,7 +62,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
         className={`
           rounded-lg border
           ${theme === 'dark' ? 'dark bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}
-          ${theme === 'dark' ? 'shadow-[0_0_40px_rgba(0,0,0,0.6)] border-slate-700/40' : 'shadow-2xl'}
+          ${theme === 'dark' ? 'shadow-lg border-slate-700/40' : 'shadow-lg'}
         `}
         style={{ zIndex: 1000 }}
         dragHandleClassName="handle"
@@ -72,7 +72,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
         onResizeStop={onDragResizeStop}
       >
       <div
-        className="handle absolute top-0 left-0 right-0 h-11 flex items-center justify-between px-4 cursor-move bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/60 rounded-t-lg"
+        className="handle absolute top-0 left-0 right-0 h-11 flex items-center justify-between px-4 cursor-move bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700/60 rounded-t-lg"
       >
         <span className="font-bold text-slate-700 dark:text-slate-200 text-sm tracking-tight">{script.name}</span>
         <button

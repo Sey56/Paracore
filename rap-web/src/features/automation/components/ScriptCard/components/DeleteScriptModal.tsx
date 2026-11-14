@@ -1,11 +1,11 @@
 import React from 'react';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { FontAwesomeIcon } from "@/components/ui/Icon";
 import {
   faExclamationTriangle,
   faSpinner,
   faTrash,
   faInfoCircle
-} from "@fortawesome/free-solid-svg-icons";
+} from "@/components/ui/iconAliases";
 import { Modal } from '@/components/common/Modal';
 
 interface DeleteScriptModalProps {
@@ -52,20 +52,20 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
           <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border-l-4 border-red-500 flex gap-4 items-center">
             <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500 text-2xl" />
             <div>
-              <h3 className="text-red-800 dark:text-red-400 font-black uppercase tracking-tighter">Extreme Caution Required</h3>
+              <h3 className="text-red-800 dark:text-red-400 font-semibold  tracking-tighter">Extreme Caution Required</h3>
               <p className="text-xs text-red-700 dark:text-red-500/80 font-medium">This action cannot be undone.</p>
             </div>
           </div>
 
           <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
             You are about to permanently delete the {isGuard ? 'sentinel' : 'script'} <span className="font-bold text-slate-900 dark:text-white">"{displayName}"</span>.
-            This will destroy the entire automation folder, including your <span className="text-red-600 dark:text-red-400 font-bold underline">source code</span> inside <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded italic text-[11px]">Scripts/</code>.
+            This will destroy the entire automation folder, including your <span className="text-red-600 dark:text-red-400 font-bold underline">source code</span> inside <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded  text-caption">Scripts/</code>.
           </p>
 
           <button
             onClick={() => !isDeleting && onDelete()}
             disabled={isDeleting}
-            className="w-full py-4 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] transition-all text-white font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-red-500/20 disabled:opacity-50 disabled:pointer-events-none"
+            className="w-full py-4 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] transition-all text-white font-semibold  tracking-wide flex items-center justify-center gap-3 shadow-xl shadow-red-500/20 disabled:opacity-50 disabled:pointer-events-none"
           >
             {isDeleting ? (
               <>
@@ -80,7 +80,7 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
             )}
           </button>
 
-          <div className="p-3 bg-amber-50/50 dark:bg-amber-900/5 rounded-lg flex items-start gap-2 text-[10px] text-amber-700 dark:text-amber-500/60 font-medium italic">
+          <div className="p-3 bg-amber-50/50 dark:bg-amber-900/5 rounded-lg flex items-start gap-2 text-caption text-amber-700 dark:text-amber-500/60 font-medium ">
             <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
             <span>Note: If this project is currently open in VS Code, we will delete the contents immediately, but Windows may prevent removing the empty folder until you close the workspace.</span>
           </div>

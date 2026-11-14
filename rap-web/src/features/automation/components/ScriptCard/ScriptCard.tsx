@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
 import { Script } from "@/types/scriptModel";
 import styles from './ScriptCard.module.css';
 
@@ -81,7 +81,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
         backgroundColor: isSelected ? 'var(--bg-card-focus)' : 'var(--bg-card)',
         borderColor: isSelected ? 'var(--accent)' : 'var(--border-main)',
       }}
-      className={`${styles.scriptCard} script-card group rounded-xl shadow-sm transition-all duration-200 cursor-pointer flex flex-col relative ${isSelected ? styles.selectedCard : "border"
+      className={`${styles.scriptCard} script-card group rounded-xl  transition-all duration-200 cursor-pointer flex flex-col relative ${isSelected ? styles.selectedCard : "border"
         } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${isGuard ? styles.guardCard : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
       onClick={handleSelect}
       onDoubleClick={handleDoubleClick}

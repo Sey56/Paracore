@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrash, faCopy } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faTrash, faCopy } from '@/components/ui/iconAliases';
 import { Tooltip } from '@/components/common/Tooltip';
 import { useConsole } from '@/features/automation/store/ConsoleContext';
 import { useScriptExecution } from '@/features/automation';
@@ -21,32 +21,38 @@ export const OutputPanel: React.FC = () => {
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
-  const [hasUnviewedAnalytics, setHasUnviewedAnalytics] = useState(false);
-  const [isFlashingAnalytics, setIsFlashingAnalytics] = useState(false);
-  const [hasUnviewedHistory, setHasUnviewedHistory] = useState(false);
-  const [isFlashingHistory, setIsFlashingHistory] = useState(false);
+  // A result restored from localStorage (see useExecutionRunner's initial state)
+  // carries the PREVIOUS session's timestamp. The badges are EXECUTION
+  // notifications, not "data is present" indicators, so they must only fire for a
+  // result produced after this window mounted. Same session test as ConsoleContext.
+  const mountedAtRef = useRef<number>(Date.now());
 
-  // Analytics badge — only fires when data changes, not on tab switches
+  const [hasUnviewedAnalytics, setHasUnviewedAnalytics] = useState(false);
+  const [hasUnviewedHistory, setHasUnviewedHistory] = useState(false);
+
+  // Analytics badge — only when a table/chart arrived from THIS execution
   useEffect(() => {
+    const producedNow = (executionResult?.timestamp ?? 0) >= mountedAtRef.current;
+    if (!producedNow) return;
+
     const hasAnalytics = executionResult?.structuredOutput?.some(item =>
       ['table', 'chart-bar', 'chart-pie', 'chart-line'].includes(item.type)
     );
     if (!hasAnalytics) return;
 
-    setIsFlashingAnalytics(true);
-    setTimeout(() => setIsFlashingAnalytics(false), 1000);
     if (activeTabRef.current !== 'analytics') {
       setHasUnviewedAnalytics(true);
     }
   }, [executionResult]);
 
-  // History badge — only fires when data changes, not on tab switches
+  // History badge — same rule: only after an execution in this session
   useEffect(() => {
+    const producedNow = (executionResult?.timestamp ?? 0) >= mountedAtRef.current;
+    if (!producedNow) return;
+
     const hasHistory = executionResult?.output || executionResult?.error;
     if (!hasHistory) return;
 
-    setIsFlashingHistory(true);
-    setTimeout(() => setIsFlashingHistory(false), 1000);
     if (activeTabRef.current !== 'history') {
       setHasUnviewedHistory(true);
     }
@@ -120,7 +126,7 @@ export const OutputPanel: React.FC = () => {
             History
             {hasUnviewedHistory && (
               <span className="absolute top-2 -right-0.5 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className=" absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500 border border-white dark:border-slate-800"></span>
               </span>
             )}
@@ -132,7 +138,7 @@ export const OutputPanel: React.FC = () => {
             Analytics
             {hasUnviewedAnalytics && (
               <span className="absolute top-2 -right-0.5 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className=" absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500 border border-white dark:border-slate-800"></span>
               </span>
             )}

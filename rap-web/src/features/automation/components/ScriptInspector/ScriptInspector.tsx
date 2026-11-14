@@ -5,8 +5,8 @@ import { useScripts } from '../../hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useAuth } from '@/features/auth';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faInfoCircle, faArrowLeft, faCode, faEdit } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faInfoCircle, faArrowLeft, faCode, faEdit } from '@/components/ui/iconAliases';
 import { MetadataTabContent } from './MetadataTabContent';
 import { Tooltip } from '@/components/common/Tooltip';
 
@@ -51,18 +51,21 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
   return (
     <div className="flex flex-col h-full rounded-none shadow-none bg-white dark:bg-slate-900 overflow-hidden min-w-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 shrink-0">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] flex-shrink-0" />
+      <div className="flex items-center justify-between gap-3 px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 shrink-0">
+        <div className="flex items-center gap-3 min-w-0 max-w-[35%] shrink-0 overflow-hidden">
+          <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
           <span
-            className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate"
+            className="text-caption font-bold text-slate-700 dark:text-slate-200 truncate"
             title={script.metadata?.displayName || script.name}
           >
             {script.metadata?.displayName || script.name}
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        {/* Preset toolbar is owned by ParametersTab but renders here so it stays visible. */}
+        <div id="preset-controls-slot" className="flex-1 min-w-0 flex items-center overflow-hidden" />
+
+        <div className="flex items-center gap-1 shrink-0">
           <Tooltip text="View Code" position="bottom-center">
             <button
               onClick={toggleFloatingCodeViewer}
@@ -109,7 +112,7 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
       {isMetadataOpen && script.metadata && (
         <div className="border-b border-slate-200/60 dark:border-slate-700/40 bg-slate-50/80 dark:bg-slate-900/60 animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center px-5 pt-3 pb-1">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Script Info</span>
+            <span className="text-xs font-semibold text-slate-400  tracking-wide">Script Info</span>
           </div>
           <div className="px-5 pb-4 max-h-[200px] overflow-y-auto custom-scrollbar">
             <MetadataTabContent metadata={script.metadata} scriptName={script.name} />

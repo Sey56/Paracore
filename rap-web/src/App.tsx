@@ -7,8 +7,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { SentinelControlList } from "@/features/automation/components/SentinelControlList";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { useWatchdog } from "@/context/providers/WatchdogProvider";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldHeart, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@/components/ui/Icon';
+import { faShieldHeart, faSpinner } from '@/components/ui/iconAliases';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
   constructor(props: { children: ReactNode }) {
@@ -106,8 +106,8 @@ function AppContent() {
         <div className="h-screen flex flex-col bg-slate-900">
           {/* Header for detached sentinel window */}
           <div className="p-5 pb-3 border-b border-white/5 flex items-center justify-between select-none" data-tauri-drag-region>
-            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.25em] flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
+            <h3 className="text-caption font-bold text-slate-400  tracking-wide flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-blue-500  animate-pulse" />
               Sentinel Control
             </h3>
           </div>
@@ -121,11 +121,11 @@ function AppContent() {
 
       {/* Graceful Shutdown Gate Overlay */}
       {isShuttingDown && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-black/60 backdrop-blur-[100px] transition-all duration-300">
-          <div className="flex flex-col items-center justify-center space-y-8 w-88 aspect-square rounded-[3rem] bg-white/60 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-600/50 shadow-2xl text-center backdrop-blur-md">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-black/70 transition-all duration-300">
+          <div className="flex flex-col items-center justify-center space-y-8 w-88 aspect-square rounded-2xl bg-white/85 dark:bg-slate-800/75 border border-slate-200/50 dark:border-slate-600/50 text-center">
             <div className="relative">
-              <div className="absolute inset-0 rounded-[2rem] bg-amber-500/20 animate-ping"></div>
-              <div className="relative bg-amber-500 rounded-[2rem] p-5 shadow-lg shadow-amber-500/30 dark:shadow-amber-900/40">
+              <div className="absolute inset-0 rounded-xl bg-amber-500/15 "></div>
+              <div className="relative bg-amber-500 rounded-xl p-5">
                 <FontAwesomeIcon icon={faShieldHeart} className="text-white text-3xl opacity-80" />
               </div>
             </div>
