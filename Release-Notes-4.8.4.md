@@ -379,8 +379,8 @@ supplies its own .NET 10 host) · ASP.NET Core runtime 8.x, 9.x or 10.x.
 These were found *after* the version bump, while the 4.8.4 installers were being tested on the
 local machine. They are part of 4.8.4, not a later patch. **None of them touches the engine, the
 add-in or the wire contract.** Commit accounting: the 30 release-window commits in §6, plus
-`5cf9e449` (paracore notes) and `f0ebde2` (gen notes), plus the commit carrying these fixes and
-this document — **33 commits across the three repositories**.
+`5cf9e449` (paracore notes) and `f0ebde2` (gen notes), plus the two release-candidate fix commits
+(`c1d7f04d` and the one carrying §10.5–§10.6) — **34 commits across the three repositories**.
 
 ### 10.1 The configurator's numeric entry is now selectable
 
@@ -438,9 +438,41 @@ script editor, so statements need semicolons and output needs `Println()`; the d
 playground's expression-print behaviour does not belong there. `GetVal(name)` keeps its exact,
 unit-aware behaviour.
 
-**Verification of this batch:** `npx tsc -b` (`rap-web/`) exits 0 — the command `npm run build`
-uses. The strict `tsconfig.app.json` still reports **213** diagnostics, exactly the pre-existing
-baseline (§9); no new diagnostic appears in any touched file. `git diff --check` is clean.
+### 10.5 The selection highlight is visible again — a CSS token collision
+
+The §10.1 selection logic **worked**: local testing proved it, because clicking once and then
+typing replaced the whole number. What was missing was the **highlight**, so the field looked
+untouched. Root cause: `themes.css` defines the brand `--accent` as `#3b82f6` (light) / `#61afef`
+(dark), but the shadcn compatibility block at `globals.css:282` **redefines `--accent` as
+`var(--bg-card)`** — the card background. `::selection` therefore used
+`color-mix(in srgb, var(--accent) 28%, transparent)`, i.e. a translucent version of the input's
+own background painted over the input's own background. `globals.css` now uses explicit opaque
+brand colours (`#3b82f6` on white text; `#61afef` on near-black text under `.dark`) that do not
+depend on the shadowed token. This fixes every text selection in the app, not just the slider.
+
+### 10.6 Step spinners are back in the numeric entry
+
+`rap-web/src/features/automation/components/ScriptInspector/SliderInput.tsx`. The entry used to be
+`<input type="number" min max step>` with native up/down spinners; commit `6d0d4e6a` (the
+precision fix that preserves trailing zeros) changed it to `type="text"` and the spinners silently
+disappeared. Switching back would reintroduce the decimal-typing bug (`"6."` reads back as `""` on
+a number input), so the arrows are drawn instead: two chevron buttons inside the right edge of the
+entry, plus `ArrowUp` / `ArrowDown` on the keyboard. They **snap to the step grid anchored at
+`min`** — `[Range(0, 100, 5)]` yields `0, 5, 10 … 100`, and an off-grid typed `3` steps up to `5`,
+not `8` — clamp to `[min, max]`, and commit immediately instead of through the 16 ms debounce.
+`onMouseDown` calls `preventDefault()` so a spinner button never steals focus and cannot fire the
+text field's `onBlur`.
+
+Verified live against the running `dev.ps1` Vite server by rendering the real `SliderInput` with
+`[Range(0, 100, 5)]` and driving it with real mouse events: one click selects `0..2` of `"20"`,
+double-click selects the whole value, the up arrow turns `20` → `25`, and `ArrowUp` from an
+off-grid `3` yields `5`. The user then confirmed the visible highlight and the spinners in the
+running desktop webview. The probe page is a local, git-excluded dev-only file.
+
+**Verification of the whole §10 batch:** `npx tsc -b` (`rap-web/`) exits 0 — the command
+`npm run build` uses. The strict `tsconfig.app.json` still reports **213** diagnostics, exactly the
+pre-existing baseline (§9); no new diagnostic appears in any touched file. `git diff --check` is
+clean; `python .repl/gate.py` returns PASS (23 auto green, 1 known-red F5, 16 manual not run).
 
 ---
 
@@ -449,13 +481,13 @@ baseline (§9); no new diagnostic appears in any touched file. `git diff --check
 | item | state |
 |---|---|
 | `paracore-mcp-core` committed, pushed, tagged `release-4.8.4` | ✅ `c4b57f6`, in sync with origin |
-| `paracore` committed and pushed | ✅ including the release-candidate fixes in §10 |
+| `paracore` committed and pushed | ✅ including both release-candidate fix commits (§10.1–§10.6) |
 | `paracore-gen` committed and pushed | ✅ `f0ebde2`, in sync with origin |
 | `Paracore_Addin_v4.8.4.exe` | ✅ built 12:05 and installed; installed `CoreScript.Engine.dll` is the 4.8.4 build — **not affected by §10** |
 | `Paracore-Gen-v2.1.3.exe` | ✅ built 12:07; all 10 connector tools tested in Claude Desktop, read-only guard and write/restore on wall `359588` verified — **not affected by §10** |
-| Desktop app | ✅ installed and working; remaining UI defects are the ones fixed in §10.1–§10.3 |
+| Desktop app UI | ✅ tooltips, down-caret, visible selection highlight and step-snapping spinners all confirmed in the running `dev.ps1` webview |
 | `corescript-4.8.4.vsix` | ⏳ **must be rebuilt** — the file in `installers/` predates the §10.4 source fix |
-| `Paracore_4.8.4_x64.msi` | ⏳ **must be rebuilt** — the file built 13:16 predates the §10.1–§10.3 source fixes |
+| `Paracore_4.8.4_x64.msi` | ⏳ **must be rebuilt** — the installed build predates §10.1–§10.3 and §10.5–§10.6 |
 | GitHub `v4.8.4` release page + four assets, `v2.1.3` pointer | ⏳ not created; publication is held |
 
 **Do not publish** until the VSIX and MSI have been rebuilt from the pushed §10 commits,

@@ -11,13 +11,13 @@ reading as `0`. Numbers are exact unless you pass `decimals`. The desktop app no
 its font or icons from the network, and an AI-driven gallery run no longer leaves a Revit dialog
 unanswered. Ships with **Paracore-Gen v2.1.3**.
 
-Local-testing fixes also land in 4.8.4: the configurator's numeric entries are selectable, the
-preset toolbar shows its tooltips again, the presets dropdown uses a normal down-caret instead of
-a refresh icon, and the VS Code extension prints a compile error once instead of twice.
+Local-testing fixes also land in 4.8.4: the configurator's numeric entries are selectable with a
+visible highlight and have step-snapping spinner arrows again; the preset toolbar shows its
+tooltips again; the presets dropdown uses a normal down-caret instead of a refresh icon; and the
+VS Code extension prints a compile error once instead of twice.
 
-The [technical notes](Release-Notes-4.8.4.md) carry a complete inventory of all 30 release-window
-commits across the three repositories plus every release-candidate fix, with measured before/after
-examples.
+The [technical notes](Release-Notes-4.8.4.md) carry a complete inventory of all 34 commits across
+the three repositories, including every release-candidate fix, with measured before/after examples.
 
 ---
 

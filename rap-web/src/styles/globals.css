@@ -367,8 +367,20 @@ body,
   --radius: 0.5rem;
 }
 
+/* ⚠ `--accent` is REDEFINED by the shadcn compatibility block above as
+   `var(--bg-card)` — the CARD BACKGROUND, not the brand blue from themes.css.
+   The old `color-mix(... var(--accent) 28%, transparent)` therefore painted
+   the selection highlight in nearly the input's own background colour: the
+   text WAS selected (typing replaced it) but the highlight was invisible.
+   Use explicit opaque brand colours so a selection is unmistakable. */
 ::selection {
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.dark ::selection {
+  background: #61afef;
+  color: #10131a;
 }
 
 @media (prefers-reduced-motion: reduce) {
