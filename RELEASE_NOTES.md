@@ -8,16 +8,25 @@ Category-filtered queries now return only the category you asked for instead of 
 heads, mullions and sibling categories into the result. A valid parameter name that the current
 category does not declare (for example `"Base Offset"` on Doors) now says so instead of silently
 reading as `0`. Numbers are exact unless you pass `decimals`. The desktop app no longer fetches
-its font or icons from the network, and an AI-driven gallery run no longer leaves a Revit dialog
-unanswered. Ships with **Paracore-Gen v2.1.3**.
+its font or icons from the network. Ships with **Paracore-Gen v2.1.3**.
+
+> **Two products, one release page.** The [technical notes](Release-Notes-4.8.4.md) and the
+> [v4.8.4 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.4) separate
+> **Part A — Paracore 4.8.4** (engine, Revit add-in, desktop app and VS Code extension) from
+> **Part B — Paracore-Gen 2.1.3** (the MCP server, its wire client and the shared `mcp_core`
+> library). Sandboxing / capability refusal, the consent gate, workspace confinement, the read-only
+> guard, dangerous-pattern scans, bulk-write advisories and the dialog watcher are **Part B /
+> MCP concerns**, not add-in features. The earlier v4.8.3 page did not make that distinction.
 
 Local-testing fixes also land in 4.8.4: the configurator's numeric entries are selectable with a
 visible highlight and have step-snapping spinner arrows again; the preset toolbar shows its
 tooltips again; the presets dropdown uses a normal down-caret instead of a refresh icon; and the
 VS Code extension prints a compile error once instead of twice.
 
-The [technical notes](Release-Notes-4.8.4.md) carry a complete inventory of all 34 commits across
-the three repositories, including every release-candidate fix, with measured before/after examples.
+The [technical notes](Release-Notes-4.8.4.md) carry a complete inventory of all 34 shipped code
+commits across the three repositories, including every release-candidate fix, with measured
+before/after examples. The two later product-split documentation commits in `paracore` and
+`paracore-gen` are metadata-only and are described in the notes themselves.
 
 ---
 

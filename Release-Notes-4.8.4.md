@@ -18,6 +18,30 @@ its own UI.
 > Scripts that were already correct keep working. Scripts that were reading a fabricated `0` from a
 > parameter that does not exist now get a clear error instead of a fake measurement.
 
+## 0. Product split — read this first
+
+> **⚠ TWO PRODUCTS — do not mix them.** This release page carries four installers, but they belong
+> to **two different products with independent version lines**. The earlier release page mixed
+> them together; this note keeps them apart.
+>
+> | product | version | installers | where its changes are documented |
+> |---|---|---|---|
+> | **Part A — Paracore** — the free C# engine, Revit add-in, desktop app and VS Code extension | `4.8.4` | `Paracore_4.8.4_x64.msi`, `Paracore_Addin_v4.8.4.exe`, `corescript-4.8.4.vsix` | §2, §3, the Part A rows of §4, §5, §6.1, §9 and §10 |
+> | **Part B — Paracore-Gen** — the MCP server, its `paracore/mcp` wire client and the shared `mcp_core` library | `2.1.3` | `Paracore-Gen-v2.1.3.exe` | the Part B rows of §4, §6.2, §6.3, §7, §9, and [`Release-Notes-2.1.3.md`](https://github.com/Sey56/paracore-gen/blob/main/Release-Notes-2.1.3.md) |
+
+**Part A — Paracore 4.8.4** covers the engine, Revit add-in, desktop app and VS Code extension.
+No MCP-server or shared-core security behaviour is claimed here as an add-in feature.
+
+**Part B — Paracore-Gen 2.1.3** covers the MCP server, the `paracore/mcp` wire client bundled into
+its exe, and the shared core. **Sandboxing / capability refusal, the consent gate, workspace
+confinement, the read-only guard, the dangerous-pattern scan, bulk-write advisories and the dialog
+watcher are Part B / MCP concerns**, not add-in features. This includes the `execute_script`
+dialog gate in §4. The 4.8.3 release page listed security and correctness without a product
+boundary; this note does not repeat that mistake.
+
+§1 (downloads), §8 (versioning), §11 (release readiness) and the three-repo inventory heading in
+§6 are shared release mechanics. §6.1 is Part A; §6.2 and §6.3 are Part B.
+
 ---
 
 ## 1. Download — one page, four installers
@@ -195,31 +219,38 @@ tracking and glow because each call site invented its own `text-[11px]` / `round
 
 ---
 
-## 4. Gates and tooling
+## 4. Gates and tooling — Part A / Part B split
+
+### Part A — Paracore tooling
+
+- **`scripts/check-installed-addin.py`** gained a `_unitToken` anchor so an installed 4.8.3 engine
+  cannot pass the symbol check while reporting numbers the 4.8.4 source no longer produces. The
+  earlier anchors were **retargeted, not deleted**.
+- **Bundled desktop AI-workspace skill examples (`06f42ca4`)** switched from `.ToList()` chains
+  and `List<ElementId>` to C# collection expressions (`[.. ...]`) and the enumerable overloads —
+  the form the engine sandbox actually accepts. Authority is `ai/desktop/skills/`; the two
+  `rap-server` copies are generated mirrors. These are desktop AI-workspace examples, not
+  MCP-server security behaviour.
+- **Generated documentation** (`7676bced`, `4c66b528`, `06bc10ed`, `12e321bb`):
+  `EXTENSION_METHODS.md` and its four shipped mirrors, `REPL_GUIDE.md`, the generated API index,
+  and the engine skills in the AI tree were regenerated from the new source so the reference and
+  the shipped engine agree.
+
+### Part B — Paracore-Gen / MCP tooling
 
 - **`execute_script` opens the dialog-watcher in-flight gate (`7769b1b3`).** Measured 2026-11-11:
   a *"Highlighted floors overlap."* modal stayed on screen through a whole `preview_tool` run and
   Forge timed out with the dialog still up; `DialogWatcher.txt` held only startup lines because
   every scan hit `if not call_in_flight(): continue`. Forge calls `ExecuteScript`, **not**
   `ExecuteRepl`, so the resident watcher was never permitted to answer a modal blocking our own
-  call. `mcp/grpc_client.py` now resolves the watcher through `sys.modules` (never a second copy
-  by path, which would own a different `_call_depth`) and wraps the stub call in `revit_call()`
-  when a watcher is resident. The desktop `rap-server` / manual Gallery path imports no watcher
-  and stays operator-driven.
+  call. `paracore/mcp/grpc_client.py` — the wire client bundled into the Paracore-Gen exe — now
+  resolves the watcher through `sys.modules` (never a second copy by path, which would own a
+  different `_call_depth`) and wraps the stub call in `revit_call()` when a watcher is resident.
+  The desktop `rap-server` / manual Gallery path imports no watcher and stays operator-driven.
 - **New `scripts/check-warning-awareness.py`**: 8 subjects, 39 anchors, 3 `create_server`
   consumers, takeoff explicitly excluded, **an empty scan FAILS**, and `--prove-teeth` proves the
-  anchors bite. Registered in `.repl/gates.json`.
-- **`scripts/check-installed-addin.py`** gained a `_unitToken` anchor so an installed 4.8.3 engine
-  cannot pass the symbol check while reporting numbers the 4.8.4 source no longer produces. The
-  earlier anchors were **retargeted, not deleted**.
-- **Bundled AI skill examples (`06f42ca4`)** switched from `.ToList()` chains and
-  `List<ElementId>` to C# collection expressions (`[.. ...]`) and the enumerable overloads — the
-  form the engine sandbox actually accepts. Authority is `ai/desktop/skills/`; the two `rap-server`
-  copies are generated mirrors.
-- **Generated documentation** (`7676bced`, `4c66b528`, `06bc10ed`, `12e321bb`):
-  `EXTENSION_METHODS.md` and its four shipped mirrors, `REPL_GUIDE.md`, the generated API index,
-  and the engine skills in the AI tree were regenerated from the new source so the reference and
-  the shipped engine agree.
+  anchors bite. Registered in `.repl/gates.json`. This gate guards MCP-server warning awareness;
+  `paracore-gen`'s new `tests/test_dialog_watcher_gate.py` pins the same in-flight gate.
 
 ---
 
@@ -248,8 +279,11 @@ tracking and glow because each call site invented its own `text-[11px]` / `round
 Baselines: `paracore` `v4.8.3` = `22d928a` · `paracore-gen` `v2.1.2` = `e0b6334` ·
 `paracore-mcp-core` = `9d414e1` (the `CORE_VERSION` the released 2.1.2 exe recorded; this library
 has no semver tag). **30 release-window commits in total: 14 + 6 + 10.** Every one is listed
-below. The three follow-up commits written after the version bump — two release-notes commits and
-the release-candidate fixes — are inventoried in §10, bringing the shipped total to **33**.
+below. The four follow-up commits written after the version bump — `5cf9e449` and `f0ebde2`
+(release-notes inventories) plus `c1d7f04d` and `41a2d763` (release-candidate fixes) — are
+inventoried in §10, bringing the shipped **code** total to **34**. Two later product-split
+documentation commits — this one in `paracore` and its counterpart in `paracore-gen` — are
+metadata-only; they change no installer, runtime source or wire contract.
 
 ### 6.1 `paracore` — 14 commits (`v4.8.3..d34dfe7b`)
 
@@ -284,10 +318,12 @@ its own. Its changes are the **runtime** behaviour Paracore-Gen 2.1.3 inherits.
 | `058c0a6` | 11-12 | **No dialog note is lost; two Revit failure channels taught separately.** Measured 2026-11-11 13:10: two *"Insert conflicts with joined Wall."* dialogs were answered but only the first reached the agent, because `_record()` published only after the up-to-1.2 s close confirmation and the next call destructively pre-drained the late record. `_record()` now publishes at **decision time** (by reference, so `closed`/`how` are visible mid-click); `single_flight` never pre-drains — a late record is reported on the next call, labelled `late`. `_settle_dialogs()` waits up to 1 s only when a dialog was seen recently and nothing has been recorded, so an ordinary call pays no latency. `COMMON_RULES` now separates the **blocking modal** the watcher answers from the **persistent (reviewable) warning** in the document read with `Doc.GetWarnings()`, which can be non-blocking or appear with no dialog at all; pins the baseline/delta recipe, counts **per description**, `GetFailingElements() -> e.Value`, adjust-and-rerun until zero, and never suppresses a failure (no `IFailuresPreprocessor`). |
 | `c4b57f6` | 11-12 | `object.GetType().Name` resolves `.Name` through `System.Reflection.MemberInfo`, so the sandbox refuses it — but `check_dangerous_patterns` never caught the source and the agent got a bare refusal. The hint now points at typed checks (`x is ModelLine ? "ModelLine" : ...`) and `ex.Message`, and forbids reaching for reflection by another route. `suggest_for_error()` is exposed so compile-only tools (Forge `validate_tool`, which returns the engine's raw result) get the same guidance. |
 
-### 6.3 `paracore-gen` — 10 commits (`v2.1.2..7a27026`)
+### 6.3 `paracore-gen` — 10 release-window commits (`v2.1.2..7a27026`)
 
-This repo's **runtime code changed only in comments**. Everything functional is inherited from
-`paracore-mcp-core` (§6.2); the rest is generated documentation, tests and public-repo hygiene.
+This repo's **runtime code changed only in comments**. The functional changes are inherited from
+`paracore-mcp-core` (§6.2) and from the `paracore/mcp/grpc_client.py` wire client (§4, Part B);
+the rest is generated documentation, tests and public-repo hygiene. A later product-split
+documentation commit in this repo is metadata-only and is described in §0.
 
 | commit | date | change |
 |---|---|---|
@@ -334,15 +370,14 @@ and it is tagged `release-4.8.4` in this release.
 
 ## 9. Verification
 
-Rows measured on the **source tree** unless stated otherwise. Nothing here is a claim about the
-installed 4.8.4 build; installer and live-Revit rows are measured after the install and belong in
-the published release body.
+Rows measured on the **source tree** unless stated otherwise. Installer and live-Revit results are
+recorded in §11 and in the published release body; they are not implied by a source-tree check.
 
 | check | result |
 |---|---|
 | `paracore/scripts/Set-Version.ps1 -Check` (16 surfaces) | all at 4.8.4 |
 | `paracore-gen/Set-Version.ps1 -Check` | all at 2.1.3 |
-| `python .repl/gate.py` (before rebuild) | PASS — 23 auto green, 1 known-red F5 (`workspace-map`), 16 manual not run |
+| `python .repl/gate.py` (final run after install) | PASS — 23 auto green, 1 known-red F5 (`workspace-map`), 16 manual not run |
 | `scripts/gen-engine-docs.py --check` | 12/12 targets up to date |
 | `verify_gen_docs` / `mcp-engine-drift` / `ext-method-audit` / `ai-tree` | clean |
 | `EXTENSION_METHODS.md` / `REPL_GUIDE.md`, paracore ↔ gen | byte-identical |
@@ -365,9 +400,9 @@ adds an error.
 shipped artifact. It was open in v4.8.3 too. Ten of its twelve rows were corrected for this
 release; the remaining two are private repos deliberately not pushed in a public release.
 
-⚠ **`installed-addin`** is expected to stay **red** until the fresh 4.8.4 add-in installer is
-installed with admin/UAC. That gate compares the installed DLL against the current build; it is
-doing its job, not reporting a defect.
+**`installed-addin`** was green in the final gate run after the fresh 4.8.4 add-in installer was
+installed with admin/UAC. §10 touches only the desktop frontend and VS Code extension, so the
+installed engine / add-in DLL was not rebuilt again for those fixes.
 
 **Requirements:** Revit 2025, 2026 or 2027 · Windows x64 · .NET 8 Desktop Runtime (Revit 2027
 supplies its own .NET 10 host) · ASP.NET Core runtime 8.x, 9.x or 10.x.
@@ -380,7 +415,8 @@ These were found *after* the version bump, while the 4.8.4 installers were being
 local machine. They are part of 4.8.4, not a later patch. **None of them touches the engine, the
 add-in or the wire contract.** Commit accounting: the 30 release-window commits in §6, plus
 `5cf9e449` (paracore notes) and `f0ebde2` (gen notes), plus the two release-candidate fix commits
-(`c1d7f04d` and the one carrying §10.5–§10.6) — **34 commits across the three repositories**.
+(`c1d7f04d` and the one carrying §10.5–§10.6) — **34 shipped code commits across the three
+repositories**. The two later product-split documentation commits are metadata-only (§0, §11).
 
 ### 10.1 The configurator's numeric entry is now selectable
 
@@ -476,20 +512,24 @@ clean; `python .repl/gate.py` returns PASS (23 auto green, 1 known-red F5, 16 ma
 
 ---
 
-## 11. Release readiness
+## 11. Release readiness — READY
 
 | item | state |
 |---|---|
 | `paracore-mcp-core` committed, pushed, tagged `release-4.8.4` | ✅ `c4b57f6`, in sync with origin |
-| `paracore` committed and pushed | ✅ including both release-candidate fix commits (§10.1–§10.6) |
-| `paracore-gen` committed and pushed | ✅ `f0ebde2`, in sync with origin |
+| `paracore` committed and pushed | ✅ including both release-candidate fix commits (§10.1–§10.6) and the product-split documentation |
+| `paracore-gen` committed and pushed | ✅ `f0ebde2` plus the product-split documentation commit, in sync with origin |
 | `Paracore_Addin_v4.8.4.exe` | ✅ built 12:05 and installed; installed `CoreScript.Engine.dll` is the 4.8.4 build — **not affected by §10** |
-| `Paracore-Gen-v2.1.3.exe` | ✅ built 12:07; all 10 connector tools tested in Claude Desktop, read-only guard and write/restore on wall `359588` verified — **not affected by §10** |
+| `Paracore-Gen-v2.1.3.exe` | ✅ built 12:07 in `paracore-gen/installers`; all 10 connector tools tested in Claude Desktop, read-only guard and write/restore on wall `359588` verified — **not affected by §10** |
+| `corescript-4.8.4.vsix` | ✅ rebuilt 16:04 from the pushed §10.4 source fix; manifest 4.8.4, dedup filter verified in the bundle |
+| `Paracore_4.8.4_x64.msi` | ✅ rebuilt 16:02 from the pushed §10.1–§10.3 and §10.5–§10.6 fixes; installed and working |
+| Built frontend CSS / JS | ✅ new `::selection` rule and spinner code present |
 | Desktop app UI | ✅ tooltips, down-caret, visible selection highlight and step-snapping spinners all confirmed in the running `dev.ps1` webview |
-| `corescript-4.8.4.vsix` | ⏳ **must be rebuilt** — the file in `installers/` predates the §10.4 source fix |
-| `Paracore_4.8.4_x64.msi` | ⏳ **must be rebuilt** — the installed build predates §10.1–§10.3 and §10.5–§10.6 |
-| GitHub `v4.8.4` release page + four assets, `v2.1.3` pointer | ⏳ not created; publication is held |
+| `python .repl/gate.py` | ✅ PASS — 23 auto green, 1 known-red F5 (`workspace-map`), 16 manual not run |
+| Windows ProductVersion / VSIX manifest | ✅ add-in 4.8.4, gen 2.1.3, VSIX 4.8.4 |
+| Four release assets | ✅ all present and verified; the [v4.8.4 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.4) is the single download location, with `v2.1.3` as a pointer release |
 
-**Do not publish** until the VSIX and MSI have been rebuilt from the pushed §10 commits,
-reinstalled, and the local smoke test has been repeated against those two new builds. The add-in
-installer and the gen exe do not need rebuilding.
+**No further rebuild is required.** The product-split and final-readiness edits are documentation
+only and do not alter any installer. The add-in installer and the gen exe were already built from
+the pushed runtime code; the MSI and VSIX were rebuilt after the two §10 frontend / editor fix
+commits.

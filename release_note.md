@@ -1,7 +1,7 @@
 > **STATUS: HISTORICAL — this file describes v4.2.0 and stops there.**
 >
 > The release notes for the CURRENT release live in the help site:
-> `paracore-help/docs/release-notes.md` (authoritative, covers V4.3.0 → V4.8.1).
+> `paracore-help/docs/release-notes.md` (authoritative, covers V4.3.0 → V4.8.4).
 >
 > ⚠ This file sat unchanged from 2026-06-21 while six releases shipped, so anyone who
 > opened it to ask "what is the current release?" got `v4.2.0` — a false answer, in the
