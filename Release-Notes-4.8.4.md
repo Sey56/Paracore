@@ -4,8 +4,8 @@
 
 An accuracy and reliability update. Category-scoped element queries now return only the category
 you asked for, parameter reads that used to invent a `0` now name what is wrong, numbers keep their
-real digits unless you ask for rounding, and the desktop app no longer needs the network to draw
-its own UI.
+real digits unless you ask for rounding, and the desktop app now bundles the fonts and icons
+used by its own UI.
 
 > **Supersedes the published v4.8.3 (2026-11-06).** Everything in
 > [v4.8.3](https://github.com/Sey56/Paracore/blob/main/Release-Notes-4.8.3.md) is included here,
@@ -198,7 +198,7 @@ attribute classes. `RevitElementsAttribute` and every named argument on it are u
 
 ---
 
-## 3. Desktop app — the UI works fully offline
+## 3. Desktop app — self-hosted UI assets
 
 `1e8738ca`, 81 files, +882 / −690. The app loaded Inter from Google Fonts over the network and
 drew every glyph through FontAwesome's font-based renderer; 79 files disagreed about radius, size,
@@ -210,8 +210,8 @@ tracking and glow because each call site invented its own `text-[11px]` / `round
   explicit `w-*` / `h-*` still win. `iconAliases.ts` maps the old `fa*` names. **Both modules must
   ship together** — 40+ tracked files import them.
 - `main.tsx` imports the self-hosted `@fontsource-variable/geist` (already declared in
-  `package.json`); `index.html` drops the three Google Fonts links. **No network dependency for
-  the UI.**
+  `package.json`); `index.html` drops the three Google Fonts links. **All fonts and icons used by
+  the UI are local files.**
 - `globals.css` declares one radius scale (`--radius: 0.5rem`), one selection colour, an em-based
   icon base rule, a `prefers-reduced-motion` opt-out, and tighter panel padding below 1280px for
   125–150% Windows scaling. Arbitrary per-call-site sizes, blurs, glows and tracking values

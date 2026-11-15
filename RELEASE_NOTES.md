@@ -1,4 +1,4 @@
-## Paracore v4.8.4 — exact categories, exact numbers, honest errors, offline UI
+## Paracore v4.8.4 — exact categories, exact numbers, honest errors, self-hosted UI
 
 Full notes: [Release-Notes-4.8.4.md](Release-Notes-4.8.4.md) ·
 [All four installers](https://github.com/Sey56/Paracore/releases/tag/v4.8.4)
@@ -7,8 +7,8 @@ An accuracy and reliability **update** — not a breaking change; no public API 
 Category-filtered queries now return only the category you asked for instead of leaking tags,
 heads, mullions and sibling categories into the result. A valid parameter name that the current
 category does not declare (for example `"Base Offset"` on Doors) now says so instead of silently
-reading as `0`. Numbers are exact unless you pass `decimals`. The desktop app no longer fetches
-its font or icons from the network. Ships with **Paracore-Gen v2.1.3**.
+reading as `0`. Numbers are exact unless you pass `decimals`. The desktop app now bundles the
+fonts and icons used by its UI. Ships with **Paracore-Gen v2.1.3**.
 
 > **Two products, one release page.** The [technical notes](Release-Notes-4.8.4.md) and the
 > [v4.8.4 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.4) separate
