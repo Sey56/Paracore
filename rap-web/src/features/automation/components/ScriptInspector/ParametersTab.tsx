@@ -14,7 +14,9 @@ import {
   faExternalLinkAlt,
   faUndo,
   faLayerGroup,
+  faChevronDown,
 } from "@/components/ui/iconAliases";
+import { Tooltip } from "@/components/common/Tooltip";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
 import { useScriptExecution } from "@/features/automation";
@@ -260,56 +262,73 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                   <option key={i} value={preset.name}>{preset.name}</option>
                 ))}
               </select>
-              <FontAwesomeIcon icon={faSync} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none opacity-50" />
+              {/* A down-caret, not a refresh glyph: this control only opens the list of
+                  saved presets, it never reloads anything. */}
+              <FontAwesomeIcon icon={faChevronDown} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-400 pointer-events-none" />
             </div>
 
+            {/* ⚠ These buttons live in a Portal rendered into the inspector header, whose
+                slot is `overflow-hidden`. The app-wide CSS tooltip (native `title` is
+                converted to `data-tooltip` by main.tsx) is absolutely positioned and is
+                CLIPPED by that ancestor - which is why the tooltips vanished when the
+                preset manager moved up into the header. Use the portal-based <Tooltip>
+                the rest of the header already uses; it renders into document.body. */}
             <div className="flex items-center gap-0.5 shrink-0">
-              <button
-                onClick={toggleAllGroups}
-                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors duration-150 ${areGroupsExpanded
-                  ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
-                  : "text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800"
-                  }`}
-                title={areGroupsExpanded ? "Collapse All Groups" : "Expand All Groups"}
-              >
-                <div className="relative">
-                  <FontAwesomeIcon icon={faLayerGroup} className="text-xs" />
-                  <div className={`absolute -right-1 -bottom-1 w-1.5 h-1.5 rounded-full border border-slate-100 dark:border-slate-800 transition-colors ${areGroupsExpanded ? "bg-blue-500" : "bg-slate-400"}`}></div>
-                </div>
-              </button>
+              <Tooltip text={areGroupsExpanded ? "Collapse Configurator" : "Expand Configurator"} position="bottom-center">
+                <button
+                  onClick={toggleAllGroups}
+                  className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors duration-150 ${areGroupsExpanded
+                    ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                    : "text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    }`}
+                >
+                  <div className="relative">
+                    <FontAwesomeIcon icon={faLayerGroup} className="text-xs" />
+                    <div className={`absolute -right-1 -bottom-1 w-1.5 h-1.5 rounded-full border border-slate-100 dark:border-slate-800 transition-colors ${areGroupsExpanded ? "bg-blue-500" : "bg-slate-400"}`}></div>
+                  </div>
+                </button>
+              </Tooltip>
 
               <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
 
               {isDefaultPreset ? (
-                <button
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-                  onClick={() => setIsResetModalOpen(true)}
-                  disabled={!isActionable || isRunning}
-                  title="Reset to Defaults"
-                >
-                  <FontAwesomeIcon icon={faUndo} className="text-xs" />
-                </button>
+                <Tooltip text="Reset all parameters to script defaults" position="bottom-center">
+                  <button
+                    className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                    onClick={() => setIsResetModalOpen(true)}
+                    disabled={!isActionable || isRunning}
+                  >
+                    <FontAwesomeIcon icon={faUndo} className="text-xs" />
+                  </button>
+                </Tooltip>
               ) : (
                 <>
-                  <button title="Rename Configuration" className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" onClick={handleRenamePreset}>
-                    <FontAwesomeIcon icon={faEdit} className="text-xs" />
-                  </button>
-                  <button title="Update Configuration" className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" onClick={handleUpdatePreset}>
-                    <FontAwesomeIcon icon={faSync} className="text-xs" />
-                  </button>
-                  <button title="Delete Configuration" className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors" onClick={handleDeletePreset}>
-                    <FontAwesomeIcon icon={faTrash} className="text-xs" />
-                  </button>
+                  <Tooltip text="Rename Configuration" position="bottom-center">
+                    <button className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" onClick={handleRenamePreset}>
+                      <FontAwesomeIcon icon={faEdit} className="text-xs" />
+                    </button>
+                  </Tooltip>
+                  <Tooltip text="Update Configuration" position="bottom-center">
+                    <button className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" onClick={handleUpdatePreset}>
+                      <FontAwesomeIcon icon={faSync} className="text-xs" />
+                    </button>
+                  </Tooltip>
+                  <Tooltip text="Delete Configuration" position="bottom-center">
+                    <button className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors" onClick={handleDeletePreset}>
+                      <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                    </button>
+                  </Tooltip>
                 </>
               )}
               <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-              <button
-                title="Save New Preset"
-                className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                onClick={handleNewPreset}
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-xs" />
-              </button>
+              <Tooltip text="Save new preset" position="bottom-center">
+                <button
+                  className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  onClick={handleNewPreset}
+                >
+                  <FontAwesomeIcon icon={faPlus} className="text-xs" />
+                </button>
+              </Tooltip>
             </div>
           </div>
         </Portal>

@@ -433,11 +433,23 @@ public class SpiralCreator
             outputChannel.appendLine(response.output);
           }
         } else if (response) {
-          if (response.error_message) {
-            outputChannel.appendLine(response.error_message);
+          const message = response.error_message || "";
+          if (message) {
+            outputChannel.appendLine(message);
           }
-          if (response.error_details && response.error_details.length > 0) {
-            outputChannel.appendLine(response.error_details.join("\n"));
+          // ⚠ The engine ALREADY inlines the compile diagnostics into `error_message`
+          //   (CodeRunner: "❌ Compilation Failed:" + the newline-joined mapped errors) and
+          //   ALSO ships those same strings in `error_details`. Printing both fields echoed
+          //   every error twice in this Output tab, while the desktop app - which reads only
+          //   `error_message` - showed it once. Print only detail lines not already present
+          //   in the message: the add-in can append extra server-side ErrorLog entries to
+          //   `error_details`, and those must still be shown.
+          const details: string[] = response.error_details || [];
+          const extra = details.filter(
+            (line) => line.trim().length > 0 && !message.includes(line.trim())
+          );
+          if (extra.length > 0) {
+            outputChannel.appendLine(extra.join("\n"));
           }
           vscode.window.showErrorMessage(
             "CoreScript execution failed. Check output for details."

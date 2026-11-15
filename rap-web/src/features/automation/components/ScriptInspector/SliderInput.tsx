@@ -16,6 +16,9 @@ export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value,
     const [isDragging, setIsDragging] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // The mouseup that completes the focus click would otherwise collapse a select-all
+    // back to a bare caret at the end of the number. Track only that FIRST click.
+    const selectOnMouseUp = useRef(false);
 
     // Sync with prop changes (e.g. preset selection) only if NOT interacting
     useEffect(() => {
@@ -68,7 +71,30 @@ export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value,
                     <input
                         type="text"
                         value={localValue}
-                        onFocus={() => setIsFocused(true)}
+                        onFocus={(e) => {
+                            setIsFocused(true);
+                            // This is a replace-the-whole-number field. Select the value on
+                            // entry so the user can type a new number immediately instead of
+                            // putting the caret at the end and backspacing digit by digit.
+                            selectOnMouseUp.current = true;
+                            e.currentTarget.select();
+                        }}
+                        onMouseUp={(e) => {
+                            // React's handler runs BEFORE the browser's default mouseup
+                            // action, which would place a caret and drop the selection.
+                            // Keep the whole value selected on that first click only;
+                            // later clicks position the caret normally.
+                            if (!selectOnMouseUp.current) return;
+                            selectOnMouseUp.current = false;
+                            e.preventDefault();
+                            e.currentTarget.select();
+                        }}
+                        onDoubleClick={(e) => {
+                            // Double-click selects the ENTIRE numeric value, not just the
+                            // word under the cursor ("-12.5" is more than one word).
+                            selectOnMouseUp.current = false;
+                            e.currentTarget.select();
+                        }}
                         onChange={(e) => {
                             const val = e.target.value;
                             if (val === "" || /^-?\d*\.?\d*$/.test(val)) {

@@ -247,7 +247,9 @@ tracking and glow because each call site invented its own `text-[11px]` / `round
 
 Baselines: `paracore` `v4.8.3` = `22d928a` · `paracore-gen` `v2.1.2` = `e0b6334` ·
 `paracore-mcp-core` = `9d414e1` (the `CORE_VERSION` the released 2.1.2 exe recorded; this library
-has no semver tag). **30 commits in total: 14 + 6 + 10.** Every one is listed below.
+has no semver tag). **30 release-window commits in total: 14 + 6 + 10.** Every one is listed
+below. The three follow-up commits written after the version bump — two release-notes commits and
+the release-candidate fixes — are inventoried in §10, bringing the shipped total to **33**.
 
 ### 6.1 `paracore` — 14 commits (`v4.8.3..d34dfe7b`)
 
@@ -372,19 +374,90 @@ supplies its own .NET 10 host) · ASP.NET Core runtime 8.x, 9.x or 10.x.
 
 ---
 
-## 10. Release readiness
+## 10. Release-candidate fixes found in local testing
+
+These were found *after* the version bump, while the 4.8.4 installers were being tested on the
+local machine. They are part of 4.8.4, not a later patch. **None of them touches the engine, the
+add-in or the wire contract.** Commit accounting: the 30 release-window commits in §6, plus
+`5cf9e449` (paracore notes) and `f0ebde2` (gen notes), plus the commit carrying these fixes and
+this document — **33 commits across the three repositories**.
+
+### 10.1 The configurator's numeric entry is now selectable
+
+`rap-web/src/features/automation/components/ScriptInspector/SliderInput.tsx`. A slider's numeric
+box is a controlled `<input type="text">` with no selection handling at all. Double-clicking an
+entered value did not select the text, so changing `50` to `12` meant putting the caret at the end
+and backspacing digit by digit. The field is a *replace-the-whole-number* control, so it now:
+
+- selects the whole value on `onFocus`;
+- re-asserts that selection on the **first** `onMouseUp` only — React's handler runs before the
+  browser's default mouseup action, which would otherwise collapse it back to a bare caret;
+- selects the **entire** value on `onDoubleClick`, not just the word under the cursor (`-12.5` is
+  more than one word).
+
+Later clicks still position the caret normally; nothing about the slider, debounce, validation or
+`onBlur` clamping changed.
+
+### 10.2 The preset toolbar shows its tooltips again
+
+`rap-web/src/features/automation/components/ScriptInspector/ParametersTab.tsx` renders the preset
+manager through a `Portal` into `#preset-controls-slot` in the `ScriptInspector` header, next to
+the script name. `main.tsx` converts every native `title` into `data-tooltip`, and `globals.css`
+draws that tooltip as an absolutely positioned `::after`. **The header slot is `overflow-hidden`**,
+so the tooltip was clipped — the buttons looked like they had no tooltips once they moved up into
+the header. All six buttons now use the portal-based `<Tooltip>` that the rest of that header
+already uses (it renders into `document.body` with `position: fixed`, so it cannot be clipped):
+
+| button | tooltip |
+|---|---|
+| layer/groups toggle | `Expand Configurator` / `Collapse Configurator` |
+| undo (visible on *Parameter Defaults*) | `Reset all parameters to script defaults` |
+| blue plus | `Save new preset` |
+| pencil / sync / trash (visible on a saved preset) | `Rename Configuration` / `Update Configuration` / `Delete Configuration` |
+
+### 10.3 The presets dropdown shows a down-caret, not a refresh icon
+
+Same file. The `<select>` that defaults to **Parameter Defaults** had `faSync` (`RefreshCw`) drawn
+to its right, which reads as a reload/refresh **button**. It is only the disclosure affordance for
+the list of saved presets. It is now `faChevronDown` and stays `pointer-events-none`, so it never
+acts as a button — clicking anywhere on the box opens the list.
+
+### 10.4 VS Code prints a compile error once, not twice
+
+`corescript-vscode/src/extension.ts`. `CodeRunner.cs` inlines the mapped compile diagnostics into
+`ErrorMessage` (`❌ Compilation Failed:` + the newline-joined errors) **and** puts the same strings
+in `ErrorDetails`. The run command appended both fields to the CoreScript Output channel, so e.g.
+`CS0103` appeared twice. The desktop app reads only `error_message`, which is why its History tab
+showed one copy. The command now prints `error_message` once, then only the `error_details` lines
+that are **not already contained** in that message; the add-in can append extra server-side
+`ErrorLog` entries to `error_details`, and those are still shown. `corescript-vscode/CHANGELOG.md`
+records the fix.
+
+Also confirmed correct by design and deliberately **not** changed: VS Code is a standard C#
+script editor, so statements need semicolons and output needs `Println()`; the desktop REPL
+playground's expression-print behaviour does not belong there. `GetVal(name)` keeps its exact,
+unit-aware behaviour.
+
+**Verification of this batch:** `npx tsc -b` (`rap-web/`) exits 0 — the command `npm run build`
+uses. The strict `tsconfig.app.json` still reports **213** diagnostics, exactly the pre-existing
+baseline (§9); no new diagnostic appears in any touched file. `git diff --check` is clean.
+
+---
+
+## 11. Release readiness
 
 | item | state |
 |---|---|
 | `paracore-mcp-core` committed, pushed, tagged `release-4.8.4` | ✅ `c4b57f6`, in sync with origin |
-| `paracore` committed and pushed | ✅ `d34dfe7b`, in sync with origin |
-| `paracore-gen` committed and pushed | ✅ `7a27026`, in sync with origin |
-| `Paracore_Addin_v4.8.4.exe` | ✅ built from pushed code |
-| `corescript-4.8.4.vsix` | ✅ built from pushed code, installed locally |
-| `Paracore-Gen-v2.1.3.exe` | ✅ built from pushed code; installed exe hash matches `dist` |
-| `Paracore_4.8.4_x64.msi` | ⏳ **not built** — `installers/` still holds the 4.8.3 MSI |
-| 4.8.4 add-in installed / live Revit smoke test | ⏳ installer requires admin; installed DLLs are still the 4.8.3 build |
-| GitHub `v4.8.4` release page + four assets, `v2.1.3` pointer | ⏳ held until the smoke test passes |
+| `paracore` committed and pushed | ✅ including the release-candidate fixes in §10 |
+| `paracore-gen` committed and pushed | ✅ `f0ebde2`, in sync with origin |
+| `Paracore_Addin_v4.8.4.exe` | ✅ built 12:05 and installed; installed `CoreScript.Engine.dll` is the 4.8.4 build — **not affected by §10** |
+| `Paracore-Gen-v2.1.3.exe` | ✅ built 12:07; all 10 connector tools tested in Claude Desktop, read-only guard and write/restore on wall `359588` verified — **not affected by §10** |
+| Desktop app | ✅ installed and working; remaining UI defects are the ones fixed in §10.1–§10.3 |
+| `corescript-4.8.4.vsix` | ⏳ **must be rebuilt** — the file in `installers/` predates the §10.4 source fix |
+| `Paracore_4.8.4_x64.msi` | ⏳ **must be rebuilt** — the file built 13:16 predates the §10.1–§10.3 source fixes |
+| GitHub `v4.8.4` release page + four assets, `v2.1.3` pointer | ⏳ not created; publication is held |
 
-**Do not publish** until the MSI exists, all four assets are freshly built from the pushed commits,
-the 4.8.4 add-in is installed and the smoke test passes.
+**Do not publish** until the VSIX and MSI have been rebuilt from the pushed §10 commits,
+reinstalled, and the local smoke test has been repeated against those two new builds. The add-in
+installer and the gen exe do not need rebuilding.
