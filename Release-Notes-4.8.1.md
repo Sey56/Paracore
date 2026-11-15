@@ -115,8 +115,8 @@ restarts.
 
 ### The gate is per session, not per MCP
 
-The latch lives in the add-in, so one Allow covers **every** agent in that Revit session — gen,
-model, family, forge. But each MCP process could only learn that from a response *it* happened to
+The latch lives in the add-in, so one Allow covers **every** agent in that Revit session, regardless
+of which MCP server it came from. But each MCP process could only learn that from a response *it* happened to
 receive, so a second server started out believing the session was ungated and would blame a consent
 dialog for a timeout that was really a long automation.
 
@@ -140,7 +140,7 @@ error text names the cause instead of listing both.
 Two defects fell out of this work. `DefaultButton` was being set inside the `TaskDialog`
 initializer, before the command links existed, so Revit threw `Corresponding button not found` and
 the gate never appeared at all — it must be assigned after the last `AddCommandLink`, and the gate
-script now checks that ordering. And `execute_script` had **no deadline whatsoever**, so a forge
+script now checks that ordering. And `execute_script` had **no deadline whatsoever**, so one MCP
 call blocked on an unanswered dialog forever; it now takes one, and returns a message the caller can
 act on rather than an uncaught gRPC error.
 

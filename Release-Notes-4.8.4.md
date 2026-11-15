@@ -239,9 +239,9 @@ tracking and glow because each call site invented its own `text-[11px]` / `round
 ### Part B — Paracore-Gen / MCP tooling
 
 - **`execute_script` opens the dialog-watcher in-flight gate (`7769b1b3`).** Measured 2026-11-11:
-  a *"Highlighted floors overlap."* modal stayed on screen through a whole `preview_tool` run and
-  Forge timed out with the dialog still up; `DialogWatcher.txt` held only startup lines because
-  every scan hit `if not call_in_flight(): continue`. Forge calls `ExecuteScript`, **not**
+  a *"Highlighted floors overlap."* modal stayed on screen through a whole preview run and the
+  MCP call timed out with the dialog still up; `DialogWatcher.txt` held only startup lines because
+  every scan hit `if not call_in_flight(): continue`. The MCP caller uses `ExecuteScript`, **not**
   `ExecuteRepl`, so the resident watcher was never permitted to answer a modal blocking our own
   call. `paracore/mcp/grpc_client.py` — the wire client bundled into the Paracore-Gen exe — now
   resolves the watcher through `sys.modules` (never a second copy by path, which would own a
@@ -316,7 +316,7 @@ its own. Its changes are the **runtime** behaviour Paracore-Gen 2.1.3 inherits.
 | `8adf63f` | 11-09 | Private product names removed from README, `PROJECT_SPEC.md`, and the docstrings/comments of `dialog_watcher.py`, `domain.py`, `server.py`, `tools.py` and `core_version.py`. No code, symbol or behaviour changed. |
 | `c5b2bd8` | 11-12 | Shared skills (`aggregate-group`, `materials-units`, `parameter-access`) corrected for the engine's one-rounding-rule change — exact values by default, `GroupByParam` totals raw. |
 | `058c0a6` | 11-12 | **No dialog note is lost; two Revit failure channels taught separately.** Measured 2026-11-11 13:10: two *"Insert conflicts with joined Wall."* dialogs were answered but only the first reached the agent, because `_record()` published only after the up-to-1.2 s close confirmation and the next call destructively pre-drained the late record. `_record()` now publishes at **decision time** (by reference, so `closed`/`how` are visible mid-click); `single_flight` never pre-drains — a late record is reported on the next call, labelled `late`. `_settle_dialogs()` waits up to 1 s only when a dialog was seen recently and nothing has been recorded, so an ordinary call pays no latency. `COMMON_RULES` now separates the **blocking modal** the watcher answers from the **persistent (reviewable) warning** in the document read with `Doc.GetWarnings()`, which can be non-blocking or appear with no dialog at all; pins the baseline/delta recipe, counts **per description**, `GetFailingElements() -> e.Value`, adjust-and-rerun until zero, and never suppresses a failure (no `IFailuresPreprocessor`). |
-| `c4b57f6` | 11-12 | `object.GetType().Name` resolves `.Name` through `System.Reflection.MemberInfo`, so the sandbox refuses it — but `check_dangerous_patterns` never caught the source and the agent got a bare refusal. The hint now points at typed checks (`x is ModelLine ? "ModelLine" : ...`) and `ex.Message`, and forbids reaching for reflection by another route. `suggest_for_error()` is exposed so compile-only tools (Forge `validate_tool`, which returns the engine's raw result) get the same guidance. |
+| `c4b57f6` | 11-12 | `object.GetType().Name` resolves `.Name` through `System.Reflection.MemberInfo`, so the sandbox refuses it — but `check_dangerous_patterns` never caught the source and the agent got a bare refusal. The hint now points at typed checks (`x is ModelLine ? "ModelLine" : ...`) and `ex.Message`, and forbids reaching for reflection by another route. `suggest_for_error()` is exposed so compile-only validation calls (which return the engine's raw result) get the same guidance. |
 
 ### 6.3 `paracore-gen` — 10 release-window commits (`v2.1.2..7a27026`)
 
@@ -335,7 +335,7 @@ documentation commit in this repo is metadata-only and is described in §0.
 | `464b677` | 11-09 | Private product names and an internal operator quote removed from `PROJECT_SPEC.md`, older release notes, `Docs/RELEASE_ACCEPTANCE.md`, installer/build comments and the server docstring. Corrects the claim that this server "cannot model" — what is filtered is a skill from the catalogue, not a capability. Comments and prose only; regenerated reference included. |
 | `80c1316` | 11-11 | Generated mirror records that the missing-parameter raise stops at a pack assembly (`paracore 12e321bb`). |
 | `35dc32d` | 11-12 | `EXTENSION_METHODS.md` and `REPL_GUIDE.md` regenerated for the one-rounding-rule engine change; byte-identical to `paracore`'s copies. |
-| `144f7f4` | 11-12 | New `tests/test_dialog_watcher_gate.py`: pins that the gRPC stub runs **inside** `revit_call()` over `ExecuteScript` (Forge does not use `ExecuteRepl`), that a process with no resident watcher opens no gate, that a record exists **while** `click()` is still confirming the close, and that two identical dialog instances produce two messages. |
+| `144f7f4` | 11-12 | New `tests/test_dialog_watcher_gate.py`: pins that the gRPC stub runs **inside** `revit_call()` over `ExecuteScript` (the MCP caller does not use `ExecuteRepl`), that a process with no resident watcher opens no gate, that a record exists **while** `click()` is still confirming the close, and that two identical dialog instances produce two messages. |
 | `7a27026` | 11-15 | Release commit: `Set-Version.ps1` writes `VERSION`, `pyproject.toml` and `uv.lock` to 2.1.3; manual surfaces — README, `RELEASE_NOTES.md`, new `Release-Notes-2.1.3.md`. |
 
 ---

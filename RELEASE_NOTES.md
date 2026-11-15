@@ -68,7 +68,7 @@ Full notes: [Release-Notes-4.8.1.md](Release-Notes-4.8.1.md) · Previous: [4.8.0
 - The agent consent dialog was being auto-answered by the dialog watcher. It now uses captions the watcher does not recognise, so **only a human answers it**, deny is the default, and `scripts/check-sessiongate-labels.py` guards the labels
 - **The agent is told what you chose** — `session_consent` (`granted` / `already_granted` / `denied` / `not_required`) now rides on every execution response, so a run says who allowed it; a denial is terminal and legible
 - **Per session, not per MCP** — one Allow covers every agent in that Revit session, and `GetStatus` publishes it (wire field 10) so a second MCP server asks instead of guessing
-- **A timeout that names itself** — a call made before the session is allowed is capped at **60 s**, and the error says whether it hit the consent dialog or a long script. `execute_script` gained a deadline too; forge previously waited forever
+- **A timeout that names itself** — a call made before the session is allowed is capped at **60 s**, and the error says whether it hit the consent dialog or a long script. `execute_script` gained a deadline too; one MCP caller previously waited forever
 
 ### MCP core
 

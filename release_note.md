@@ -87,7 +87,7 @@ We have unified the development and execution environments into a permanent, pro
 *   **Integrated Scaffolding**: Editing a script builds a permanent development environment (`csproj`, `sln`) directly within your project tree, ensuring zero synchronization lag.
 
 ## ⚡ Performance & Examples
-*   **Forge (Binary Distribution)**: Package your logic into sealed `.ptool` (Automation) or `.wtool` (Sentinel) binaries for professional distribution. For Sentinels, Forge compilation supercharges performance—ensuring that live background validation remains ultra-efficient and highly optimized.
+*   **Sealed tools (binary distribution)**: Package your logic into sealed `.ptool` (Automation) or `.wtool` (Sentinel) binaries for professional distribution. For Sentinels, sealed-tool compilation supercharges performance—ensuring that live background validation remains ultra-efficient and highly optimized.
 *   **Modernized Library**: The [Paracore-Examples](https://github.com/Sey56/Paracore-Examples) repository has been fully upgraded to the V4 Standard, featuring starter templates for building your own custom automations and Sentinels.
 
 
