@@ -1,14 +1,18 @@
-## Paracore v4.8.4 — exact numbers, honest errors, offline UI
+## Paracore v4.8.4 — exact categories, exact numbers, honest errors, offline UI
 
 Full notes: [Release-Notes-4.8.4.md](Release-Notes-4.8.4.md) ·
 [All four installers](https://github.com/Sey56/Paracore/releases/tag/v4.8.4)
 
-An accuracy and reliability release. An undeclared parameter name now raises instead of returning
-`0`, no value accessor rounds unless you pass `decimals`, the desktop app no longer fetches its
-font or icons from the network, and an AI-driven gallery run no longer leaves a Revit dialog
+An accuracy and reliability **update** — not a breaking change; no public API was removed.
+Category-filtered queries now return only the category you asked for instead of leaking tags,
+heads, mullions and sibling categories into the result. A valid parameter name that the current
+category does not declare (for example `"Base Offset"` on Doors) now says so instead of silently
+reading as `0`. Numbers are exact unless you pass `decimals`. The desktop app no longer fetches
+its font or icons from the network, and an AI-driven gallery run no longer leaves a Revit dialog
 unanswered. Ships with **Paracore-Gen v2.1.3**.
 
-> ⚠ **Two changes affect existing scripts** — see [the 4.8.4 notes](Release-Notes-4.8.4.md).
+The [technical notes](Release-Notes-4.8.4.md) carry a complete inventory of all 30 commits across
+the three repositories, with measured before/after examples.
 
 ---
 
