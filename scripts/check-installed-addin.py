@@ -79,14 +79,19 @@ ENGINE_EXPECTED = [
     ("SchemaRows", "schema/discovery tables are marked and never capped at 50 rows"),
     ("capExempt", "the cap-exempt flag travels through Table/AddStructuredOutput"),
     # 2026-11-07 — a name the CATEGORY does not declare now throws instead of reading as 0/"".
-    # ⚠ Without this anchor a stale install (the released 4.8.3) would still pass this gate
-    # and every conclusion drawn from a live Revit session would be against the old behaviour.
+    # ⚠ Without this anchor a stale install (the previous release, 4.8.3) would still pass this
+    # gate and every conclusion drawn from a live Revit session would be against the old behaviour.
     ("_throwIfCategoryLacksParameter", "missing parameter names raise instead of returning 0"),
     ("_declaredNamesForCategory", "the per-category parameter-name index behind that check"),
     # 2026-11-09 — the raise stops at a PACK: a pack ships its own fallbacks and probes names
     # whose absence is normal (takeoff's "b" / "Structural Material"). Without this anchor an
     # install that still throws inside packs passes the gate and takeoff exports zero sections.
     ("_callerIsPackCode", "the raise is skipped for code loaded from a pack assembly"),
+    # 2026-11-15 — ONE ROUNDING RULE (4.8.4). _unitToken is new in UnitExtensions.cs; without
+    # this anchor an installed 4.8.3 engine (which still rounds to 2 dp by default) passes the
+    # symbol check while reporting numbers the source no longer produces. RETARGETED, not deleted:
+    # the three anchors above still name real symbols in the 4.8.4 build.
+    ("_unitToken", "one rounding rule - no accessor rounds unless decimals is passed"),
 ]
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

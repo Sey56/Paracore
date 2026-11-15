@@ -1,3 +1,17 @@
+## Paracore v4.8.4 — exact numbers, honest errors, offline UI
+
+Full notes: [Release-Notes-4.8.4.md](Release-Notes-4.8.4.md) ·
+[All four installers](https://github.com/Sey56/Paracore/releases/tag/v4.8.4)
+
+An accuracy and reliability release. An undeclared parameter name now raises instead of returning
+`0`, no value accessor rounds unless you pass `decimals`, the desktop app no longer fetches its
+font or icons from the network, and an AI-driven gallery run no longer leaves a Revit dialog
+unanswered. Ships with **Paracore-Gen v2.1.3**.
+
+> ⚠ **Two changes affect existing scripts** — see [the 4.8.4 notes](Release-Notes-4.8.4.md).
+
+---
+
 ## Paracore v4.8.3 — Revit 2027, one download
 
 Full notes: [Release-Notes-4.8.3.md](Release-Notes-4.8.3.md) ·

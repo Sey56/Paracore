@@ -8,7 +8,7 @@ Write C# that runs live inside Revit — no project files, no compilation step, 
 
 ## Install
 
-Download the installers from the [v4.8.3 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.3), run the desktop app MSI and the Revit add-in EXE, then open Revit and switch the Paracore server ON in the ribbon.
+Download the installers from the [v4.8.4 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.4), run the desktop app MSI and the Revit add-in EXE, then open Revit and switch the Paracore server ON in the ribbon.
 
 Supported Revit versions: **2025, 2026, 2027**. One installer covers all three; select the versions you have.
 
@@ -55,7 +55,7 @@ cd ../paracore-gen
 - [User documentation](https://sey56.github.io/paracore-help/)
 - [Development Guide](DEVELOPMENT.md)
 - [Contributing](CONTRIBUTING.md)
-- [v4.8.3 release notes](Release-Notes-4.8.3.md)
+- [v4.8.4 release notes](Release-Notes-4.8.4.md)
 
 ## License
 
