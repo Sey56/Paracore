@@ -13,6 +13,12 @@ namespace Paracore.Server.Services
         private readonly ConcurrentDictionary<string, TaskCompletionSource<TaskResult>> _pendingTasks = new();
         private IServerStreamWriter<TaskEnvelope>? _addinStream;
 
+        /// <summary>
+        /// True while a Revit add-in holds the task stream open. Read-only status calls
+        /// use this to answer locally when Revit is closed instead of failing the UI.
+        /// </summary>
+        public bool IsAddinConnected => _addinStream != null;
+
         public override async Task Subscribe(SubscribeRequest request, IServerStreamWriter<TaskEnvelope> responseStream, ServerCallContext context)
         {
             _addinStream = responseStream;
@@ -63,7 +69,11 @@ namespace Paracore.Server.Services
         {
             if (_addinStream == null)
             {
-                throw new RpcException(new Status(StatusCode.Unavailable, "Revit Add-in is not active or connected to the sidecar."));
+                // A Revit-bound call with no add-in is EXPECTED in offline mode.
+                // Say what the user must do; "sidecar" here would be misleading,
+                // because the sidecar answering this call is running fine.
+                throw new RpcException(new Status(StatusCode.Unavailable,
+                    "Revit is not connected. Open Revit with the Paracore add-in to run scripts, execute the REPL, or use live-model commands."));
             }
 
             var taskId = Guid.NewGuid().ToString();

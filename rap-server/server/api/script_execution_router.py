@@ -40,6 +40,7 @@ async def run_script(
         active_team=current_user.activeTeam,
         active_role=current_user.activeRole,
         license_tier=license_tier,
+        language=data.get("language") or "csharp",
         db=db
     )
     return JSONResponse(content=response_data)
@@ -83,6 +84,7 @@ class ReplRequestModel(BaseModel):
     # Optional gRPC deadline override (seconds). Omitted → execution_service's
     # REPL_TIMEOUT_SECONDS, which is sized for a full takeoff (~280 s measured).
     timeout: Optional[float] = None
+    language: Optional[str] = "csharp"
 
 @router.post("/api/repl", tags=["Script Execution"])
 async def execute_repl_endpoint(
@@ -93,7 +95,9 @@ async def execute_repl_endpoint(
     tier = request.license_tier
     if not tier:
         tier = "enterprise" if current_user.id != 0 else "free"
-    response = await execution_service.execute_repl_logic(request.code, request.session_id, tier, request.source, request.timeout)
+    response = await execution_service.execute_repl_logic(
+        request.code, request.session_id, tier, request.source, request.timeout, request.language
+    )
     return JSONResponse(content=response)
 
 class ReplCompletionRequestModel(BaseModel):

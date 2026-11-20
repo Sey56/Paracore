@@ -191,12 +191,33 @@ namespace CoreScript.Engine.Core.Rewriters
         }
 
         /// <summary>
-        /// RevitAPI*.dll references from the running Revit install directory
-        /// (empty when the engine runs outside Revit — e.g. tooling/tests).
+        /// Directory holding RevitAPI.dll. Resolution order:
+        ///   1. <c>PARACORE_REVIT_DIR</c> — explicit override. This is what lets the
+        ///      standalone sidecar answer Roslyn intellisense with NO Revit running:
+        ///      the DLLs are metadata on disk, not a live application.
+        ///   2. The current process directory — inside Revit this IS the install dir.
+        ///   3. Nothing. Callers get an empty list and degrade honestly.
+        ///
+        /// ⚠ We never auto-guess an install path. A wrong-version RevitAPI.dll would
+        ///   produce completions that do not match the user's actual Revit.
+        /// </summary>
+        private static string ResolveRevitDirectory()
+        {
+            string configured = Environment.GetEnvironmentVariable("PARACORE_REVIT_DIR") ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(configured) && Directory.Exists(configured.Trim()))
+                return configured.Trim();
+
+            return Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName) ?? string.Empty;
+        }
+
+        /// <summary>
+        /// RevitAPI*.dll references from the resolved Revit directory. Inside Revit this
+        /// is the running install; outside Revit (sidecar, probes) it is whatever
+        /// <c>PARACORE_REVIT_DIR</c> points at. Returns empty when neither exists.
         /// </summary>
         public static List<MetadataReference> GetRevitReferences(string logPrefix)
         {
-            string revitInstallPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName) ?? string.Empty;
+            string revitInstallPath = ResolveRevitDirectory();
             if (string.IsNullOrEmpty(revitInstallPath) || !Directory.Exists(revitInstallPath))
                 return new List<MetadataReference>();
 

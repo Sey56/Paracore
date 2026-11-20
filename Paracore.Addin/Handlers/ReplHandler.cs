@@ -14,10 +14,12 @@ namespace Paracore.Addin.Handlers
     public class ReplHandler
     {
         private readonly RevitContext _revitContext;
+        private readonly IReplCompletionCatalog _completionCatalog;
 
-        public ReplHandler(RevitContext revitContext)
+        public ReplHandler(RevitContext revitContext, ContextHandler contextHandler)
         {
             _revitContext = revitContext;
+            _completionCatalog = new ReplCompletionCatalog(contextHandler);
         }
 
         private UIApplication? _uiApp => _revitContext.UIApplication;
@@ -576,11 +578,20 @@ namespace Paracore.Addin.Handlers
         {
             try
             {
-                var completions = await ReplCompletionProvider.GetCompletionsAsync(
-                    request.Code, request.CaretOffset);
+                // Use the authoritative answer: Roslyn decides BOTH the suggestions and
+                // the exact replacement span. The editor must not re-derive the span — a
+                // client-side line scan cannot distinguish C# code inside $"{...}" from a
+                // DSL string argument, and silently filtered every suggestion out.
+                var answer = await ReplCompletionProvider.GetCompletionSetAsync(
+                    request.Code, request.CaretOffset, _completionCatalog).ConfigureAwait(false);
 
-                var response = new GetReplCompletionsResponse { IsSuccess = true };
-                foreach (var item in completions)
+                var response = new GetReplCompletionsResponse
+                {
+                    IsSuccess = true,
+                    RangeStart = answer.RangeStart,
+                    RangeEnd = answer.RangeEnd,
+                };
+                foreach (var item in answer.Items)
                 {
                     response.Items.Add(new ReplCompletionItem
                     {

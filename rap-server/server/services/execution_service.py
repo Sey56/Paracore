@@ -9,6 +9,25 @@ import models
 from grpc_client import execute_script, pick_object, select_elements, update_element_parameter, batch_update_element_parameters
 from utils import get_or_create_script, resolve_script_path, read_script_files
 
+def _record_run(db, script, current_user_id, active_team, active_role,
+                source_folder, source_team_source, response_data):
+    """One run-log writer for both script languages."""
+    if not script or db is None:
+        return
+    run_status = "success" if response_data.get("is_success") else "failure"
+    run_output = response_data.get("output", "") or ""
+    if response_data.get("error_message"):
+        run_output += f"\nERROR: {response_data['error_message']}"
+    if response_data.get("error_details"):
+        run_output += "\n" + "\n".join(response_data["error_details"])
+    db.add(models.Run(
+        script_id=script.id, user_id=current_user_id, team_id=active_team,
+        role=active_role, status=run_status, output=run_output,
+        source_folder=source_folder, source_team_source=source_team_source
+    ))
+    db.commit()
+
+
 async def run_script_logic(
     path: str,
     parameters: Any,
@@ -19,6 +38,7 @@ async def run_script_logic(
     active_team: int,
     active_role: str,
     license_tier: str = "free",
+    language: str = "csharp",
     db: Session = None
 ):
     if not path:
@@ -28,6 +48,15 @@ async def run_script_logic(
     try:
         resolved_path = resolve_script_path(path)
         script = get_or_create_script(db, resolved_path, current_user_id)
+
+        # v5 G3 Path A: Python tools are governed in rap-server, not through Revit gRPC.
+        # The default stays csharp so the existing path is unchanged for every C# tool.
+        if language == "python":
+            from services.python_ifc_executor import run_python_tool
+            response_data = await run_python_tool(resolved_path, parameters)
+            _record_run(db, script, current_user_id, active_team, active_role,
+                        source_folder, source_team_source, response_data)
+            return response_data
 
         script_files_payload = []
         
@@ -115,20 +144,8 @@ async def run_script_logic(
         response_data = execute_script(json.dumps(script_files_payload), json.dumps(rich_params))
 
         # Log Run
-        if script:
-            run_status = "success" if response_data.get("is_success") else "failure"
-            run_output = response_data.get("output", "")
-            if response_data.get("error_message"):
-                run_output += f"\nERROR: {response_data.get('error_message')}"
-            if response_data.get("error_details"):
-                run_output += "\n" + "\n".join(response_data.get("error_details"))
-
-            db.add(models.Run(
-                script_id=script.id, user_id=current_user_id, team_id=active_team,
-                role=active_role, status=run_status, output=run_output,
-                source_folder=source_folder, source_team_source=source_team_source
-            ))
-            db.commit()
+        _record_run(db, script, current_user_id, active_team, active_role,
+                    source_folder, source_team_source, response_data)
 
         return response_data
 
@@ -187,13 +204,16 @@ REPL_TIMEOUT_SECONDS = 600.0
 
 
 async def execute_repl_logic(code: str, session_id: str, license_tier: str = "free",
-                             source: str = None, timeout: float = None):
+                             source: str = None, timeout: float = None,
+                             language: str = "csharp"):
     """
-    Service wrapper for executing a REPL command in Revit via gRPC.
-
-    `timeout` is the gRPC deadline in seconds and defaults to REPL_TIMEOUT_SECONDS.
+    Service wrapper for executing a REPL command. C# runs in Revit via gRPC;
+    Python runs locally in rap-server against IFC files.
     """
     try:
+        if language == "python":
+            from services.python_ifc_executor import execute_python_repl
+            return await execute_python_repl(code, session_id)
         from grpc_client import execute_repl
         return execute_repl(code, session_id, license_tier, source=source or "paracore",
                             timeout=timeout if timeout is not None else REPL_TIMEOUT_SECONDS)

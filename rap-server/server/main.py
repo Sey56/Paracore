@@ -76,6 +76,8 @@ from api import (
 # Configure Uvicorn logging to suppress access logs
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
+from services.sidecar_manager import sidecar_manager
+
 from grpc_client import close_channel, init_channel
 import grpc
 from utils import format_grpc_error
@@ -92,12 +94,19 @@ async def lifespan(app: FastAPI):
     # Note: In a production environment with Alembic, you might remove this.
     Base.metadata.create_all(bind=engine)
 
+    # The desktop app OWNS the sidecar (user ruling 2026-11-20). It must be
+    # available for intellisense and gallery metadata whether or not Revit is
+    # open, and a Revit ribbon toggle must never take it away. `start()` also
+    # installs a watchdog that re-acquires the port if the process dies.
+    sidecar_manager.start()
+
     # Initialize singleton gRPC channel
     init_channel()
 
     yield
 
     close_channel()
+    sidecar_manager.stop()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -112,7 +121,15 @@ async def grpc_exception_handler(request: Request, exc: grpc.RpcError):
 # In a production environment, you would want to restrict this to your actual frontend URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "tauri://localhost", "https://tauri.localhost"], # Local development origins and Tauri app origins
+    # 127.0.0.1 is what the WorkBuddy side-preview panel uses. Without it the browser
+    # gets "Disallowed CORS origin" and every intellisense call fails silently, which
+    # looks exactly like "no intellisense at all". The Tauri origins above are the
+    # real app; this one is for quick browser checks.
+    allow_origins=[
+        "http://localhost:5173", "http://localhost:5174",
+        "http://127.0.0.1:5173", "http://127.0.0.1:5174",
+        "tauri://localhost", "https://tauri.localhost"
+    ], # Local development origins and Tauri app origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

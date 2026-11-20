@@ -141,6 +141,23 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
             item_path = os.path.join(pack_path, item)
             if not os.path.isdir(item_path) or item.startswith('.'): continue
             
+            from services.python_ifc_executor import load_python_manifest
+            py_manifest = load_python_manifest(item_path)
+            if py_manifest:
+                tools.append({
+                    "id": item_path.replace('\\', '/'),
+                    "name": py_manifest.get("name") or item,
+                    "absolutePath": item_path.replace('\\', '/'),
+                    "language": "python",
+                    "metadata": _hydrate_metadata_for_frontend(py_manifest.get("metadata") or {
+                        "name": py_manifest.get("name") or item,
+                        "description": py_manifest.get("description", ""),
+                    }),
+                    "parameters": _hydrate_params_for_frontend(py_manifest["params"]),
+                    "hasDoc": os.path.isfile(os.path.join(item_path, "Docs", "index.md")),
+                })
+                continue
+
             script_files = read_script_files(item_path)
 
             projects_to_fetch.append({
@@ -237,6 +254,24 @@ async def get_single_script_logic(script_path: str):
                 "parameters": _hydrate_params_for_frontend(pkg.get("parameters", []))
             }
             
+        # Python tools declare their language and typed Params in tool.json; no Roslyn pass.
+        from services.python_ifc_executor import load_python_manifest
+        py_manifest = load_python_manifest(abs_p)
+        if py_manifest:
+            meta = py_manifest.get("metadata") or {
+                "name": py_manifest.get("name") or project_name,
+                "description": py_manifest.get("description", ""),
+            }
+            return {
+                "id": abs_p,
+                "name": py_manifest.get("name") or project_name,
+                "absolutePath": abs_p,
+                "language": "python",
+                "metadata": _hydrate_metadata_for_frontend(meta),
+                "parameters": _hydrate_params_for_frontend(py_manifest["params"]),
+                "queryData": _extract_query_data([]),
+            }
+
         # 2. Handle standard folder scripts
         script_files = []
         project_name = os.path.basename(abs_p)
