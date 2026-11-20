@@ -755,14 +755,18 @@ class ReplCompletionItem(_message.Message):
     def __init__(self, label: _Optional[str] = ..., insert_text: _Optional[str] = ..., kind: _Optional[str] = ..., detail: _Optional[str] = ..., sort_text: _Optional[str] = ...) -> None: ...
 
 class GetReplCompletionsResponse(_message.Message):
-    __slots__ = ("is_success", "items", "error_message")
+    __slots__ = ("is_success", "items", "error_message", "range_start", "range_end")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    RANGE_START_FIELD_NUMBER: _ClassVar[int]
+    RANGE_END_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     items: _containers.RepeatedCompositeFieldContainer[ReplCompletionItem]
     error_message: str
-    def __init__(self, is_success: bool = ..., items: _Optional[_Iterable[_Union[ReplCompletionItem, _Mapping]]] = ..., error_message: _Optional[str] = ...) -> None: ...
+    range_start: int
+    range_end: int
+    def __init__(self, is_success: bool = ..., items: _Optional[_Iterable[_Union[ReplCompletionItem, _Mapping]]] = ..., error_message: _Optional[str] = ..., range_start: _Optional[int] = ..., range_end: _Optional[int] = ...) -> None: ...
 
 class GetReplDiagnosticsRequest(_message.Message):
     __slots__ = ("code", "session_id")

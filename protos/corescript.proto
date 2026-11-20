@@ -542,6 +542,12 @@ message GetReplCompletionsResponse {
   bool is_success = 1;
   repeated ReplCompletionItem items = 2;
   string error_message = 3;
+  // The replacement span, in UTF-16 offsets of the USER buffer (preamble excluded).
+  // Computed by Roslyn from the actual syntax tree — never guessed by the editor.
+  // For a DSL string argument it covers the string CONTENT (quotes excluded);
+  // otherwise it covers the identifier token at the caret, or is empty at the caret.
+  int32 range_start = 4;
+  int32 range_end = 5;
 }
 
 // ---------------------------------------------------------------------------

@@ -1291,10 +1291,15 @@ def get_repl_completions(code: str, caret_offset: int, session_id: str = "global
                 "is_success": response.is_success,
                 "items": items,
                 "error_message": response.error_message,
+                # Roslyn-derived replacement span in the USER buffer. The editor uses
+                # this verbatim and never re-derives it from raw line text.
+                "range_start": response.range_start,
+                "range_end": response.range_end,
             }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:
-            return {"is_success": False, "items": [], "error_message": GRPC_UNAVAILABLE_MSG}
+            return {"is_success": False, "items": [], "error_message": GRPC_UNAVAILABLE_MSG,
+                    "range_start": 0, "range_end": 0}
         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
             # Completion is an editor convenience — a miss is silent, never an error
             # the user must read. The editor simply shows nothing and tries again on
