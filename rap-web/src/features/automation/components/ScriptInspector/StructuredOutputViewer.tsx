@@ -708,7 +708,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       
       <div className="flex-1 overflow-hidden relative flex flex-col">
         {effectiveType === 'table' ? (
-          <div className="flex-1 h-full w-full overflow-hidden"><input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} /><TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} filterText={filterText} setFilterText={setFilterText} onFilteredDataChange={setCurrentFilteredData} /></div>
+          <div className="flex-1 h-full w-full overflow-hidden"><input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} /><TableView key={`tbl-${executionResult?.timestamp ?? 0}-${activeAnalyticsSubTabIndex}`} data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} filterText={filterText} setFilterText={setFilterText} onFilteredDataChange={setCurrentFilteredData} /></div>
         ) : showAsTable === false && (item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') ? (
           <div ref={chartContainerRef} id={chartId} className="flex-1 w-full min-h-[350px] relative px-2 py-2 overflow-hidden">
             {parsedData && Array.isArray(parsedData) && parsedData.length > MAX_CHART_ITEMS ? (

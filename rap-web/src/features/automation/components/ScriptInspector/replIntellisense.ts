@@ -22,6 +22,19 @@ export interface ReplCompletionItem {
   sort_text: string;
 }
 
+/**
+ * The backend is the single authority for BOTH the suggestions and the span they
+ * replace. Roslyn derives the span from the real syntax tree; the editor used to
+ * re-guess it from raw line text, which silently filtered every suggestion inside
+ * interpolated strings (`$"{wall.` became the replacement text `{wall.`).
+ */
+export interface ReplCompletionAnswer {
+  items: ReplCompletionItem[];
+  /** UTF-16 offsets in the buffer. 0/0 means "old add-in / no span" -> use word range. */
+  rangeStart: number;
+  rangeEnd: number;
+}
+
 /** Roslyn completion tag -> Monaco icon. Unknown tags fall back to Text. */
 const KIND_BY_TAG: Record<string, number> = {
   Method: monaco.languages.CompletionItemKind.Method,
@@ -53,23 +66,48 @@ const KIND_BY_TAG: Record<string, number> = {
  * equivalent of a cancellation token across the HTTP hop.
  */
 let requestSeq = 0;
+let completionTimer: ReturnType<typeof setTimeout> | undefined;
 
-async function fetchReplCompletions(code: string, caretOffset: number): Promise<ReplCompletionItem[]> {
+/**
+ * Completion fires on every keystroke (quickSuggestions + trigger chars). Without
+ * debouncing, a slow backend answer is discarded by the seq check below before the
+ * user ever sees it. Coalesce a burst of keystrokes into ONE request at the end.
+ */
+function fetchReplCompletions(code: string, caretOffset: number): Promise<ReplCompletionAnswer> {
   const seq = ++requestSeq;
-  try {
-    const res = await api.post('/api/repl/completions', {
-      code,
-      caret_offset: caretOffset,
-      session_id: 'global',
-    });
-    if (seq !== requestSeq) return [];          // superseded by a newer keystroke
-    if (!res.data?.is_success) return [];
-    return (res.data.items ?? []) as ReplCompletionItem[];
-  } catch {
-    // Never surface a completion failure — see the file header.
-    return [];
-  }
+  if (completionTimer !== undefined) clearTimeout(completionTimer);
+  const empty: ReplCompletionAnswer = { items: [], rangeStart: 0, rangeEnd: 0 };
+
+  return new Promise((resolve) => {
+    completionTimer = setTimeout(async () => {
+      if (seq !== requestSeq) return resolve(empty);
+      try {
+        const res = await api.post('/api/repl/completions', {
+          code,
+          caret_offset: caretOffset,
+          session_id: 'global',
+        });
+        if (seq !== requestSeq) return resolve(empty);
+        const ok = Boolean(res.data?.is_success);
+        const items = ok ? ((res.data.items ?? []) as ReplCompletionItem[]) : [];
+        const rangeStart = Number(res.data?.range_start ?? 0);
+        const rangeEnd = Number(res.data?.range_end ?? 0);
+        // No per-keystroke console logging: completion runs constantly, and a
+        // chatty devtools console costs CPU on exactly the machine we are trying
+        // to keep cool. Failures stay silent by design (see file header).
+        return resolve({ items, rangeStart, rangeEnd });
+      } catch {
+        return resolve(empty);
+      }
+    }, 120);
+  });
 }
+
+// ---------------------------------------------------------------------------
+// NO client-side syntax guessing here. Roslyn decides the replacement span and
+// sends it in the response. Any line-scan version of "am I inside a string?"
+// will disagree with the parser inside `$"{...}"` and filter out real members.
+// ---------------------------------------------------------------------------
 
 let registered = false;
 
@@ -82,31 +120,59 @@ export function registerReplCompletionProvider(): void {
   registered = true;
 
   monaco.languages.registerCompletionItemProvider('csharp', {
-    // '.' is the only trigger we claim. Completion is also available on Ctrl+Space,
-    // which Monaco handles without a trigger character.
-    triggerCharacters: ['.'],
+    // `"` opens the string arguments we know how to fill; `.` is Roslyn's.
+    triggerCharacters: ['.', '"'],
     provideCompletionItems: async (model, position) => {
-      const items = await fetchReplCompletions(
+      const answer = await fetchReplCompletions(
         model.getValue(),
         model.getOffsetAt(position),
       );
 
-      // Replace the word being typed, so accepting a suggestion does not leave a stub.
-      const word = model.getWordUntilPosition(position);
-      const range = new monaco.Range(
-        position.lineNumber,
-        word.startColumn,
-        position.lineNumber,
-        word.endColumn,
-      );
+      // Use Roslyn's span verbatim. A span is usable whenever it is non-empty and
+      // inside the buffer — INCLUDING start offset 0, which is where the very first
+      // word in an empty REPL buffer begins. The old `rangeStart > 0` guard rejected
+      // that case, silently turning `G` into a zero-width range, so `typed` came
+      // back empty and no DSL name could be matched.
+      const bufferLength = model.getValueLength();
+      const hasSpan =
+        answer.rangeEnd > answer.rangeStart &&
+        answer.rangeStart >= 0 &&
+        answer.rangeEnd <= bufferLength;
+      const range = hasSpan
+        ? monaco.Range.fromPositions(
+            model.getPositionAt(answer.rangeStart),
+            model.getPositionAt(answer.rangeEnd),
+          )
+        : monaco.Range.fromPositions(position, position);
+
+      // Roslyn hands back its ENTIRE candidate set (thousands of items, with Roslyn's
+      // own opaque sort keys). Monaco re-ranks that set by its own fuzzy scorer, which
+      // is how `Get` ended up showing E-names. Filter by the exact text inside the
+      // parser-provided range, and supply explicit filter/sort keys so Monaco has
+      // nothing left to guess. This is not syntax inference — the span is Roslyn's.
+      const typed = range.isEmpty() ? '' : model.getValueInRange(range).trim().toLowerCase();
+      const matched = typed
+        ? answer.items.filter((i) => i.label.toLowerCase().startsWith(typed))
+        : answer.items;
+      // Cap guards the pathological Roslyn "everything" list (~5100 items when a bare
+      // identifier is completed). It must NOT truncate a finite curated domain catalog:
+      // GetElements("") returns all ~590 Revit categories, alphabetically sorted — a 400
+      // cap cut everything from 'Q' onward, so "Walls" vanished while "PierWalls" survived.
+      // 2000 clears every curated catalog (categories and per-category parameters) while
+      // still bounding the Roslyn case. Explicit filterText/sortText below already stop
+      // Monaco re-ranking, so this is only a size guard, not a relevance mechanism.
+      const visible = matched.slice(0, 2000);
 
       return {
-        suggestions: items.map((item) => ({
+        suggestions: visible.map((item, index) => ({
           label: item.label,
           kind: KIND_BY_TAG[item.kind] ?? monaco.languages.CompletionItemKind.Text,
           insertText: item.insert_text || item.label,
           detail: item.detail || undefined,
-          sortText: item.sort_text || undefined,
+          // Explicit keys: Monaco must filter on the label we chose and keep
+          // Roslyn's order, not invent its own ranking.
+          filterText: item.label,
+          sortText: String(index).padStart(4, '0'),
           range,
         })),
       };

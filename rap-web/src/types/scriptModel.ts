@@ -144,4 +144,6 @@ export interface Script {
   sourceType?: 'local';
   queryData?: unknown;
   hasDoc?: boolean;
+  /** Present for Python gallery tools declared with tool.json; C# is the default. */
+  language?: 'csharp' | 'python';
 }

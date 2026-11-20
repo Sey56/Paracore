@@ -31,6 +31,8 @@ interface ParametersTabProps {
   script: Script;
   onViewCodeClick: () => void;
   isActionable: boolean;
+  /** Execution needs a live Revit document; parameter EDITING does not. */
+  isRevitConnected?: boolean;
   tooltipMessage: string;
 }
 
@@ -40,7 +42,7 @@ const initializeParameters = (params: ScriptParameter[]): ScriptParameter[] => {
 
 
 
-export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCodeClick, isActionable, tooltipMessage }) => {
+export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCodeClick, isActionable, isRevitConnected = true, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab, activeMainView } = useUI();
   
   // FORCE DEEP REFLOW on mount specifically for the Parameters tab content
@@ -208,7 +210,13 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const validationErrors = validateParameters(filterVisibleParameters(editedParameters));
   const isParamsValid = validationErrors.length === 0;
 
-  const isRunDisabled = !!runningScriptPath || !isActionable || !isParamsValid;
+  // Parameter form stays fully editable offline; only Run needs Revit.
+  const isRunDisabled = !!runningScriptPath || !isActionable || !isRevitConnected || !isParamsValid;
+  const runTooltip = !isActionable
+    ? tooltipMessage || "Sign in to run scripts"
+    : !isRevitConnected
+      ? "Connect Revit to run scripts"
+      : "";
 
   const isProtectedTool = !!(script.metadata && script.metadata.isProtected) || (script.name && script.name.toLowerCase().endsWith('.ptool'));
 
@@ -363,6 +371,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     }`}
                   onClick={handleRunScript}
                   disabled={isRunDisabled}
+                  title={runTooltip}
                 >
                   <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={isRunning ? "animate-spin" : "group-hover:translate-x-0.5 transition-transform"} />
                   {isRunning ? "Running..." : "Run"}

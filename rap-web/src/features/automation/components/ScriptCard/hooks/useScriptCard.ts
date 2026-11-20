@@ -22,7 +22,8 @@ export const useScriptCard = (script: Script, onSelect: () => void, onDoubleClic
 
   const { toggleFavoriteScript, deleteScript, isSyncActive, reloadScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
-  const { ParacoreConnected, revitStatus } = useRevitStatus();
+  const { revitStatus } = useRevitStatus();
+  const isRevitConnected = !!revitStatus?.isConnected;
   const { isAuthenticated, user } = useAuth();
   const { watchdogs } = useWatchdog();
 
@@ -72,22 +73,26 @@ export const useScriptCard = (script: Script, onSelect: () => void, onDoubleClic
   const currentDocType = revitStatus?.documentType || 'Any';
 
   const isCompatibleWithDocument = useMemo(() => {
-    if (!ParacoreConnected) return true;
+    // With Revit closed the run gate below already explains what is needed;
+    // there is no document to compare against.
+    if (!isRevitConnected) return true;
     if (revitStatus?.document === null) return false;
     if (requiredDocType === 'Any' || currentDocType === 'Any') return true;
     return requiredDocType.toLowerCase() === currentDocType.toLowerCase();
-  }, [ParacoreConnected, requiredDocType, currentDocType, revitStatus?.document]);
+  }, [isRevitConnected, requiredDocType, currentDocType, revitStatus?.document]);
 
   const currentParams = userEditedScriptParameters[script.id] || script.parameters || [];
   const visibleParameters = filterVisibleParameters(currentParams);
   const validationErrors = validateParameters(visibleParameters);
 
-  const isRunButtonDisabled = !isSelected || !ParacoreConnected || !isCompatibleWithDocument || isRunning || validationErrors.length > 0 || !isAuthenticated;
+  // Only EXECUTION needs Revit. Browsing, selecting, editing and configuring
+  // are all available offline once the user has signed in / continued offline.
+  const isRunButtonDisabled = !isSelected || !isRevitConnected || !isCompatibleWithDocument || isRunning || validationErrors.length > 0 || !isAuthenticated;
 
   const tooltipMessage = !isAuthenticated
     ? "Please sign in to run scripts"
-    : !ParacoreConnected
-      ? "Paracore server disconnected"
+    : !isRevitConnected
+      ? "Connect Revit to run scripts"
       : !isSelected
         ? "Select to Run"
         : revitStatus?.document === null
@@ -206,7 +211,7 @@ export const useScriptCard = (script: Script, onSelect: () => void, onDoubleClic
     setActiveInspectorTab,
     toggleFloatingCodeViewer,
     isAuthenticated,
-    ParacoreConnected,
+    isRevitConnected,
     reloadScript
   };
 };

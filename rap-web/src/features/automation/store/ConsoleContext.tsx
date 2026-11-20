@@ -34,7 +34,7 @@ interface ConsoleContextType {
   setMultiLineValue: (val: string) => void;
 
   isReplLoading: boolean;
-  handleReplSubmit: (activeSnippetName?: string | null) => Promise<void>;
+  handleReplSubmit: (activeSnippetName?: string | null, language?: 'csharp' | 'python') => Promise<void>;
 
   activeSnippetPath: string | null;
   setActiveSnippetPath: (val: string | null) => void;
@@ -143,7 +143,7 @@ export const ConsoleProvider: React.FC<{
     showNotification("Console and Analytics cleared", "info");
   }, [showNotification, setExecutionResult]);
 
-  const handleReplSubmit = async (activeName?: string | null) => {
+  const handleReplSubmit = async (activeName?: string | null, language: 'csharp' | 'python' = 'csharp') => {
     const command = multiLineValue.trim();
     if (!command || isReplLoading) return;
 
@@ -246,7 +246,7 @@ export const ConsoleProvider: React.FC<{
     try {
       // Clock around the request that does the work — see ExecutionResult.elapsedMs.
       const startedAt = performance.now();
-      const response = await api.post("/api/repl", { code: command, session_id: "global", license_tier: isEnterprise ? "enterprise" : "free" });
+      const response = await api.post("/api/repl", { code: command, session_id: "global", language, license_tier: isEnterprise ? "enterprise" : "free" });
       const elapsedMs = performance.now() - startedAt;
       if (response.data.is_success) {
         setExecutionResult({ 

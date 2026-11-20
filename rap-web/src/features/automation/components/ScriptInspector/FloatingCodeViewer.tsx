@@ -7,7 +7,6 @@ import { faTimes, faEdit, faShieldAlt, faHammer } from '@/components/ui/iconAlia
 import { useTheme } from '@/context/ThemeContext';
 import { useScriptExecution } from '@/features/automation';
 import { useAuth } from '@/features/auth';
-import { useRevitStatus } from '@/hooks/useRevitStatus';
 
 interface FloatingCodeViewerProps {
   script: Script;
@@ -18,18 +17,17 @@ interface FloatingCodeViewerProps {
 export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, isOpen, onClose }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
-  const { ParacoreConnected } = useRevitStatus();
   const { editScript, buildTool } = useScriptExecution();
 
   if (!isOpen) {
     return null;
   }
 
-  const canEdit = !!user && ParacoreConnected && !script.metadata.isProtected;
+  // Opening VS Code and Roslyn compilation are sidecar work, not Revit work.
+  const canEdit = !!user && !script.metadata.isProtected;
 
   const getTitleMessage = () => {
     if (!user) return "You must be signed in to edit scripts";
-    if (!ParacoreConnected) return "Paracore is disconnected. Please connect to Revit.";
     if (script.metadata.isProtected) return "Source code for this tool is protected and cannot be edited.";
     return script.metadata.isWatchdog ? "Edit Sentinel" : "Edit Script";
   };
@@ -101,12 +99,8 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
         {!script.metadata.isProtected && (
           <button
             onClick={() => buildTool(script)}
-            disabled={!ParacoreConnected}
-            className={`ml-3 bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold flex items-center ${!ParacoreConnected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'
-              }`}
-            title={ParacoreConnected
-              ? `Compile this script into a sealed ${script.metadata.isWatchdog ? '.wtool Sentinel' : '.ptool Tool'} package`
-              : "Paracore is disconnected. Please connect to Revit to compile scripts."}
+            className="ml-3 bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold flex items-center hover:bg-indigo-700"
+            title={`Compile this script into a sealed ${script.metadata.isWatchdog ? '.wtool Sentinel' : '.ptool Tool'} package`}
           >
             <FontAwesomeIcon icon={script.metadata.isWatchdog ? faShieldAlt : faHammer} className="mr-2" />
             {script.metadata.isWatchdog ? "Forge Sentinel" : "Forge Tool"}

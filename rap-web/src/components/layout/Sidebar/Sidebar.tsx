@@ -12,7 +12,6 @@ import { ConfirmActionModal } from '@/features/automation/components/ScriptInspe
 import { InitializeSourceModal } from '@/features/automation/components/InitializeSourceModal';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/features/auth';
-import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { normalizePath } from '@/utils/pathHelpers';
 import api from '@/api/axios';
 
@@ -25,9 +24,11 @@ import { LocalSourceManager } from './components/LocalSourceManager';
 
 export const Sidebar = () => {
   const { user } = useAuth();
-  const { ParacoreConnected } = useRevitStatus();
   const { showNotification } = useNotifications();
-  const isDisabled = !user || !ParacoreConnected;
+  // Browsing local sources, favourites, recents and categories needs no Revit
+  // and no sidecar -- the lists live in localStorage. Signing in (or Continue
+  // Offline) is the only prerequisite; Revit is required for execution only.
+  const isDisabled = !user;
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource, setActiveInspectorTab } = useUI();
   const {

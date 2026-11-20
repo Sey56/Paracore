@@ -22,6 +22,9 @@ interface MonacoReplEditorProps {
   disabled?: boolean;
   placeholder?: string;
   fontSize?: number;
+  /** Python is supported for the v5 IFC path; C# remains the default and the only
+   *  language with Roslyn IntelliSense. */
+  language?: 'csharp' | 'python';
 }
 
 /**
@@ -43,12 +46,15 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
       disabled = false,
       placeholder = 'Write your code here...',
       fontSize = 14,
+      language = 'csharp',
     },
     ref,
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
     const { theme } = useTheme();
+    const languageRef = useRef(language);
+    languageRef.current = language;
 
     // Latest callbacks behind refs, so the editor is created ONCE and never rebuilt when a
     // parent re-render hands us a new function identity.
@@ -78,7 +84,7 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
 
       const editor = monaco.editor.create(container, {
         value,
-        language: 'csharp',
+        language: languageRef.current,
         theme: monacoThemeFor(theme),
         fontSize,
         fontFamily:
@@ -91,7 +97,10 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
         renderWhitespace: 'selection',
         bracketPairColorization: { enabled: true },
         suggestOnTriggerCharacters: true,
-        quickSuggestions: { other: true, comments: false, strings: false },
+        // `strings: true` is deliberate: category and parameter names are string
+        // arguments in this DSL, and Roslyn alone cannot complete them. The
+        // completion provider supplies those from the Revit catalogues.
+        quickSuggestions: { other: true, comments: false, strings: true },
         // Off: word-based guesses would crowd out the real Roslyn answers.
         wordBasedSuggestions: 'off',
         placeholder,
@@ -102,12 +111,28 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
 
       editorRef.current = editor;
 
+      // Monaco's C# language config registers (), [] and {} as bracket pairs but NOT
+      // < >. Registering <> globally would also auto-close comparison operators
+      // (`wall.Length < 2000` -> `wall.Length <>`), so close it only after an
+      // identifier that is actually generic. Overtyping the closing > skips it.
+      const genericNames = new Set([
+        'List', 'Dictionary', 'IEnumerable', 'ICollection', 'IList',
+        'IReadOnlyList', 'IReadOnlyCollection', 'HashSet', 'SortedList',
+        'SortedDictionary', 'Tuple', 'KeyValuePair', 'Func', 'Action',
+        'Predicate', 'Task', 'Nullable', 'GetElements', 'Cast', 'OfType',
+        'Select', 'SelectMany', 'Where', 'GroupBy', 'OrderBy', 'ThenBy',
+        'ToDictionary', 'FirstOrDefault', 'SingleOrDefault', 'Concat',
+        'Union', 'Join', 'Zip', 'Chunk',
+      ]);
       const model = editor.getModel();
 
       // Diagnostics run on IDLE, not per keystroke: a full compilation is far heavier than a
       // completion query, and a squiggle that arrives a moment late is perfectly acceptable.
       let diagnosticsTimer: number | undefined;
       const scheduleDiagnostics = () => {
+        // Roslyn owns C# only. Python has no IntelliSense parity in this release;
+        // do not paint C# squiggles over valid Python.
+        if (languageRef.current === 'python') return;
         if (diagnosticsTimer !== undefined) window.clearTimeout(diagnosticsTimer);
         diagnosticsTimer = window.setTimeout(() => {
           diagnosticsTimer = undefined;
@@ -115,7 +140,45 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
         }, 600);
       };
 
-      const changeSub = editor.onDidChangeModelContent(() => {
+      const changeSub = editor.onDidChangeModelContent((event) => {
+        // Close the generic angle bracket only after a known generic name. Monaco's
+        // C# config has no <> pair; adding one language-wide would turn comparisons
+        // like `wall.Length < 2000` into `wall.Length <>`.
+        const typed = event.changes.length === 1 && event.changes[0].rangeLength === 0
+          ? event.changes[0].text
+          : '';
+        if ((typed === '<' || typed === '>') && model) {
+          const position = editor.getPosition();
+          if (position) {
+            const line = model.getLineContent(position.lineNumber);
+            if (typed === '<') {
+              const before = line.slice(0, position.column - 2);
+              const identifier = /([A-Za-z_][A-Za-z0-9_]*)$/.exec(before)?.[1];
+              if (identifier && genericNames.has(identifier) &&
+                  line[position.column - 1] !== '>') {
+                editor.executeEdits('repl-angle-close', [{
+                  range: new monaco.Range(
+                    position.lineNumber, position.column,
+                    position.lineNumber, position.column),
+                  text: '>',
+                  forceMoveMarkers: true,
+                }]);
+                editor.setPosition(position);
+              }
+            } else if (line[position.column - 1] === '>') {
+              // Pair already present: move past it instead of inserting a third >.
+              editor.executeEdits('repl-angle-overtype', [{
+                range: new monaco.Range(
+                  position.lineNumber, position.column,
+                  position.lineNumber, position.column + 1),
+                text: '',
+                forceMoveMarkers: true,
+              }]);
+              editor.setPosition(position);
+            }
+          }
+        }
+
         onChangeRef.current(editor.getValue());
         scheduleDiagnostics();
       });
@@ -159,6 +222,15 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
         editor.setValue(value);
       }
     }, [value]);
+
+    useEffect(() => {
+      const model = editorRef.current?.getModel();
+      if (!model) return;
+      monaco.editor.setModelLanguage(model, language);
+      if (language === 'python') {
+        monaco.editor.setModelMarkers(model, 'paracore-roslyn', []);
+      }
+    }, [language]);
 
     useEffect(() => {
       editorRef.current?.updateOptions({ fontSize });

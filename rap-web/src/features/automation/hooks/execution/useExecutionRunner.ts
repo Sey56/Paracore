@@ -55,6 +55,7 @@ export const useExecutionRunner = (
         path: script.absolutePath,
         parameters: JSON.stringify(parameters),
         thread_id: threadId,
+        language: script.language || "csharp",
         license_tier: isEnterprise ? "enterprise" : "free"
       });
       const elapsedMs = performance.now() - startedAt;

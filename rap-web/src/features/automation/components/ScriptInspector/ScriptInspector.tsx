@@ -18,17 +18,19 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
   const { selectedScript, setSelectedScript, editScript } = useScriptExecution();
   const { scripts } = useScripts();
   const { toggleFloatingCodeViewer } = useUI();
-  const { revitStatus, ParacoreConnected } = useRevitStatus();
+  const { revitStatus } = useRevitStatus();
   const { isAuthenticated } = useAuth();
 
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
 
   const script = selectedScript;
-  const isActionable = ParacoreConnected && isAuthenticated;
+  // Editing, browsing the configurator and opening VS Code need only sign-in.
+  // Revit is required for running a script, handled inside ParametersTab.
+  const isActionable = isAuthenticated;
+  const isRevitConnected = !!revitStatus?.isConnected;
 
   const getTooltipMessage = () => {
     if (!isAuthenticated) return "You must sign in to use Paracore";
-    if (!ParacoreConnected) return "Paracore server disconnected";
     return "";
   };
 
@@ -126,6 +128,7 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
           script={script}
           onViewCodeClick={toggleFloatingCodeViewer}
           isActionable={isActionable}
+          isRevitConnected={isRevitConnected}
           tooltipMessage={tooltipMessage}
         />
       </div>

@@ -33,7 +33,8 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
   const { runScript, runningScriptPath, renameScript, openFolder } = useScriptExecution();
   const { toggleFavoriteScript, editScript, deleteScript: deleteScriptApi, reloadScript } = useScripts();
   const { toggleFloatingCodeViewer } = useUI();
-  const { ParacoreConnected } = useRevitStatus();
+  const { revitStatus } = useRevitStatus();
+  const isRevitConnected = !!revitStatus?.isConnected;
   const { isAuthenticated } = useAuth();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -51,7 +52,7 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
 
   const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!ParacoreConnected || !isAuthenticated || isRunning) return;
+    if (!isRevitConnected || !isAuthenticated || isRunning) return;
     runScript(script);
   };
 
@@ -128,8 +129,10 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
     }
   };
 
-  const runDisabled = !ParacoreConnected || !isAuthenticated || isRunning;
-  const runTooltip = !ParacoreConnected ? 'Paracore disconnected' : !isAuthenticated ? 'Sign in to run' : isRunning ? 'Running...' : 'Run Script';
+  // Browsing, Configure, View Code, documentation and Forge are available offline.
+  // Only Run needs the live Revit document.
+  const runDisabled = !isRevitConnected || !isAuthenticated || isRunning;
+  const runTooltip = !isRevitConnected ? 'Connect Revit to run scripts' : !isAuthenticated ? 'Sign in to run' : isRunning ? 'Running...' : 'Run Script';
 
   const Sep = () => <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0" />;
 
