@@ -25,6 +25,8 @@
 
 `CoreScript.Engine` is designed to be consumed as a library by a host application (e.g., `Paracore.Addin`). The typical execution workflow is as follows:
 
+The same engine also runs headlessly inside `Paracore.Server` for **metadata-only** Roslyn work — completions, diagnostics, hover and gallery parameters. That is how the desktop app gets full C# IntelliSense with Revit closed; it never executes a Revit-modifying script there.
+
 1.  **Receive Code and Parameters:** The host application provides the engine's `CodeRunner` with the C# script content (as a JSON string of file contents) and a set of parameters (also in JSON).
 
 2.  **Combine and Rewrite:**

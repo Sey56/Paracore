@@ -6,6 +6,18 @@
 
 Write C# that runs live inside Revit — no project files, no compilation step, no boilerplate. Revit API namespaces are pre-imported and elements have extension methods for common operations.
 
+## Architecture at a glance
+
+| Piece | What it is | Where it lives |
+|---|---|---|
+| **Desktop app** | React/Tauri UI + Python `rap-server`. REPL, gallery, parameter UI, Python/IFC gateways. | `rap-web`, `rap-server` |
+| **Revit add-in** | Ribbon client + the engine that compiles and executes C# **inside Revit**. It also installs the shared sidecar binary. | `Paracore.Addin` |
+| **Shared sidecar** | ONE `Paracore.Server.exe` on `localhost:50051`. First app starts it, the other adopts it; both keep heartbeat leases, and it retires when the last user leaves. | installed with the **add-in** only |
+
+The sidecar is Revit-facing, so it ships with the add-in — not with the desktop app. The desktop app starts or adopts that same process for Roslyn IntelliSense, gallery metadata and script parameters, so editing works with **Revit closed**. Execution still requires Revit, an installed add-in, and the Paracore ribbon server toggled **ON**.
+
+Python and IFC stay in the desktop app deliberately: they are host-neutral scripting gateways, not Revit bridges. If another host bridge is needed later, it gets its own authoring-environment component rather than being folded into this sidecar.
+
 ## Install
 
 Download the installers from the [v4.8.4 release page](https://github.com/Sey56/Paracore/releases/tag/v4.8.4), run the desktop app MSI and the Revit add-in EXE, then open Revit and switch the Paracore server ON in the ribbon.
@@ -18,8 +30,8 @@ The optional VS Code extension and the Paracore-Gen MCP server have installers o
 
 | Component | What it does | Build |
 |-----------|-------------|-------|
-| **Paracore Addin** | Revit ribbon + gRPC execution engine | `./build-addin.ps1` |
-| **Paracore Desktop App** | Script gallery, REPL playground, parameter UI generator | `./build-frontend.ps1` |
+| **Paracore Addin** | Revit ribbon client, in-process execution engine, and the installed shared sidecar | `./build-addin.ps1` |
+| **Paracore Desktop App** | Script gallery, REPL playground, parameter UI generator, Python/IFC gateways | `./build-frontend.ps1` |
 | **CoreScript VS Code Extension** | Write C# in VS Code, run it in Revit | `./build-extension.ps1` |
 
 Build outputs go to `installers/`. Requirements: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
