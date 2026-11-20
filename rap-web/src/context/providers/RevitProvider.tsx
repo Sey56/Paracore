@@ -14,14 +14,20 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
   }), []);
 
   const [ParacoreConnected, setParacoreConnected] = useState<boolean>(false);
+  const [sidecarInstalled, setSidecarInstalled] = useState<boolean | null>(null);
   const [revitStatus, setRevitStatus] = useState<RevitStatus>(initialRevitStatus);
 
   const fetchStatus = useCallback(async () => {
     try {
       const response = await api.get("/api/status");
-      
+
       const newParacoreConnected = response.data.paracoreConnected;
       setParacoreConnected(prev => prev !== newParacoreConnected ? newParacoreConnected : prev);
+
+      const newSidecarInstalled = response.data.sidecarInstalled;
+      if (typeof newSidecarInstalled === 'boolean') {
+        setSidecarInstalled(prev => prev !== newSidecarInstalled ? newSidecarInstalled : prev);
+      }
 
       const newRevitStatus: RevitStatus = {
         isConnected: response.data.revitOpen,
@@ -44,6 +50,8 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error("[RAP] Failed to fetch status:", error);
       setParacoreConnected(prev => prev ? false : prev);
+      // The API itself failed; that is not evidence the add-in is missing.
+      setSidecarInstalled(null);
       setRevitStatus(prev => {
         if (!prev.isConnected && prev.document === null) return prev;
         return initialRevitStatus;
@@ -62,8 +70,9 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
 
   const contextValue = useMemo(() => ({
     ParacoreConnected,
+    sidecarInstalled,
     revitStatus,
-  }), [ParacoreConnected, revitStatus]);
+  }), [ParacoreConnected, sidecarInstalled, revitStatus]);
 
   return (
     <RevitContext.Provider value={contextValue}>

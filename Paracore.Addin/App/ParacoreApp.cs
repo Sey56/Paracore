@@ -32,8 +32,9 @@ namespace Paracore.Addin.App
         private static ServerActionHandler? _serverActionHandler;
         private static ExternalEvent? _externalEvent;
         private static IServiceProvider? _serviceProvider;
-        private static System.Diagnostics.Process? _sidecarProcess;
-        private static string? _addinDir;
+        // NOTE: Paracore.Server.exe is SHARED. The first app that needs it starts
+        // it (desktop at boot, or Revit on ribbon ON); the other app adopts it.
+        // Neither holds a process handle -- connected apps keep lease files.
 
         /// <summary>
         /// The class-name prefix the shim publishes for its pack-command proxy pool, e.g.
@@ -91,7 +92,6 @@ namespace Paracore.Addin.App
             // Fallback: Assembly.Location (regular install).
             var addinDir = Environment.GetEnvironmentVariable("PARACORE_ADDIN_DIR")
                 ?? Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location);
-            _addinDir = addinDir; // cached for StartSidecar
 
             LoadProSettings();
             FileLogger.Log($"Paracore Add-in loaded from: {addinDir}");
@@ -622,10 +622,12 @@ namespace Paracore.Addin.App
         {
             _client?.Stop();
             _serverRunning = false;
+            SidecarLease.Stop();
             UpdateButtonState();
 
-            StopSidecar();
-
+            // Do NOT stop Paracore.Server.exe here. It is shared: the desktop app
+            // may still be using it, and if this was the last user the sidecar's
+            // own lease watcher retires it.
             FileLogger.Log("=== Paracore Shutdown Complete ===");
 
             return Result.Succeeded;
@@ -645,48 +647,11 @@ namespace Paracore.Addin.App
         }
 
         /// <summary>
-        /// Resolves the addin directory from multiple sources, in priority order.
-        /// Works in normal install AND Add-in-Manager dev workflow.
-        /// </summary>
-        private static string ResolveAddinDir()
-        {
-            // 1. Env var set by the shim (normal install)
-            var env = Environment.GetEnvironmentVariable("PARACORE_ADDIN_DIR");
-            if (!string.IsNullOrEmpty(env)) return env;
-
-            // 2. Cached from OnStartup (normal install)
-            if (!string.IsNullOrEmpty(_addinDir)) return _addinDir;
-
-            // 3. Find the shim assembly — its directory is where all DLLs live
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (asm.GetName().Name == "Paracore.Shim"
-                    && !string.IsNullOrEmpty(asm.Location))
-                    return Path.GetDirectoryName(asm.Location)!;
-            }
-
-            // 4. Module path — more reliable than Assembly.Location
-            //    in isolated load contexts (Add-in-Manager).
-            var mod = typeof(ParacoreApp).Module.FullyQualifiedName;
-            if (!string.IsNullOrEmpty(mod))
-                return Path.GetDirectoryName(mod)!;
-
-            // 5. Assembly.Location (regular non-isolated loads)
-            var loc = typeof(ParacoreApp).Assembly.Location;
-            if (!string.IsNullOrEmpty(loc))
-                return Path.GetDirectoryName(loc)!;
-
-            // 6. Last resort
-            return Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)
-                + @"\Paracore";
-        }
-
-        /// <summary>
         /// ⚠ CLOUD SEAM (Phase 0) — the sidecar endpoint, resolved from PARACORE_SIDECAR_URL.
         ///
-        /// Default is the LOCAL sidecar, so an ordinary install behaves exactly as before.
-        /// Point the variable at another host (a second machine on the LAN/Tailnet, or a cloud
-        /// host) to drive a remote worker; in that case no local sidecar is launched.
+        /// The sidecar is owned and kept alive by the PARACORE DESKTOP APP. This is only the
+        /// address the add-in connects to when the ribbon toggle is ON; the add-in never
+        /// launches, stops or supervises that process (user ruling 2026-11-20).
         /// Accepts "host:port" or a full URL; a missing scheme defaults to http.
         /// </summary>
         public static string SidecarUrl
@@ -702,93 +667,102 @@ namespace Paracore.Addin.App
         }
 
         /// <summary>
-        /// True when <see cref="SidecarUrl"/> points somewhere other than this machine — in which
-        /// case the add-in must NOT launch a local sidecar, it connects to the remote one instead.
+        /// Cheap reachability check before opening Revit's subscription.
+        ///
+        /// The desktop app owns the sidecar, so "not reachable" means the desktop app is not
+        /// running (or is pointed at a different address). Saying that plainly at toggle time
+        /// is far better than a client that silently retries every five seconds while the
+        /// ribbon claims everything is ON.
         /// </summary>
-        public static bool IsSidecarRemote
-        {
-            get
-            {
-                try
-                {
-                    var host = new Uri(SidecarUrl).Host;
-                    return !(host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-                             || host == "127.0.0.1" || host == "::1");
-                }
-                catch { return false; }
-            }
-        }
-
-        public static void StartSidecar()
-        {
-            if (IsSidecarRemote)
-            {
-                FileLogger.Log($"Remote sidecar configured ({SidecarUrl}); not launching a local sidecar.");
-                return;
-            }
-
-            var addinDir = ResolveAddinDir();
-            var sidecarPath = Path.Combine(addinDir, "Paracore.Server.exe");
-
-            if (File.Exists(sidecarPath))
-            {
-                _sidecarProcess = new System.Diagnostics.Process
-                {
-                    StartInfo = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = sidecarPath,
-                        Arguments = $"--parent-pid {System.Diagnostics.Process.GetCurrentProcess().Id}",
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardInput = true,
-                        WorkingDirectory = addinDir
-                    }
-                };
-                _sidecarProcess.Start();
-                FileLogger.Log($"Sidecar process started successfully (PID: {_sidecarProcess.Id})");
-            }
-            else
-            {
-                string msg = $"CRITICAL ERROR: Paracore Sidecar ('Paracore.Server.exe') not found in the add-in folder.\nPath searched: {sidecarPath}";
-                FileLogger.LogError(msg);
-                throw new FileNotFoundException(msg);
-            }
-        }
-
-        public static void StopSidecar()
+        public static bool IsSidecarReachable()
         {
             try
             {
-                if (_sidecarProcess != null && !_sidecarProcess.HasExited)
-                {
-                    FileLogger.Log("Stopping Sidecar process gracefully via stdin...");
-                    try { _sidecarProcess.StandardInput.WriteLine("exit"); } catch { }
-                    
-                    if (!_sidecarProcess.WaitForExit(1500))
-                    {
-                        FileLogger.Log("Sidecar process didn't close in time. Force killing.");
-                        try { _sidecarProcess.Kill(); } catch { }
-                    }
-
-                    _sidecarProcess.Dispose();
-                    _sidecarProcess = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                FileLogger.LogError($"Error stopping Sidecar: {ex.Message}");
-            }
-        }
-
-        public static bool IsSidecarRunning()
-        {
-            if (_sidecarProcess == null) return false;
-            try
-            {
-                return !_sidecarProcess.HasExited;
+                var uri = new Uri(SidecarUrl);
+                using var tcp = new System.Net.Sockets.TcpClient();
+                var connect = tcp.ConnectAsync(uri.Host, uri.Port);
+                return connect.Wait(TimeSpan.FromSeconds(2)) && tcp.Connected;
             }
             catch
             {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Makes sure the SHARED sidecar is answering before Revit subscribes to it.
+        ///
+        /// The desktop app is not required to be running. If nothing answers at
+        /// <see cref="SidecarUrl"/>, Revit starts the one process with the same environment
+        /// the desktop would use, and deliberately WITHOUT --parent-pid: the process belongs
+        /// to whoever is connected, not to the app that happened to launch it. If something
+        /// already answers, this adopts it and starts nothing.
+        /// </summary>
+        public static bool EnsureSidecarAvailable()
+        {
+            bool local;
+            try
+            {
+                var uri = new Uri(SidecarUrl);
+                local = uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                        || uri.Host == "127.0.0.1" || uri.Host == "::1";
+                if (!local) return true; // a remote sidecar is not ours to launch
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"[Sidecar] Invalid SidecarUrl '{SidecarUrl}': {ex.Message}");
+                return false;
+            }
+
+            if (IsSidecarReachable()) return true;
+
+            try
+            {
+                var addinDir = Environment.GetEnvironmentVariable("PARACORE_ADDIN_DIR");
+                if (string.IsNullOrWhiteSpace(addinDir))
+                    addinDir = Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location);
+                var exe = Path.Combine(addinDir ?? string.Empty, "Paracore.Server.exe");
+                if (!File.Exists(exe))
+                {
+                    FileLogger.LogError($"[Sidecar] Not found: {exe}");
+                    return false;
+                }
+
+                // Without this, Roslyn has no RevitAPI.dll metadata and the REPL shows
+                // permanent CS0012 errors. This was the exact regression from Nov 20.
+                var revitApi = Path.Combine(RevitInstallPath, "RevitAPI.dll");
+                if (!File.Exists(revitApi))
+                {
+                    FileLogger.LogError($"[Sidecar] RevitAPI.dll not found at {revitApi}");
+                    return false;
+                }
+
+                var uri = new Uri(SidecarUrl);
+                var start = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exe,
+                    WorkingDirectory = addinDir,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                start.Environment["PARACORE_REVIT_DIR"] = RevitInstallPath;
+                start.Environment["PARACORE_SIDECAR_BIND"] = $"{uri.Host}:{uri.Port}";
+
+                var process = System.Diagnostics.Process.Start(start);
+                FileLogger.Log($"[Sidecar] Started shared process (PID {process?.Id}) from {exe}");
+
+                for (int i = 0; i < 25; i++)
+                {
+                    System.Threading.Thread.Sleep(200);
+                    if (IsSidecarReachable()) return true;
+                }
+
+                FileLogger.LogError("[Sidecar] Started but did not answer in 5 seconds.");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"[Sidecar] Failed to start shared process: {ex.Message}");
                 return false;
             }
         }
@@ -801,9 +775,10 @@ namespace Paracore.Addin.App
             if (string.IsNullOrEmpty(addinDir)) return;
 
             // 1. Health Check (Probe for existence)
+            // Paracore.Server.exe is checked by EnsureSidecarAvailable(), not here:
+            // it is the shared sidecar, started by whichever app needs it first.
             var criticalProbes = new[] {
                 "CoreScript.Engine.dll",
-                "Paracore.Server.exe", // The new Sidecar muscle
                 "Grpc.Net.Client.dll"
             };
 
@@ -869,8 +844,8 @@ namespace Paracore.Addin.App
                 _toggleButton.Image = _serverRunning ? _iconOn : _iconOff;
                 _toggleButton.LargeImage = _serverRunning ? _iconOn : _iconOff;
                 _toggleButton.ToolTip = _serverRunning
-                    ? "Paracore Server is running on port 50051. Click to stop."
-                    : "Paracore Server is stopped. Click to start.";
+                    ? "Revit is connected to the shared Paracore server. Click to disconnect Revit."
+                    : "Revit is not connected. Click to use or start the shared Paracore server.";
             }
         }
 

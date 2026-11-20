@@ -7,59 +7,60 @@ using Paracore.Addin.Context;
 using Paracore.Addin.Services;
 using Paracore.Addin.ViewModels;
 using System;
-using Microsoft.Extensions.DependencyInjection; // Added
-using CoreScript.Engine.Logging; // Added
-using Paracore.Addin.Handlers; // Added
+using Microsoft.Extensions.DependencyInjection;
+using CoreScript.Engine.Logging;
+using Paracore.Addin.Handlers;
 
 namespace Paracore.Addin.Commands
 {
+    /// <summary>
+    /// Opens or closes REVIT'S CONNECTION to the shared Paracore.Server.exe.
+    ///
+    /// ⚠ Since 2026-11-20 the sidecar is shared: whichever app needs it first starts it,
+    /// with the right Revit metadata environment and no --parent-pid; the other app adopts
+    /// it. Toggling this ribbon OFF only closes Revit's subscription and lease. The
+    /// sidecar itself stays alive until the LAST connected app has gone.
+    /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class ToggleServerCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            // The Server is considered "Running" if our logical flag is true AND the background host process is alive
-            bool isActuallyRunning = ParacoreApp.ServerRunning && ParacoreApp.IsSidecarRunning();
+            bool isConnected = ParacoreApp.ServerRunning;
 
-            if (!isActuallyRunning)
+            if (!isConnected)
             {
                 try
                 {
-                    // Clean up any lingering clients if the process died manually behind the scenes
+                    // Clean up any lingering client from a previous, out-of-sync session.
                     if (ParacoreApp.Client != null)
                     {
                         ParacoreApp.Client.Stop();
                         ParacoreApp.SetClient(null);
                     }
-                    // Terminate lingering zombies if prior state was desynced
-                    ParacoreApp.StopSidecar();
 
-                    // --- 1. Validate Deployment and Force Strict Loading ---
-                    // This ensures the developer machine behaves exactly like the user machine.
+                    // Adopt an existing sidecar, or start the single shared one if
+                    // nothing answers. Revit must work with no desktop app running.
+                    if (!ParacoreApp.EnsureSidecarAvailable())
+                    {
+                        TaskDialog.Show("Paracore Server - Not Available",
+                            "Paracore.Server.exe could not be started at " + ParacoreApp.SidecarUrl + ".\n\n" +
+                            "Check that Paracore.Server.exe is installed beside the add-in and that " +
+                            "RevitAPI.dll is present in the Revit folder. See CoreScriptServerLog.txt.");
+                        return Result.Failed;
+                    }
+
                     ParacoreApp.ValidateAndForceLoadDependencies();
 
-                    // --- 2. Spin up the Background Sidecar Process ---
-                    ParacoreApp.StartSidecar();
-                    
-                    // Give Kestrel a tiny window to bind the gRPC HTTP port before dialing
-                    System.Threading.Thread.Sleep(500);
-
-                    // 3. Resolve ILogger and RevitContext from the ServiceProvider
                     var logger = ParacoreApp.ServiceProvider.GetRequiredService<ILogger>();
                     var revitContext = ParacoreApp.ServiceProvider.GetRequiredService<RevitContext>();
-                    
-                    // ✅ Provide the active UIApplication to the context
                     revitContext.UIApplication = commandData.Application;
 
-                    // ✅ Inject context
                     var context = new ServerContext(commandData.Application);
-
-                    // ✅ Setup external event dispatcher
                     var actionHandler = new ServerActionHandler(ServerViewModel.Instance);
                     var codeExecutionEvent = ExternalEvent.Create(actionHandler);
                     ServerViewModel.Instance.Initialize(codeExecutionEvent);
 
-                    // ✅ Start client with standard dispatcher
                     var client = new CoreScriptClient(
                         ParacoreApp.ServiceProvider.GetRequiredService<ScriptExecutionHandler>(),
                         ParacoreApp.ServiceProvider.GetRequiredService<MetadataHandler>(),
@@ -72,11 +73,13 @@ namespace Paracore.Addin.Commands
                     ParacoreApp.SetClient(client);
                     ParacoreApp.SetServerRunning(true);
                     ServerViewModel.Instance.IsServerRunning = true;
+                    SidecarLease.Start();
                 }
                 catch (Exception ex)
                 {
-                    ParacoreApp.StopSidecar(); // Fail safely
-                    TaskDialog.Show("Paracore Server - Error", $"Failed to start Paracore Server: {ex.Message}\n\nCheck CoreScriptServerLog.txt for more details.");
+                    SidecarLease.Stop();
+                    TaskDialog.Show("Paracore Server - Error",
+                        $"Failed to connect Revit to Paracore Server: {ex.Message}\n\nCheck CoreScriptServerLog.txt for more details.");
                     return Result.Failed;
                 }
             }
@@ -84,24 +87,24 @@ namespace Paracore.Addin.Commands
             {
                 try
                 {
+                    // Disconnect Revit only. The shared sidecar survives while the
+                    // desktop app still holds a lease, and retires itself if this was
+                    // the last user.
+                    SidecarLease.Stop();
                     ParacoreApp.Client?.Stop();
                     ParacoreApp.SetClient(null);
                     ParacoreApp.SetServerRunning(false);
                     ServerViewModel.Instance.IsServerRunning = false;
-
-                    // TEARDOWN PROCESS
-                    ParacoreApp.StopSidecar();
                 }
                 catch (Exception ex)
                 {
-                    TaskDialog.Show("Paracore Server - Error", $"Failed to stop Paracore Server: {ex.Message}\n\nCheck CoreScriptServerLog.txt for more details.");
+                    TaskDialog.Show("Paracore Server - Error",
+                        $"Failed to disconnect Revit from Paracore Server: {ex.Message}\n\nCheck CoreScriptServerLog.txt for more details.");
                     return Result.Failed;
                 }
             }
 
-            // Ensure IsServerRunning is updated correctly
             ServerViewModel.Instance.IsServerRunning = ParacoreApp.ServerRunning;
-
             return Result.Succeeded;
         }
     }

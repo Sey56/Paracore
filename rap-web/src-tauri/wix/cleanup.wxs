@@ -16,8 +16,18 @@
                   Return="ignore"
                   HideTarget="no" />
 
+    <!-- Remove the legacy self-contained sidecar copy bundled in the desktop app.
+         The sidecar now has ONE install home: the Revit add-in folder. -->
+    <CustomAction Id="RemoveLegacyDesktopSidecar"
+                  Directory="TARGETDIR"
+                  ExeCommand="cmd.exe /c if exist &quot;[INSTALLDIR]server-release\paracore-sidecar&quot; rd /s /q &quot;[INSTALLDIR]server-release\paracore-sidecar&quot;"
+                  Execute="deferred"
+                  Return="ignore"
+                  HideTarget="no" />
+
     <InstallExecuteSequence>
       <Custom Action="KillParacore" Before="InstallInitialize">Installed AND NOT UPGRADINGPRODUCTCODE</Custom>
+      <Custom Action="RemoveLegacyDesktopSidecar" After="InstallFiles">NOT REMOVE</Custom>
       <Custom Action="CleanupParacoreData" After="RemoveFiles">Installed AND NOT UPGRADINGPRODUCTCODE</Custom>
     </InstallExecuteSequence>
   </Fragment>

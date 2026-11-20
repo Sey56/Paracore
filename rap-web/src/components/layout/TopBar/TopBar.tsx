@@ -15,7 +15,7 @@ import packageJson from '../../../../package.json';
 
 export const TopBar: React.FC = () => {
   const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap, layoutOrientation, toggleLayoutOrientation, openWelcomeGate } = useUI();
-  const { ParacoreConnected, revitStatus } = useRevitStatus();
+  const { ParacoreConnected, sidecarInstalled, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, loginLocal, logout } = useAuth();
   const { loadScriptsForFolder, toolLibraryPath } = useScripts();
@@ -48,11 +48,13 @@ export const TopBar: React.FC = () => {
     setIsHelpDropdownOpen(false);
   };
 
+  const addInMissing = sidecarInstalled === false && !ParacoreConnected;
+
   const getConnectionStatusText = () => {
-    if (!ParacoreConnected) {
-      return "Paracore Disconnected";
-    }
-    const parts = ["Paracore Connected"];
+    if (addInMissing) return "Paracore add-in not installed — install it to start the shared server for IntelliSense, gallery parameters and execution";
+    if (!ParacoreConnected) return "Paracore Disconnected";
+    if (!revitStatus.isConnected) return "Offline — Revit closed (editing and intellisense available)";
+    const parts = ["Revit Connected"];
     if (revitStatus.version) {
       parts.push(`Revit ${revitStatus.version}`);
     }
@@ -141,16 +143,18 @@ export const TopBar: React.FC = () => {
       <div className="flex items-center gap-3">
         {/* Connection Status Badge (Live Feed Style) */}
         <div className={`hidden xl:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-500
-          ${!ParacoreConnected
+          ${addInMissing || !ParacoreConnected
             ? "bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-800/50 text-rose-600 dark:text-rose-400"
-            : "bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400"
-          }`}>
+            : !revitStatus.isConnected
+              ? "bg-amber-50 border-amber-100 dark:bg-amber-900/20 dark:border-amber-800/50 text-amber-600 dark:text-amber-400"
+              : "bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400"
+          }`} title={getConnectionStatusText()}>
           <div className="relative flex h-2 w-2">
-            <span className={` absolute inline-flex h-full w-full rounded-full opacity-75 ${!ParacoreConnected ? 'bg-rose-400' : 'bg-emerald-400'}`}></span>
-            <span className={`relative inline-flex rounded-full h-2 w-2 ${!ParacoreConnected ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
+            <span className={` absolute inline-flex h-full w-full rounded-full opacity-75 ${addInMissing || !ParacoreConnected ? 'bg-rose-400' : !revitStatus.isConnected ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${addInMissing || !ParacoreConnected ? 'bg-rose-500' : !revitStatus.isConnected ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
           </div>
           <span className="text-caption font-bold  tracking-tight">
-            {ParacoreConnected ? 'Connected' : 'Disconnected'}
+            {addInMissing ? 'Add-in required' : !ParacoreConnected ? 'Disconnected' : !revitStatus.isConnected ? 'Offline' : 'Connected'}
           </span>
           {ParacoreConnected && revitStatus.document && (
             <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 ml-1 pl-2">

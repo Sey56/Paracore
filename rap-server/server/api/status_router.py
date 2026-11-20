@@ -23,10 +23,16 @@ def _cached(key: str, factory):
 
 
 def _get_status():
+    # The sidecar has ONE install home: the Revit add-in folder. Reporting this
+    # lets the UI say "add-in required" instead of a misleading red Disconnected
+    # when the desktop app is running on a machine with no add-in installed.
+    from services.sidecar_manager import find_sidecar_exe
+    sidecar_installed = find_sidecar_exe() is not None
     try:
         response = get_status()
         return {
             "paracoreConnected": response.paracore_connected,
+            "sidecarInstalled": sidecar_installed,
             "revitOpen": response.revit_open,
             "revitVersion": response.revit_version or "",
             "documentOpen": response.document_open,
@@ -39,6 +45,7 @@ def _get_status():
     except Exception:
         return {
             "paracoreConnected": False,
+            "sidecarInstalled": sidecar_installed,
             "revitOpen": False,
             "revitVersion": None,
             "documentOpen": False,
@@ -51,6 +58,18 @@ def _get_status():
 @router.get("/api/status", tags=["status"])
 async def get_status_endpoint():
     return JSONResponse(content=_cached("status", _get_status))
+
+
+@router.get("/api/sidecar-status", tags=["status"])
+async def get_sidecar_status_endpoint():
+    """Who started Paracore.Server.exe and is it answering right now.
+
+    Uncached on purpose: this is the endpoint used to confirm that toggling the
+    Revit ribbon does NOT kill the desktop's connection to the shared sidecar,
+    so a 5-second cache would hide exactly the transition being checked.
+    """
+    from services.sidecar_manager import sidecar_manager
+    return JSONResponse(content=sidecar_manager.status())
 
 
 def _get_watchdogs():

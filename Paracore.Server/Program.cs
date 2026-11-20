@@ -1,13 +1,17 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Paracore.Server.Services;
+using CoreScript.Engine.Globals;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using System.Text.Json;
 using System.IO;
 using System;
 
-var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");
+var configuredLogDir = Environment.GetEnvironmentVariable("PARACORE_SIDECAR_LOG_DIR");
+var logDir = string.IsNullOrWhiteSpace(configuredLogDir)
+    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs")
+    : configuredLogDir;
 Directory.CreateDirectory(logDir);
 var logPath = Path.Combine(logDir, "CoreScriptServerLog.txt");
 
@@ -109,7 +113,74 @@ try
     builder.Services.AddGrpc();
     builder.Services.AddSingleton<AddinBridgeService>();
 
+    // Roslyn-based metadata extraction runs in-process when Revit is closed.
+    // These extractors are pure syntax analysis; only the Revit-bound handlers
+    // in Paracore.Addin need a live document, and those stay on the bridge.
+    builder.Services.AddCoreScriptEngineServices();
+    builder.Services.AddSingleton<LocalMetadataService>();
+    builder.Services.AddSingleton<ReplCatalogRouter>();
+
     using var app = builder.Build();
+
+    // ── Shared-sidecar liveness ─────────────────────────────────────────────
+    // The sidecar belongs to whichever app is using it, not to the app that
+    // happened to launch the process. Both the desktop app and the Revit add-in
+    // write a small lease file while they are connected. This watcher shuts the
+    // process down only when NO lease is fresh — i.e. when the last user has
+    // gone. Liveness is time-based, not handle-based, because the desktop shell
+    // hard-kills its Python backend on close and no graceful shutdown can be
+    // relied on to remove a lease.
+    var configuredOwnerDir = Environment.GetEnvironmentVariable("PARACORE_SIDECAR_OWNER_DIR");
+    var ownerDir = string.IsNullOrWhiteSpace(configuredOwnerDir)
+        ? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "paracore-data", "sidecar-owners")
+        : configuredOwnerDir;
+    int leaseTimeoutSeconds = 30;
+    var configuredLeaseTimeout = Environment.GetEnvironmentVariable("PARACORE_LEASE_TIMEOUT_SECONDS");
+    if (int.TryParse(configuredLeaseTimeout, out var parsedLeaseTimeout) && parsedLeaseTimeout > 0)
+        leaseTimeoutSeconds = parsedLeaseTimeout;
+
+    _ = Task.Run(async () =>
+    {
+        var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+        // Never stop before the first app has had a chance to announce itself.
+        await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(leaseTimeoutSeconds / 3, 2, 10)));
+
+        while (!lifetime.ApplicationStopping.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(leaseTimeoutSeconds / 6, 1, 5)));
+            bool anyFresh = false;
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(ownerDir, "*.json"))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(File.ReadAllText(file));
+                        if (!doc.RootElement.TryGetProperty("updatedAt", out var updated)) continue;
+                        long seconds = updated.ValueKind == JsonValueKind.String
+                            ? long.Parse(updated.GetString() ?? "0")
+                            : updated.GetInt64();
+                        if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - seconds <= leaseTimeoutSeconds)
+                        {
+                            anyFresh = true;
+                            break;
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+
+            if (!anyFresh)
+            {
+                Log("No fresh app lease; shutting down shared sidecar.");
+                lifetime.StopApplication();
+                break;
+            }
+        }
+    });
 
     _ = Task.Run(() => {
         try {
