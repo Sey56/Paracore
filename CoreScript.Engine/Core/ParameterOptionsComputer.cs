@@ -335,23 +335,15 @@ namespace CoreScript.Engine.Core
                 };
             }
 
-            // 3. CATEGORY — top level AND subcategories. This is the fix: "Property Lines"
-            //    is a subcategory of Site, id -2001265.
-            var category = FindCategory(key);
-            if (category != null)
-            {
-                return new NameResolution
-                {
-                    Kind = NameResolutionKind.Category,
-                    Requested = key.Clean,
-                    Matched = category.Name,
-                    CategoryId = category.Id,
-                    AsksForTypes = asksTypes
-                };
-            }
-
-            // 4. BuiltInCategory fallback — a category absent from Settings.Categories and with
-            //    no matching class is still addressable by its enum name.
+            // 3. BUILT-IN CATEGORY FIRST. BuiltInCategory values ARE category ElementIds
+            //    (negative), and OfCategoryId accepts them directly. Settings.Categories also
+            //    contains NON-built-in categories whose ids are POSITIVE — a custom/family
+            //    category named "Doors" can shadow OST_Doors, and the old order returned it
+            //    first. GetElements("Doors") then collected from id 362729 and reported
+            //    "0 instances" in a document full of doors, while the typed overloads
+            //    GetElements<FamilyInstance>("Doors") bypassed resolution and worked.
+            //    An enum name is the canonical target for a built-in category; only names
+            //    with no enum (subcategories, custom categories) reach FindCategory.
             var builtin = FindBuiltInCategory(key);
             if (builtin != null)
             {
@@ -361,6 +353,21 @@ namespace CoreScript.Engine.Core
                     Requested = key.Clean,
                     Matched = builtin.Value.ToString(),
                     CategoryId = new ElementId(builtin.Value),
+                    AsksForTypes = asksTypes
+                };
+            }
+
+            // 4. DOCUMENT CATEGORY — top level AND subcategories with no enum equivalent
+            //    ("Property Lines" is a subcategory of Site, id -2001265).
+            var category = FindCategory(key);
+            if (category != null)
+            {
+                return new NameResolution
+                {
+                    Kind = NameResolutionKind.Category,
+                    Requested = key.Clean,
+                    Matched = category.Name,
+                    CategoryId = category.Id,
                     AsksForTypes = asksTypes
                 };
             }

@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using CoreScript.Engine.Core.Rewriters;
 using CoreScript.Engine.Logging;
 using CoreScript.Engine.Models;
 using System;
@@ -8,7 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Reflection;
+using System.Threading;
 
 namespace CoreScript.Engine.Core
 {
@@ -16,9 +17,79 @@ namespace CoreScript.Engine.Core
     {
         private readonly ILogger _logger;
 
+        private sealed record RevitTypeInfo(bool IsElement, bool IsEnum);
+
+        // Revit types are identified from DLL METADATA, never by loading RevitAPI.dll into
+        // this process. The standalone sidecar has no loaded Revit assembly; touching
+        // typeof(Autodesk.Revit.DB.Element) there throws during JIT and aborts extraction
+        // at the first Revit-typed parameter (Room, Material, ...).
+        private static readonly Lazy<Dictionary<string, RevitTypeInfo>> RevitTypeIndex =
+            new(BuildRevitTypeIndex, LazyThreadSafetyMode.ExecutionAndPublication);
+
         public ParameterExtractor(ILogger logger)
         {
             _logger = logger;
+        }
+
+        private static Dictionary<string, RevitTypeInfo> BuildRevitTypeIndex()
+        {
+            Dictionary<string, RevitTypeInfo> index = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                List<MetadataReference> references = ScriptReferenceProvider.GetRevitReferences("ParameterExtractor")
+                    .Concat(new[] { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) })
+                    .ToList();
+                if (references.Count <= 1) { return index; }
+
+                CSharpCompilation compilation = CSharpCompilation.Create("ParameterExtractorRevitTypes", references: references);
+                INamedTypeSymbol? elementSymbol = compilation.GetTypeByMetadataName("Autodesk.Revit.DB.Element");
+
+                foreach (INamedTypeSymbol type in EnumerateNamedTypes(compilation.GlobalNamespace))
+                {
+                    if (type.TypeKind != TypeKind.Class && type.TypeKind != TypeKind.Enum && type.TypeKind != TypeKind.Struct)
+                        continue;
+
+                    bool isEnum = type.TypeKind == TypeKind.Enum;
+                    bool isElement = elementSymbol != null && DerivesFrom(type, elementSymbol);
+                    if (!isElement && !isEnum) { continue; }
+
+                    RevitTypeInfo info = new(isElement, isEnum);
+                    index.TryAdd(type.Name, info);
+                    index.TryAdd(type.ToDisplayString(), info);
+                }
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogWarning($"[ParameterExtractor] Revit type index unavailable: {ex.Message}");
+            }
+            return index;
+        }
+
+        private static IEnumerable<INamedTypeSymbol> EnumerateNamedTypes(INamespaceOrTypeSymbol container)
+        {
+            foreach (ISymbol symbol in container.GetMembers())
+            {
+                if (symbol is INamespaceSymbol ns)
+                {
+                    foreach (INamedTypeSymbol type in EnumerateNamedTypes(ns)) { yield return type; }
+                }
+                else if (symbol is INamedTypeSymbol type)
+                {
+                    yield return type;
+                    foreach (INamedTypeSymbol nested in EnumerateNamedTypes(type)) { yield return nested; }
+                }
+            }
+        }
+
+        private static bool DerivesFrom(INamedTypeSymbol type, INamedTypeSymbol baseType)
+        {
+            INamedTypeSymbol? current = type;
+            while (current != null)
+            {
+                if (SymbolEqualityComparer.Default.Equals(current, baseType)) { return true; }
+                current = current.BaseType;
+            }
+            return false;
         }
 
         public List<ScriptParameter> ExtractParameters(string scriptContent)
@@ -290,29 +361,14 @@ namespace CoreScript.Engine.Core
         private bool IsRevitType(string typeName, out bool isEnum)
         {
             isEnum = false;
-            try
-            {
-                // Explicitly recognize non-Element Revit types to prevent them being categorized as Generic Enums
-                if (new[] { "XYZ", "Reference", "Face", "Edge" }.Contains(typeName)) return true;
+            if (string.IsNullOrWhiteSpace(typeName)) return false;
 
-                var revitAssembly = typeof(Autodesk.Revit.DB.Element).Assembly;
+            // Explicitly recognize non-Element Revit types to prevent them being categorized as Generic Enums.
+            if (new[] { "XYZ", "Reference", "Face", "Edge" }.Contains(typeName)) return true;
 
-                // If the type name already contains a namespace, try getting it directly
-                if (typeName.Contains("."))
-                {
-                    var type = revitAssembly.GetType(typeName) ?? Type.GetType(typeName);
-                    if (type != null) { isEnum = type.IsEnum; return typeof(Autodesk.Revit.DB.Element).IsAssignableFrom(type) || isEnum; }
-                }
-
-                string[] namespaces = { "Autodesk.Revit.DB", "Autodesk.Revit.DB.Architecture", "Autodesk.Revit.DB.Structure", "Autodesk.Revit.DB.Mechanical", "Autodesk.Revit.DB.Plumbing", "Autodesk.Revit.DB.Electrical" };
-                foreach (var ns in namespaces)
-                {
-                    var type = revitAssembly.GetType($"{ns}.{typeName}");
-                    if (type != null) { isEnum = type.IsEnum; return typeof(Autodesk.Revit.DB.Element).IsAssignableFrom(type) || isEnum; }
-                }
-            }
-            catch { }
-            return false;
+            if (!RevitTypeIndex.Value.TryGetValue(typeName, out var info)) return false;
+            isEnum = info.IsEnum;
+            return info.IsElement || info.IsEnum;
         }
 
         private string ExtractXmlDescription(SyntaxTriviaList trivia)
