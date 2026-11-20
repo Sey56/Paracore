@@ -237,13 +237,18 @@ namespace Paracore.Addin.Handlers
                 }
             }
 
-            // ── [Confirm("WORD")] — the HUMAN-ONLY gate for agent-driven runs ──────────
-            // ⚠⚠ The engine's own gate (CodeRunner) enforces "a value was supplied and correct",
-            // but it cannot tell WHO supplied it — and the word is readable straight out of the
-            // script source, so an agent can simply type it itself. For an AGENT source we
-            // therefore do not trust the supplied value at all: we ask the person, and only on
-            // approval do we inject the value for the engine's gate to see. The engine stays the
-            // single enforcement point; this is where the human answer comes from.
+            // ── [Confirm("WORD")] — who answers it depends on WHO is running ───────────
+            // ⚠⚠ The engine's own gate (CodeRunner) enforces "a value was supplied and correct".
+            // It cannot tell WHO supplied it, so this pre-dispatch step decides:
+            //   * MANUAL run (gallery button, Dynamo node): ask the person in Revit, then inject
+            //     the typed word. Nobody else may answer for them.
+            //   * AGENT run: by default the person is still asked (the old, safe path). When the
+            //     agent's MCP sends __agent_self_confirm__, an AGENT TEST run answers the gate
+            //     itself from the script's declaration, with NO dialog — the operator ruling of
+            //     2026-11-20, so an agent is not blocked waiting for a human to type APPLY/DELETE.
+            //     Such a run must be NON-DAMAGING (dry run or a safe creation); this code cannot
+            //     tell what the script does to the model, so that is the caller's contract.
+            // In both cases the word is injected here and CodeRunner remains the enforcement point.
             // ⚠ This MUST run BEFORE the 45 s completion timer below. A prompt placed inside the
             // execution would blow that timer, and the caller would be told "timed out" while the
             // script then ran anyway the moment the person answered.
@@ -253,6 +258,12 @@ namespace Paracore.Addin.Handlers
             // came back as is_success/user_rejected with nothing in between. It is reported on EVERY
             // response so no caller has to infer it.
             string confirmationStatus = ConfirmationStatus.NotEvaluated;
+            // ⚠ An AGENT test run may answer [Confirm] itself (operator ruling 2026-11-20).
+            // The flag is an explicit instruction in the parameter payload sent by the agent's
+            // MCP, not something inferred from the script; it is honoured ONLY for an agent
+            // source, so a manual execution still asks the person.
+            bool agentSelfConfirm = IsAgentCall(request.Source)
+                && ReadAgentSelfConfirm(parametersJsonStr);
             if (!IsAgentCall(request.Source))
             {
                 confirmationStatus = ConfirmationStatus.NotAgentRun;
@@ -301,38 +312,56 @@ namespace Paracore.Addin.Handlers
                 else
                 {
                     string toolName = ReadScriptName(parametersJsonStr);
-                    _logger.Log($"[ScriptExecutionHandler] [Confirm] {requirements.Count} requirement(s) for '{toolName}' — asking the user.", LogLevel.Debug);
+                    Dictionary<string, string> confirmApproved;
 
-                    // ⚠ Not named `approved` — that name is already the SessionGate result above.
-                    var confirmApproved = await CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext<Dictionary<string, string>>(() =>
+                    if (agentSelfConfirm)
                     {
-                        var ok = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        // ⚠⚠ NO DIALOG. The agent's MCP explicitly asked to answer the gate itself.
+                        // The word still comes from the SCRIPT's own [Confirm] declaration through the
+                        // shared helper — not from a string the caller guessed — and CodeRunner is
+                        // still the enforcement point. This path is for agent TEST runs only.
+                        confirmApproved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                         foreach (var kv in requirements)
-                        {
-                            string word = ConfirmationRequirements.Literal(kv.Value);
-                            if (!ConfirmationPrompt.Ask(toolName, kv.Key, word))
-                                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                            ok[kv.Key] = word;
-                        }
-                        return ok;
-                    });
-
-                    if (confirmApproved.Count == 0)
+                            confirmApproved[kv.Key] = ConfirmationRequirements.Literal(kv.Value);
+                        confirmationStatus = AgentSelfConfirmed;
+                        _logger.Log($"[ScriptExecutionHandler] [Confirm] self-confirmed by the agent for '{toolName}'.", LogLevel.Debug);
+                    }
+                    else
                     {
-                        _logger.Log("[ScriptExecutionHandler] [Confirm] declined by the user — nothing executed.", LogLevel.Debug);
-                        return new ExecuteScriptResponse
+                        _logger.Log($"[ScriptExecutionHandler] [Confirm] {requirements.Count} requirement(s) for '{toolName}' — asking the user.", LogLevel.Debug);
+
+                        // ⚠ Not named `approved` — that name is already the SessionGate result above.
+                        confirmApproved = await CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext<Dictionary<string, string>>(() =>
                         {
-                            IsSuccess = false,
-                            ErrorMessage = "⛔ Confirmation declined — nothing was executed.",
-                            UserRejected = true,
-                            SessionConsent = gate.Status,
-                            Confirmation = ConfirmationStatus.UserDeclined
-                        };
+                            var ok = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var kv in requirements)
+                            {
+                                string word = ConfirmationRequirements.Literal(kv.Value);
+                                if (!ConfirmationPrompt.Ask(toolName, kv.Key, word))
+                                    return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                                ok[kv.Key] = word;
+                            }
+                            return ok;
+                        });
+
+                        if (confirmApproved.Count == 0)
+                        {
+                            _logger.Log("[ScriptExecutionHandler] [Confirm] declined by the user — nothing executed.", LogLevel.Debug);
+                            return new ExecuteScriptResponse
+                            {
+                                IsSuccess = false,
+                                ErrorMessage = "⛔ Confirmation declined — nothing was executed.",
+                                UserRejected = true,
+                                SessionConsent = gate.Status,
+                                Confirmation = ConfirmationStatus.UserDeclined
+                            };
+                        }
+
+                        confirmationStatus = ConfirmationStatus.UserConfirmed;
+                        _logger.Log($"[ScriptExecutionHandler] [Confirm] approved by the user for '{toolName}'.", LogLevel.Debug);
                     }
 
                     parametersJsonStr = InjectConfirmations(parametersJsonStr, confirmApproved);
-                    confirmationStatus = ConfirmationStatus.UserConfirmed;
-                    _logger.Log($"[ScriptExecutionHandler] [Confirm] approved by the user for '{toolName}'.", LogLevel.Debug);
                 }
             }
 
@@ -485,6 +514,47 @@ namespace Paracore.Addin.Handlers
 
         private static bool IsAgentCall(string? source)
             => (source ?? "paracore").Contains("agent", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The value reported on ExecuteScriptResponse.confirmation when an AGENT answered its
+        /// own [Confirm] gate for a test run. ⚠ Defined here, not in CoreScript.Engine's
+        /// ConfirmationStatus: that DLL is frozen and this is a plain string field on the wire,
+        /// so no proto or engine change is needed. Forge reports the same vocabulary to agents.
+        /// </summary>
+        private const string AgentSelfConfirmed = "agent_self_confirmed";
+
+        /// <summary>
+        /// Did an AGENT caller explicitly ask to answer [Confirm] itself? Both payload shapes are
+        /// handled (rich array from Forge, plain object from any other client). A missing, false
+        /// or malformed flag always falls back to the human prompt — this is an opt-in, never a
+        /// default for a caller that did not send it.
+        /// </summary>
+        private static bool ReadAgentSelfConfirm(string parametersJson)
+        {
+            if (string.IsNullOrWhiteSpace(parametersJson)) return false;
+            try
+            {
+                var node = JsonNode.Parse(parametersJson);
+                JsonNode? value = null;
+                if (node is JsonArray arr)
+                {
+                    foreach (var item in arr)
+                    {
+                        if (item is JsonObject o && o["name"]?.ToString() == "__agent_self_confirm__")
+                        {
+                            value = o["value"];
+                            break;
+                        }
+                    }
+                }
+                else if (node is JsonObject obj)
+                {
+                    value = obj["__agent_self_confirm__"];
+                }
+                return value != null && bool.TryParse(value.ToString(), out bool flag) && flag;
+            }
+            catch { return false; }
+        }
 
         /// <summary>
         /// The <c>__script_name__</c> reserved parameter, so the prompt can name the tool being run.
