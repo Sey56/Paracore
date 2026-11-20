@@ -6,6 +6,16 @@ $ErrorActionPreference = 'Stop'
 # --- Configuration ---
 $ProjectRoot = Get-Location
 
+# --- Integrity preflight ---
+# A power loss mid-write leaves files at their correct size but full of 0x00 bytes.
+# Measured 2026-11-18: that exact damage caused the Set-Version.ps1 Regex cast error.
+# Refuse to build on a damaged tree; git is the recovery source for tracked files.
+$IntegrityScript = Join-Path $ProjectRoot (Join-Path "scripts" "Check-Integrity.ps1")
+if (Test-Path $IntegrityScript) {
+    & $IntegrityScript $ProjectRoot
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+}
+
 # --- Auto-Sync Version ---
 $VersionFile = Join-Path $ProjectRoot "VERSION"
 if (-not (Test-Path $VersionFile)) {

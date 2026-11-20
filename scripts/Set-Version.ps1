@@ -184,7 +184,12 @@ function Get-SurfaceCurrent {
     if ($null -eq $text) { return '<file missing>' }
     $rx = [regex]$S.Rx
     if ($rx.IsMatch($text)) { return $rx.Match($text).Value.Trim() }
-    if ($S.Add -and ([regex]$S.Add).IsMatch($text)) { return '<absent - will be added>' }
+    # NOTE: bracket notation, NOT $S.Add. A hashtable key literally named 'Add'
+    # collides with the built-in .Add() method in dot notation, so $S.Add returns
+    # a PSMethod and `[regex]$S.Add` throws "Cannot convert ... to Regex". Measured
+    # 2026-11-18 on PowerShell 7.7.0 when a corrupted tauri.conf.json missed its Rx.
+    $anchor = $S['Add']
+    if ($anchor -and ([regex]$anchor).IsMatch($text)) { return '<absent - will be added>' }
     return '<pattern not found>'
 }
 
@@ -197,8 +202,9 @@ function Set-SurfaceValue {
     if ($rx.IsMatch($text)) {
         return $rx.Replace($text, $Rep, 1)
     }
-    if ($S.Add) {
-        $arx = [regex]$S.Add
+    $anchor = $S['Add']   # bracket notation: $S.Add would hit the hashtable's .Add() method
+    if ($anchor) {
+        $arx = [regex]$anchor
         if ($arx.IsMatch($text)) {
             # insert the new line directly after the anchor
             $m = $arx.Match($text)

@@ -9,6 +9,17 @@ $ProjectRoot = Get-Location
 $ParacoreRoot = Split-Path -Path $ProjectRoot -Parent
 $webDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-web'
 
+# --- Integrity preflight ---
+# A power loss mid-write leaves files at their correct size but full of 0x00 bytes.
+# Measured 2026-11-18: that exact damage zeroed tauri.conf.json / Cargo.toml and
+# the venv RECORD manifests, surfacing as misleading Set-Version / uv errors.
+# Refuse to build on a damaged tree; git is the recovery source for tracked files.
+$IntegrityScript = Join-Path $ProjectRoot (Join-Path "scripts" "Check-Integrity.ps1")
+if (Test-Path $IntegrityScript) {
+    & $IntegrityScript $ProjectRoot
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+}
+
 # --- Auto-Sync Version ---
 $VersionFile = Join-Path $ProjectRoot "VERSION"
 if (-not (Test-Path $VersionFile)) {
@@ -92,10 +103,21 @@ try {
     Set-Content -Path $pthFile -Value "python312.zip`n.`nLib/site-packages" -Force
 
     # Strip dev packages, bundle site-packages, then restore dev packages
+    # ⚠⚠ An `uv sync` that fails must FAIL THE BUILD. PowerShell's
+    # $ErrorActionPreference='Stop' does NOT govern native executables (uv writes
+    # to stderr but returns a non-zero code that PowerShell silently ignores unless
+    # $PSNativeCommandUseErrorActionPreference is on). Measured 2026-11-18: 24
+    # zero-filled `.dist-info/RECORD` files made uv print "RECORD file is invalid"
+    # and exit non-zero, yet the build carried on and bundled a broken sidecar.
+    # Assert the exit code, not the intention.
     Write-Host "Stripping dev packages..." -ForegroundColor Cyan
     $serverProjectDir = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server"
     Push-Location $serverProjectDir
     uv sync --native-tls --no-dev
+    if ($LASTEXITCODE -ne 0) {
+        Pop-Location
+        throw "uv sync --no-dev failed (exit $LASTEXITCODE). Check for corrupt .venv .dist-info/RECORD files; repair with 'uv sync --reinstall' or delete .venv and re-sync."
+    }
     Pop-Location
 
     # Patch logfire_api resilience
@@ -125,9 +147,15 @@ try {
     if (Test-Path $destLogfire) { Remove-Item -Recurse -Force $destLogfire }
 
     # Restore dev packages
+    # Same exit-code gate as the strip step above: a failed restore must fail the
+    # build, otherwise the developer is left with a stripped venv and no warning.
     Write-Host "Restoring dev packages..." -ForegroundColor Gray
     Push-Location $serverProjectDir
     uv sync --native-tls
+    if ($LASTEXITCODE -ne 0) {
+        Pop-Location
+        throw "uv sync (restore dev packages) failed (exit $LASTEXITCODE). Repair the venv before building."
+    }
     Pop-Location
 
     # Copy application source
@@ -152,6 +180,15 @@ try {
     }
     robocopy $coreSource (Join-Path $serverReleaseDir "paracore\mcp") /E /XD mcp_core __pycache__ .ruff_cache .git build dist /XF *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
     Write-Host "Bundled the shared MCP core (gRPC layer)" -ForegroundColor Gray
+
+    # ── C# sidecar: installed with the ADD-IN, not with the desktop app ──
+    # Paracore.Server.exe is the Revit-facing gRPC host. It has ONE install home:
+    # the add-in folder written by build-addin.ps1. The desktop app starts or
+    # adopts that same process at boot for Roslyn metadata, gallery metadata and
+    # script parameters, so it works with Revit CLOSED but NOT with the add-in
+    # UNINSTALLED. Execution needs the add-in anyway, so carrying a second,
+    # self-contained copy here only cost ~127 MB in every desktop install.
+    # IFC/Python/ifcopenshell stay here: they are host-neutral scripting gateways.
 
     # JWT public key for offline auth.
     # A MISSING KEY MUST FAIL THE BUILD, for the same reason the core above must: the old
