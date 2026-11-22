@@ -58,9 +58,6 @@ export const TopBar: React.FC = () => {
     if (revitStatus.version) {
       parts.push(`Revit ${revitStatus.version}`);
     }
-    if (revitStatus.document) {
-      parts.push(revitStatus.document);
-    }
     if (revitStatus.documentType && revitStatus.documentType !== 'None') {
       parts.push(revitStatus.documentType);
     }
@@ -158,10 +155,8 @@ export const TopBar: React.FC = () => {
           </span>
           {ParacoreConnected && revitStatus.document && (
             <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 ml-1 pl-2">
-              <span className="relative" data-tooltip={revitStatus.document}>
-                <span className="text-caption font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px]  block">
-                  {revitStatus.document}
-                </span>
+              <span className="text-caption font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px]  block">
+                {revitStatus.document}
               </span>
             </div>
           )}

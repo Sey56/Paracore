@@ -16,6 +16,7 @@ import { GalleryInfoBar } from './components/GalleryInfoBar';
 import { CommandConsole } from './components/CommandConsole';
 import { GalleryActionBar } from './components/GalleryActionBar';
 import { ScriptGrid } from './components/ScriptGrid';
+import { GalleryLoadingState } from './components/GalleryLoadingState';
 import { NoActiveSource } from './components/NoActiveSource';
 
 // Hooks
@@ -23,7 +24,7 @@ import { useGalleryFilters } from './hooks/useGalleryFilters';
 
 export const ScriptGallery: React.FC = () => {
   const { ParacoreConnected } = useRevitStatus();
-  const { scripts, selectedFolder, loadScriptsForFolder, favoriteScripts: favoriteIds } = useScripts();
+  const { scripts, isLoadingScripts, selectedFolder, loadScriptsForFolder, favoriteScripts: favoriteIds } = useScripts();
   const { isArmingWatchdogs } = useWatchdog();
   const {
     openNewScriptModal,
@@ -203,7 +204,9 @@ export const ScriptGallery: React.FC = () => {
   return (
     <div ref={galleryRef} className={`relative min-h-full min-w-0 ${isFocusMode || isArmingWatchdogs ? 'overflow-hidden' : ''}`}>
       <div className={`p-4 transition-opacity duration-300 ${(isFocusMode || isArmingWatchdogs) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-        {!activeScriptSource ? (
+        {isLoadingScripts && scripts.length === 0 ? (
+          <GalleryLoadingState isCompactView={isCompactView} />
+        ) : !activeScriptSource ? (
           <NoActiveSource />
         ) : (
           <>

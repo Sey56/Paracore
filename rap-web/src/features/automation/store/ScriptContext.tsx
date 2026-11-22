@@ -5,6 +5,7 @@ import { ActiveScriptSource } from '@/context/providers/UIContext';
 export interface ScriptContextProps {
   scripts: Script[];
   setScripts: React.Dispatch<React.SetStateAction<Script[]>>;
+  isLoadingScripts: boolean;
   activeScriptSource: ActiveScriptSource;
   setActiveScriptSource: (source: ActiveScriptSource) => void;
   loadScriptsForFolder: (path: string, silent?: boolean) => Promise<Script[] | undefined>;

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -68,6 +69,7 @@ from api import (
     status_router,
     user_settings_router,
     tool_builder_router,
+    dynamo_export_router,
     query_router,
     sync_router,
 )
@@ -98,13 +100,19 @@ async def lifespan(app: FastAPI):
     # available for intellisense and gallery metadata whether or not Revit is
     # open, and a Revit ribbon toggle must never take it away. `start()` also
     # installs a watchdog that re-acquires the port if the process dies.
-    sidecar_manager.start()
-
-    # Initialize singleton gRPC channel
+    # ⚠ It must NOT block Uvicorn from listening: the gallery's fast preview
+    # needs only files, so it can paint while the sidecar warms up. Measured
+    # 2026-11-21: a synchronous start held the whole HTTP server for ~2 s.
     init_channel()
+    sidecar_start = asyncio.create_task(asyncio.to_thread(sidecar_manager.start))
 
     yield
 
+    # Let an in-flight start finish before releasing the lease/process.
+    try:
+        await asyncio.wait_for(asyncio.shield(sidecar_start), timeout=5)
+    except Exception:
+        pass
     close_channel()
     sidecar_manager.stop()
 
@@ -145,6 +153,7 @@ app.include_router(status_router.router)
 app.include_router(auth_router.router)
 app.include_router(user_settings_router.router)
 app.include_router(tool_builder_router.router)
+app.include_router(dynamo_export_router.router)
 app.include_router(query_router.router)
 app.include_router(sync_router.router)
 

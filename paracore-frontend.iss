@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Revit Automation Platform"
-#define MyAppVersion "4.8.4"
+#define MyAppVersion "4.9.0"
 #define MyAppPublisher "Seyoum Hagos"
 #define MyAppExeName "rap-server.exe"
 

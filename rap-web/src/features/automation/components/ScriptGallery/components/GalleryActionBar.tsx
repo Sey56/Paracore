@@ -4,7 +4,7 @@ import {
   faPlay, faSpinner, faStar as fasStar,
   faCode, faBullseye, faEdit, faSlidersH,
   faICursor, faSyncAlt, faTags, faTrash, faTools, faBroom,
-  faExclamationTriangle, faBook, faFolderOpen
+  faExclamationTriangle, faBook, faFolderOpen, faFileExport
 } from '@/components/ui/iconAliases';
 import { faStar as farStar } from '@/components/ui/iconAliases';
 import { Script } from '@/types/scriptModel';
@@ -16,6 +16,7 @@ import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { Tooltip } from '@/components/common/Tooltip';
 import { Modal } from '@/components/common/Modal';
 import { EditMetadataModal } from '@/features/automation/components/ScriptCard/components/EditMetadataModal';
+import { ExportDynamoModal } from './ExportDynamoModal';
 
 interface GalleryActionBarProps {
   script: Script;
@@ -43,6 +44,7 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [showMetadataModal, setShowMetadataModal] = useState(false);
+  const [showExportDynamoModal, setShowExportDynamoModal] = useState(false);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   const isRunning = runningScriptPath === script.absolutePath;
@@ -248,6 +250,13 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
               <FontAwesomeIcon icon={faFolderOpen} className="text-caption" />
             </button>
           )}
+          {canCreateScripts && !isProtectedTool && (
+            <button onClick={(e) => { e.stopPropagation(); setShowExportDynamoModal(true); }}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
+              title="Export Dynamo">
+              <FontAwesomeIcon icon={faFileExport} className="text-xs" />
+            </button>
+          )}
           {canCreateScripts && !isProtectedTool && onReplace && (
             <button onClick={(e) => { e.stopPropagation(); onReplace(script); }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-green-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
@@ -305,6 +314,9 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
         <EditMetadataModal isOpen={showMetadataModal} onClose={() => setShowMetadataModal(false)} script={script}
           onSaved={() => { reloadScript(script); setShowMetadataModal(false); }} />
       )}
+
+      <ExportDynamoModal isOpen={showExportDynamoModal} onClose={() => setShowExportDynamoModal(false)}
+        script={script} isRevitConnected={isRevitConnected} />
     </>
   );
 };

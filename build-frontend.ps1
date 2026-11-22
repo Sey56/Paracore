@@ -188,7 +188,6 @@ try {
     # script parameters, so it works with Revit CLOSED but NOT with the add-in
     # UNINSTALLED. Execution needs the add-in anyway, so carrying a second,
     # self-contained copy here only cost ~127 MB in every desktop install.
-    # IFC/Python/ifcopenshell stay here: they are host-neutral scripting gateways.
 
     # JWT public key for offline auth.
     # A MISSING KEY MUST FAIL THE BUILD, for the same reason the core above must: the old

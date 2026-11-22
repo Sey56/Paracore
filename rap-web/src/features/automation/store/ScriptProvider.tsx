@@ -22,8 +22,10 @@ silentApi.interceptors.request.use((config) => {
 
 export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [scripts, setScripts] = useState<Script[]>([]);
+  const [isLoadingScripts, setIsLoadingScripts] = useState(true);
   const [combinedScriptContent, setCombinedScriptContent] = useState<string | null>(null);
   const scriptsRef = useRef<Script[]>([]);
+  const loadRequestIdRef = useRef(0);
 
   useEffect(() => {
     scriptsRef.current = scripts;
@@ -112,31 +114,108 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setLastRunTimes, setScripts]);
 
   const loadScriptsFromPath = useCallback(async (folderPath: string, silent: boolean = false) => {
-    try {
-      if (!silent) setScripts([]);
-      setSelectedFolder(folderPath);
-      const response = await api.get(`/api/scripts?folderPath=${encodeURIComponent(folderPath)}`);
-      const loadedScripts: Script[] = response.data.map((s: Script) => ({
-        ...s,
-        metadata: {
-          ...s.metadata,
-          lastRun: lastRunTimesRef.current[s.id] || s.metadata.lastRun,
-          dateCreated: creationTimesRef.current[s.id] || s.metadata.dateCreated,
-          dateModified: modificationTimesRef.current[s.id] || s.metadata.dateModified
+    // Two-phase load: cached/fast cards first, authoritative metadata second.
+    // The request id stops an older, slower response from replacing a newer one.
+    const requestId = ++loadRequestIdRef.current;
+    const cacheKey = `rap_scriptsCache_${stableUserId}`;
+    const readCache = (): Record<string, Script[]> => {
+      try { return JSON.parse(localStorage.getItem(cacheKey) || '{}'); }
+      catch { return {}; }
+    };
+    const writeCache = (list: Script[]) => {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({
+          ...readCache(),
+          [normalizePath(folderPath)]: list
+        }));
+      } catch { /* cache is best-effort; the live list is authoritative */ }
+    };
+    const decorate = (list: Script[]): Script[] => list.map(s => ({
+      ...s,
+      metadata: {
+        ...s.metadata,
+        lastRun: lastRunTimesRef.current[s.id] || s.metadata.lastRun,
+        dateCreated: creationTimesRef.current[s.id] || s.metadata.dateCreated,
+        dateModified: modificationTimesRef.current[s.id] || s.metadata.dateModified
+      }
+    }));
+
+    const cached = readCache()[normalizePath(folderPath)];
+    let hasVisibleScripts = !!cached?.length;
+
+    setIsLoadingScripts(true);
+    setSelectedFolder(folderPath);
+    if (cached?.length) {
+      setScripts(decorate(cached));
+      setIsLoadingScripts(false);
+    } else if (!silent) {
+      setScripts([]);
+    }
+
+    if (!hasVisibleScripts) {
+      try {
+        // The embedded Python server can still be booting when React mounts.
+        // Retry the CHEAP preview endpoint while it starts; never fail the whole
+        // gallery on the first connection-refused. A 404 means an older backend
+        // without /fast, so fall straight through to the full request.
+        let fastResponse: { data: unknown } | undefined;
+        for (let attempt = 0; attempt < 20; attempt++) {
+          if (requestId !== loadRequestIdRef.current) return undefined;
+          try {
+            fastResponse = await api.get(`/api/scripts/fast?folderPath=${encodeURIComponent(folderPath)}`);
+            break;
+          } catch (attemptError: unknown) {
+            const err = attemptError as { response?: { status?: number } };
+            const permanent = err.response?.status === 400 || err.response?.status === 404;
+            if (permanent || attempt === 19) throw attemptError;
+            await new Promise(resolve => setTimeout(resolve, attempt < 6 ? 250 : 750));
+          }
         }
-      }));
+        if (requestId !== loadRequestIdRef.current || !fastResponse) return undefined;
+        const fastScripts = decorate((fastResponse.data as Script[]) || []);
+        setScripts(fastScripts);
+        writeCache(fastScripts);
+        hasVisibleScripts = fastScripts.length > 0;
+      } catch (fastError: unknown) {
+        // Older backend / permanent error: the full request below still works.
+        console.warn('[ScriptProvider] fast gallery preview unavailable:', fastError);
+      } finally {
+        // If the preview was empty, keep the loader up until the full list
+        // answers instead of flashing an empty gallery during a slow metadata run.
+        if (requestId === loadRequestIdRef.current && hasVisibleScripts) {
+          setIsLoadingScripts(false);
+        }
+      }
+    }
+
+    try {
+      const response = await api.get(`/api/scripts?folderPath=${encodeURIComponent(folderPath)}`);
+      if (requestId !== loadRequestIdRef.current) return undefined;
+      const loadedScripts = decorate(response.data || []);
       setScripts(loadedScripts);
+      writeCache(loadedScripts);
       return loadedScripts;
     } catch (error: unknown) {
-      console.error("Failed to load scripts:", error);
-      showNotification(`Failed to fetch scripts`, "error");
-      setScripts([]);
-      return undefined;
+      if (requestId !== loadRequestIdRef.current) return undefined;
+      console.error('Failed to load full script metadata:', error);
+      if (!hasVisibleScripts) {
+        showNotification('Failed to fetch scripts', 'error');
+        setScripts([]);
+        return undefined;
+      }
+      // Preview/cached cards stay usable; only the background enrichment failed.
+      return scriptsRef.current;
+    } finally {
+      if (requestId === loadRequestIdRef.current) setIsLoadingScripts(false);
     }
-  }, [showNotification]);
+  }, [showNotification, stableUserId]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user || !isSystemReady) return;
+    if (!isSystemReady) return;
+    if (!isAuthenticated || !user) {
+      setIsLoadingScripts(false);
+      return;
+    }
 
     let path_to_load: string | null = null;
     if (activeScriptSource) {
@@ -151,6 +230,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } else {
       setScripts([]);
       setSelectedFolder(null);
+      setIsLoadingScripts(false);
     }
   }, [activeScriptSource, loadScriptsFromPath, setActiveScriptSource, isAuthenticated, user, isSystemReady]);
 
@@ -450,7 +530,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [isSystemReady, validateSources, loadScriptsFromPath]);
 
   const contextValue = useMemo(() => ({
-    scripts, setScripts, activeScriptSource, setActiveScriptSource,
+    scripts, setScripts, isLoadingScripts, activeScriptSource, setActiveScriptSource,
     loadScriptsForFolder: loadScriptsFromPath, fetchScriptMetadata, reloadScript,
     combinedScriptContent, setCombinedScriptContent, createNewScript, editScript, deleteScript,
     favoriteScripts, toggleFavoriteScript, clearFavoriteScripts,
@@ -463,7 +543,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     selectedFolder,
     updateScriptModificationTime
   }), [
-    scripts, activeScriptSource, setActiveScriptSource, loadScriptsFromPath, fetchScriptMetadata, reloadScript,
+    scripts, isLoadingScripts, activeScriptSource, setActiveScriptSource, loadScriptsFromPath, fetchScriptMetadata, reloadScript,
     combinedScriptContent, createNewScript, editScript, deleteScript, favoriteScripts, toggleFavoriteScript, clearFavoriteScripts,
     recentScripts, addRecentScript, clearRecentScripts, lastRunTimes, updateScriptLastRunTime,
     isSyncActive, activeSyncSessions, customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,

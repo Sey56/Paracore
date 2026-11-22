@@ -3,7 +3,7 @@
  *
  * ⚠ WHY NOT ROSLYN — the "real" formatter is Roslyn's `Formatter.FormatAsync`, and the REPL
  *   already has a Roslyn workspace behind `/api/repl/*`. But reaching it means a NEW gRPC method
- *   (proto + add-in service + Python client) and the engine is FROZEN, so this stays entirely
+ *   (proto + add-in service + desktop client) and the engine is FROZEN, so this stays entirely
  *   client-side.
  *
  * ⚠ SCOPE — one question per line: "how deep should this be indented?" It normalises indentation

@@ -33,7 +33,6 @@ The server's functionality is organized into several routers:
 `rap-server` sits in the middle of the local Paracore stack. It listens for REST API calls from the `rap-web` frontend and routes them to the right engine:
 
 - **Revit/C# work** goes over gRPC to the shared sidecar, which relays to the connected add-in only when execution is requested.
-- **Python and IFC work** stays local and host-neutral (`ifc_tools/`, `python_ifc_executor.py`). It reads/writes IFC files and runs governed Python scripts with no Revit process and no add-in requirement.
 
 The frontend never speaks gRPC directly, and the add-in never handles HTTP. The sidecar is shared, not owned: desktop and Revit both hold leases, and the last disconnect lets it retire. `GET /api/sidecar-status` reports whether the desktop started it, whether it is answering, and its PID; `GET /api/status` also reports `sidecarInstalled` so the UI can say `Add-in required` rather than a misleading transient `Disconnected`.
 

@@ -22,9 +22,6 @@ interface MonacoReplEditorProps {
   disabled?: boolean;
   placeholder?: string;
   fontSize?: number;
-  /** Python is supported for the v5 IFC path; C# remains the default and the only
-   *  language with Roslyn IntelliSense. */
-  language?: 'csharp' | 'python';
 }
 
 /**
@@ -46,15 +43,12 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
       disabled = false,
       placeholder = 'Write your code here...',
       fontSize = 14,
-      language = 'csharp',
     },
     ref,
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
     const { theme } = useTheme();
-    const languageRef = useRef(language);
-    languageRef.current = language;
 
     // Latest callbacks behind refs, so the editor is created ONCE and never rebuilt when a
     // parent re-render hands us a new function identity.
@@ -84,7 +78,7 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
 
       const editor = monaco.editor.create(container, {
         value,
-        language: languageRef.current,
+        language: 'csharp',
         theme: monacoThemeFor(theme),
         fontSize,
         fontFamily:
@@ -130,9 +124,6 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
       // completion query, and a squiggle that arrives a moment late is perfectly acceptable.
       let diagnosticsTimer: number | undefined;
       const scheduleDiagnostics = () => {
-        // Roslyn owns C# only. Python has no IntelliSense parity in this release;
-        // do not paint C# squiggles over valid Python.
-        if (languageRef.current === 'python') return;
         if (diagnosticsTimer !== undefined) window.clearTimeout(diagnosticsTimer);
         diagnosticsTimer = window.setTimeout(() => {
           diagnosticsTimer = undefined;
@@ -222,15 +213,6 @@ export const MonacoReplEditor = forwardRef<MonacoReplEditorHandle, MonacoReplEdi
         editor.setValue(value);
       }
     }, [value]);
-
-    useEffect(() => {
-      const model = editorRef.current?.getModel();
-      if (!model) return;
-      monaco.editor.setModelLanguage(model, language);
-      if (language === 'python') {
-        monaco.editor.setModelMarkers(model, 'paracore-roslyn', []);
-      }
-    }, [language]);
 
     useEffect(() => {
       editorRef.current?.updateOptions({ fontSize });

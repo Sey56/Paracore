@@ -34,8 +34,6 @@ export const ReplModeContent: React.FC = () => {
 
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [showRecentMenu, setShowRecentMenu] = useState(false);
-  // v5: the same playground shell hosts both languages. Python has no IntelliSense parity.
-  const [replLanguage, setReplLanguage] = useState<'csharp' | 'python'>('csharp');
   const recentMenuRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<MonacoReplEditorHandle>(null);
 
@@ -127,24 +125,6 @@ export const ReplModeContent: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Language — C# stays default; Python drives the v5 IFC path. */}
-          <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100/90 dark:bg-slate-800 overflow-hidden text-caption">
-            {(['csharp', 'python'] as const).map((lang) => (
-              <button
-                key={lang}
-                onClick={() => setReplLanguage(lang)}
-                title={lang === 'csharp' ? 'C# / Revit (Roslyn IntelliSense)' : 'Python / IFC (no IntelliSense)'}
-                className={`px-2 h-6 font-bold transition-colors ${
-                  replLanguage === lang
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-blue-500'
-                }`}
-              >
-                {lang === 'csharp' ? 'C#' : 'PY'}
-              </button>
-            ))}
-          </div>
-
           {/* Font Size Stepper */}
           <div className="flex items-center bg-slate-100/90 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700/80 shadow-xs">
             <Tooltip text="Decrease Font Size (Ctrl + -)" position="bottom-center">
@@ -280,14 +260,11 @@ export const ReplModeContent: React.FC = () => {
           ref={editorRef}
           value={multiLineValue}
           onChange={setMultiLineValue}
-          onRun={() => handleReplSubmit(activeSnippetName, replLanguage)}
+          onRun={() => handleReplSubmit(activeSnippetName)}
           onSave={() => handleSaveSnippet(false)}
           fontSize={replFontSize}
-          language={replLanguage}
           disabled={isReplLoading || isRunning}
-          placeholder={replLanguage === 'python'
-            ? 'Python / IFC Playground (Ctrl+Enter to run)'
-            : 'C# Playground... (Ctrl+Enter to run)'}
+          placeholder="C# Playground... (Ctrl+Enter to run)"
         />
       </div>
 
@@ -296,7 +273,7 @@ export const ReplModeContent: React.FC = () => {
         <button
           disabled={isReplLoading || isRunning || !multiLineValue.trim()}
           className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-bold flex items-center shadow-lg transition-all active:scale-95 disabled:opacity-50 text-sm"
-          onClick={() => handleReplSubmit(activeSnippetName, replLanguage)}
+          onClick={() => handleReplSubmit(activeSnippetName)}
         >
           {isReplLoading ? (
             <FontAwesomeIcon icon={faSpinner} spin className="mr-2 h-3" />

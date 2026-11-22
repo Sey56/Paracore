@@ -9,7 +9,7 @@
   },
   "package": {
     "productName": "Paracore",
-    "version": "4.8.4"
+    "version": "4.9.0"
   },
   "tauri": {
     "allowlist": {

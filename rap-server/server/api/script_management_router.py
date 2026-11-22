@@ -178,6 +178,14 @@ async def replace_script_code(request: ReplaceCodeRequest):
 async def delete_script(request: DeleteScriptRequest):
     return script_service.delete_script_logic(request.script_path, request.delete_scaffolding_only)
 
+@router.get("/api/scripts/fast", tags=["Script Management"])
+async def get_scripts_fast(folderPath: str):
+    """Card-only gallery preview. No gRPC/Roslyn call; full metadata follows."""
+    if not folderPath or not os.path.isabs(folderPath):
+        raise HTTPException(status_code=400, detail="A valid, absolute folder path is required.")
+    scripts = await script_service.get_all_scripts_fast(folderPath)
+    return JSONResponse(content=scripts)
+
 @router.get("/api/scripts", tags=["Script Management"])
 async def get_scripts(folderPath: str):
     if not folderPath or not os.path.isabs(folderPath):

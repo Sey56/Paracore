@@ -11,7 +11,7 @@ from utils import get_or_create_script, resolve_script_path, read_script_files
 
 def _record_run(db, script, current_user_id, active_team, active_role,
                 source_folder, source_team_source, response_data):
-    """One run-log writer for both script languages."""
+    """One run-log writer for script runs."""
     if not script or db is None:
         return
     run_status = "success" if response_data.get("is_success") else "failure"
@@ -48,15 +48,6 @@ async def run_script_logic(
     try:
         resolved_path = resolve_script_path(path)
         script = get_or_create_script(db, resolved_path, current_user_id)
-
-        # v5 G3 Path A: Python tools are governed in rap-server, not through Revit gRPC.
-        # The default stays csharp so the existing path is unchanged for every C# tool.
-        if language == "python":
-            from services.python_ifc_executor import run_python_tool
-            response_data = await run_python_tool(resolved_path, parameters)
-            _record_run(db, script, current_user_id, active_team, active_role,
-                        source_folder, source_team_source, response_data)
-            return response_data
 
         script_files_payload = []
         
@@ -207,13 +198,9 @@ async def execute_repl_logic(code: str, session_id: str, license_tier: str = "fr
                              source: str = None, timeout: float = None,
                              language: str = "csharp"):
     """
-    Service wrapper for executing a REPL command. C# runs in Revit via gRPC;
-    Python runs locally in rap-server against IFC files.
+    Service wrapper for executing a C# REPL command in Revit via gRPC.
     """
     try:
-        if language == "python":
-            from services.python_ifc_executor import execute_python_repl
-            return await execute_python_repl(code, session_id)
         from grpc_client import execute_repl
         return execute_repl(code, session_id, license_tier, source=source or "paracore",
                             timeout=timeout if timeout is not None else REPL_TIMEOUT_SECONDS)

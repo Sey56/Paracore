@@ -130,96 +130,263 @@ def _extract_query_data(files: List[Dict[str, str]]) -> Optional[Dict]:
                 pass
     return None
 
-async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
-    """V3 Pack Discovery: Loads all folders inside an Automation Pack."""
-    if not os.path.isdir(pack_path): return []
-    tools = []
-    projects_to_fetch = []
 
+# ── Gallery loading: fast preview + cached full metadata ───────────────────────
+# The full gallery still comes from the C# extractor (sidecar). Two things made
+# the FIRST paint slow: every /api/scripts call re-parsed every tool with Roslyn,
+# and the server awaited that synchronous gRPC call on the event loop. A fast preview
+# is parsed from the same header comments the engine reads, so cards appear while
+# the authoritative metadata is fetched in a worker thread and cached by content.
+_FULL_SCRIPT_CACHE: Dict[str, Dict[str, Any]] = {}
+
+_HEADER_KEY_RE = re.compile(r'^([A-Za-z_\s]+):\s*(.*)$')
+_XML_NAME_RE = re.compile(r'<name>\s*(.*?)\s*</name>', re.IGNORECASE | re.DOTALL)
+_WATCHDOG_RE = re.compile(r'Watchdog\s*\(')
+
+
+def _top_level_file(files: List[Dict[str, str]]) -> Optional[Dict[str, str]]:
+    """Cheap stand-in for the engine's top-level-script choice (preview only)."""
+    for f in files:
+        if re.search(r'\bParams\s+p\s*=\s*new', f.get("content", "")):
+            return f
+    return max(files, key=lambda f: len(f.get("content", ""))) if files else None
+
+
+def _folder_dates(project_path: str) -> Dict[str, str]:
+    """Mirrors LocalMetadataService.FolderCreated/FolderModified (ISO strings)."""
+    scripts_dir = os.path.join(project_path, "Scripts")
+    source_dir = scripts_dir if os.path.isdir(scripts_dir) else project_path
     try:
-        for item in os.listdir(pack_path):
-            item_path = os.path.join(pack_path, item)
-            if not os.path.isdir(item_path) or item.startswith('.'): continue
-            
-            from services.python_ifc_executor import load_python_manifest
-            py_manifest = load_python_manifest(item_path)
-            if py_manifest:
-                tools.append({
-                    "id": item_path.replace('\\', '/'),
-                    "name": py_manifest.get("name") or item,
-                    "absolutePath": item_path.replace('\\', '/'),
-                    "language": "python",
-                    "metadata": _hydrate_metadata_for_frontend(py_manifest.get("metadata") or {
-                        "name": py_manifest.get("name") or item,
-                        "description": py_manifest.get("description", ""),
-                    }),
-                    "parameters": _hydrate_params_for_frontend(py_manifest["params"]),
-                    "hasDoc": os.path.isfile(os.path.join(item_path, "Docs", "index.md")),
-                })
-                continue
+        candidates = [
+            os.path.join(source_dir, name)
+            for name in os.listdir(source_dir)
+            if os.path.isfile(os.path.join(source_dir, name))
+        ]
+        stamps = [os.stat(p) for p in candidates] if candidates else [os.stat(source_dir)]
+        return {
+            "dateCreated": datetime.fromtimestamp(min(s.st_ctime for s in stamps)).isoformat(),
+            "dateModified": datetime.fromtimestamp(max(s.st_mtime for s in stamps)).isoformat(),
+        }
+    except OSError:
+        return {"dateCreated": "", "dateModified": ""}
 
-            script_files = read_script_files(item_path)
 
-            projects_to_fetch.append({
-                "project_name": item,
-                "absolute_path": item_path.replace('\\', '/'),
-                "files": script_files
-            })
+def _parse_preview_metadata(
+    project: Dict[str, Any], project_path: str
+) -> Dict[str, Any]:
+    """Parses the header comment block without Roslyn. The full call corrects it."""
+    files = project.get("files", [])
+    top = _top_level_file(files)
+    content = top.get("content", "") if top else ""
+    meta: Dict[str, Any] = {
+        "name": project["project_name"],
+        "documentType": "Any",
+        "isWatchdog": bool(_WATCHDOG_RE.search(content)),
+        "isProtected": False,
+        "isCompiled": False,
+    }
+    meta.update(_folder_dates(project_path))
 
-        bulk_results_map = {}
-        if projects_to_fetch:
-            bulk_results = grpc_client.get_bulk_metadata(projects_to_fetch)
+    # XML <name> overrides the folder name in the engine; honour it here too.
+    for f in files:
+        xml_match = _XML_NAME_RE.search(f.get("content", ""))
+        if xml_match:
+            meta["name"] = xml_match.group(1).strip()
+            break
+
+    for block in re.finditer(r'/\*(.*?)\*/', content, re.DOTALL):
+        clean_lines = [
+            line.strip().lstrip('*').strip()
+            for line in block.group(1).splitlines()
+            if line.strip()
+        ]
+        current_key: Optional[str] = None
+        current_value: List[str] = []
+
+        def flush() -> None:
+            nonlocal current_key, current_value
+            if current_key is not None and current_value:
+                value = "\n".join(current_value).strip()
+                key = current_key.replace(" ", "").lower()
+                if key in ("author",): meta["author"] = value
+                elif key in ("website",): meta["website"] = value
+                elif key in ("lastrun",): meta["lastRun"] = value
+                elif key in ("documenttype", "document_type"):
+                    meta["documentType"] = value if value in ("Project", "Family", "ConceptualMass") else "Any"
+                elif key in ("categories",):
+                    meta["categories"] = [c.strip() for c in value.split(',') if c.strip()]
+                elif key in ("dependencies",):
+                    meta["dependencies"] = [d.strip() for d in value.split(',') if d.strip()]
+                elif key in ("description",): meta["description"] = value
+                elif key in ("usageexamples", "usage_examples"):
+                    meta["usageExamples"] = [line.lstrip('-').strip() for line in value.splitlines() if line.strip()]
+            current_key = None
+            current_value = []
+
+        for line in clean_lines:
+            match = _HEADER_KEY_RE.match(line)
+            if match:
+                flush()
+                current_key = match.group(1).strip()
+                rest = match.group(2).strip()
+                if rest: current_value.append(rest)
+            elif current_key is not None:
+                current_value.append(line)
+        flush()
+
+    return meta
+
+
+def _discover_projects(pack_path: str) -> tuple[List[Dict[str, Any]], List[str]]:
+    projects: List[Dict[str, Any]] = []
+    for item in os.listdir(pack_path):
+        item_path = os.path.join(pack_path, item)
+        if not os.path.isdir(item_path) or item.startswith('.'):
+            continue
+        projects.append({
+            "project_name": item,
+            "absolute_path": item_path.replace('\\', '/'),
+            "files": read_script_files(item_path),
+        })
+    binaries = sorted(
+        glob.glob(os.path.join(pack_path, "*.ptool")) +
+        glob.glob(os.path.join(pack_path, "*.wtool"))
+    )
+    return projects, binaries
+
+
+def _register_ide_sessions(projects: List[Dict[str, Any]]) -> None:
+    for project in projects:
+        try:
+            if any(f.endswith('.csproj') for f in os.listdir(project["absolute_path"])):
+                from ide_manager import set_active_ide_session
+                set_active_ide_session(project["absolute_path"])
+        except Exception:
+            pass
+
+
+def _signature_for_discovery(
+    pack_path: str, projects: List[Dict[str, Any]], binaries: List[str]
+) -> str:
+    stamps = []
+    doc_paths = [
+        os.path.join(project["absolute_path"], "Docs", "index.md")
+        for project in projects
+    ]
+    for path in binaries + doc_paths + [os.path.join(pack_path, ".paracore")]:
+        try:
+            st = os.stat(path)
+            stamps.append((path.replace('\\', '/'), st.st_size, st.st_mtime_ns))
+        except OSError:
+            pass
+    for project in projects:
+        scripts_dir = os.path.join(project["absolute_path"], "Scripts")
+        for file_name in os.listdir(scripts_dir) if os.path.isdir(scripts_dir) else []:
+            try:
+                st = os.stat(os.path.join(scripts_dir, file_name))
+                stamps.append((os.path.join(scripts_dir, file_name).replace('\\', '/'), st.st_size, st.st_mtime_ns))
+            except OSError:
+                pass
+    return "|".join(f"{p}:{s}:{m}" for p, s, m in sorted(stamps))
+
+
+def _build_binary_tool(binary_path: str) -> Optional[Dict[str, Any]]:
+    try:
+        abs_p = resolve_script_path(binary_path).replace('\\', '/')
+        with open(abs_p, 'r', encoding='utf-8') as f:
+            pkg = json.load(f)
+        return {
+            "id": abs_p, "name": os.path.basename(abs_p), "absolutePath": abs_p,
+            "metadata": _hydrate_metadata_for_frontend({**pkg.get("metadata", {}), "isProtected": True, "isCompiled": True}),
+            "parameters": _hydrate_params_for_frontend(pkg.get("parameters", [])),
+        }
+    except Exception:
+        return None
+
+
+def _build_preview_tool(project: Dict[str, Any]) -> Dict[str, Any]:
+    p_path = project["absolute_path"]
+    return {
+        "id": p_path, "name": project["project_name"], "absolutePath": p_path,
+        "metadata": _hydrate_metadata_for_frontend(
+            _parse_preview_metadata(project, p_path)
+        ),
+        "parameters": [],
+        "queryData": _extract_query_data(project["files"]),
+        "hasDoc": os.path.isfile(os.path.join(p_path, "Docs", "index.md")),
+    }
+
+
+async def get_all_scripts_fast(pack_path: str) -> List[Dict[str, Any]]:
+    """Card-only discovery: filesystem + header comments, NO gRPC/Roslyn call."""
+    if not os.path.isdir(pack_path):
+        return []
+    projects, binaries = _discover_projects(pack_path)
+    _register_ide_sessions(projects)
+    tools = [_build_preview_tool(project) for project in projects]
+    tools.extend(t for t in (_build_binary_tool(p) for p in binaries) if t)
+    return tools
+
+
+async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
+    """V3 Pack Discovery: authoritative metadata, now cached and non-blocking."""
+    if not os.path.isdir(pack_path):
+        return []
+
+    signature = ""
+    cached: Optional[Dict[str, Any]] = None
+    try:
+        projects, binaries = _discover_projects(pack_path)
+        signature = _signature_for_discovery(pack_path, projects, binaries)
+        cache_key = pack_path.replace('\\', '/').rstrip('/').lower()
+        cached = _FULL_SCRIPT_CACHE.get(cache_key)
+        if cached and cached["signature"] == signature:
+            _register_ide_sessions(projects)
+            return list(cached["scripts"])
+
+        _register_ide_sessions(projects)
+        tools: List[Dict[str, Any]] = []
+        bulk_results_map: Dict[str, Any] = {}
+        used_fallback = False
+
+        if projects:
+            # The extractor is CPU-bound Roslyn work. Keep FastAPI's event loop
+            # free so the UI can still answer status/health while it runs.
+            bulk_results = await asyncio.to_thread(
+                grpc_client.get_bulk_metadata, projects
+            )
             for res in bulk_results:
                 path = res.get("absolute_path") if isinstance(res, dict) else getattr(res, "absolute_path", None)
-                if path: bulk_results_map[path] = res
+                if path:
+                    bulk_results_map[path] = res
 
-        for project in projects_to_fetch:
+        for project in projects:
             p_path = project["absolute_path"]
             res = bulk_results_map.get(p_path)
-            if not res: continue
-            
-            # V5: AUTO-REGISTRATION FOR SYNC (The "Always-On" Sync)
-            # If a folder contains a .csproj, we automatically treat it as an active IDE session.
-            # This ensures sync works immediately upon discovery if it's already a project.
-            try:
-                has_csproj = any(f.endswith('.csproj') for f in os.listdir(p_path))
-                if has_csproj:
-                    from ide_manager import set_active_ide_session
-                    set_active_ide_session(p_path)
-            except: pass
+            if not res:
+                # Never let a missing sidecar answer turn the gallery blank.
+                used_fallback = True
+                tools.append(_build_preview_tool(project))
+                continue
 
-            # Map metadata and parameters through unified hydration
             raw_meta = res.get("metadata") if isinstance(res, dict) else getattr(res, "metadata", None)
             raw_params = res.get("parameters") if isinstance(res, dict) else getattr(res, "parameters", [])
-            
-            # V5: Pre-extract VQB graph data for the "Template Gallery"
-            extracted_query = _extract_query_data(project["files"])
-
-            # Check if this script has a Docs/ folder with index.md
-            has_doc = os.path.isfile(os.path.join(p_path, "Docs", "index.md"))
-
             tools.append({
                 "id": p_path, "name": project["project_name"], "absolutePath": p_path,
                 "metadata": _hydrate_metadata_for_frontend(raw_meta),
                 "parameters": _hydrate_params_for_frontend(raw_params),
-                "queryData": extracted_query,
-                "hasDoc": has_doc
+                "queryData": _extract_query_data(project["files"]),
+                "hasDoc": os.path.isfile(os.path.join(p_path, "Docs", "index.md")),
             })
 
-        # Load Binaries (.ptool, .wtool)
-        for ptool_path in glob.glob(os.path.join(pack_path, "*.ptool")) + glob.glob(os.path.join(pack_path, "*.wtool")):
-            try:
-                abs_p = resolve_script_path(ptool_path).replace('\\', '/')
-                with open(abs_p, 'r', encoding='utf-8') as f: pkg = json.load(f)
-                tools.append({
-                    "id": abs_p, "name": os.path.basename(abs_p), "absolutePath": abs_p,
-                    "metadata": _hydrate_metadata_for_frontend({**pkg.get("metadata", {}), "isProtected": True, "isCompiled": True}),
-                    "parameters": _hydrate_params_for_frontend(pkg.get("parameters", []))
-                })
-            except: continue
+        tools.extend(t for t in (_build_binary_tool(p) for p in binaries) if t)
 
+        if not used_fallback:
+            _FULL_SCRIPT_CACHE[cache_key] = {"signature": signature, "scripts": tools}
         return tools
     except Exception as e:
+        if cached and cached.get("signature") == signature:
+            return list(cached["scripts"])
         raise HTTPException(status_code=500, detail=str(e))
 
 async def get_single_script_logic(script_path: str):
@@ -254,24 +421,6 @@ async def get_single_script_logic(script_path: str):
                 "parameters": _hydrate_params_for_frontend(pkg.get("parameters", []))
             }
             
-        # Python tools declare their language and typed Params in tool.json; no Roslyn pass.
-        from services.python_ifc_executor import load_python_manifest
-        py_manifest = load_python_manifest(abs_p)
-        if py_manifest:
-            meta = py_manifest.get("metadata") or {
-                "name": py_manifest.get("name") or project_name,
-                "description": py_manifest.get("description", ""),
-            }
-            return {
-                "id": abs_p,
-                "name": py_manifest.get("name") or project_name,
-                "absolutePath": abs_p,
-                "language": "python",
-                "metadata": _hydrate_metadata_for_frontend(meta),
-                "parameters": _hydrate_params_for_frontend(py_manifest["params"]),
-                "queryData": _extract_query_data([]),
-            }
-
         # 2. Handle standard folder scripts
         script_files = []
         project_name = os.path.basename(abs_p)
@@ -592,7 +741,7 @@ async def get_script_content_logic(script_path: str):
 
 async def create_new_script_logic(parent_folder: str, script_name: str, folder_name: Optional[str] = None, template_id: str = "blank", generated_logic: Optional[str] = None, generated_params: Optional[str] = None, overwrite: bool = False):
     # CRITICAL FIX: Remove ALL spaces (leading, trailing, and middle) to ensure a valid C# identifier
-    clean_name = script_name.replace(" ", "").replace('.cs', '')
+    clean_name = script_name.replace(" ", "").replace('.cs', '').replace('.py', '')
     p_dir = os.path.join(parent_folder, clean_name)
     s_dir = os.path.join(p_dir, "Scripts")
     if os.path.exists(p_dir) and not overwrite: raise HTTPException(status_code=409, detail=f"Tool folder exists.")

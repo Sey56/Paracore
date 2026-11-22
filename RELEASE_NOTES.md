@@ -1,3 +1,29 @@
+## Paracore v4.9.0 — Paracore to Dynamo, and editing without Revit
+
+Full notes: [Release-Notes-4.9.0.md](Release-Notes-4.9.0.md)
+
+The release that opens Paracore to Dynamo. The gallery's **Export Dynamo** button turns the
+selected gallery script into either a **Method node** you place in your own graph, or a
+**standalone `.dyn` Graph** you open directly. Both were proven live in Dynamo 3.3:
+`AddTwoNumbers` exports as a library node returning `16` for inputs `10` and `6`, and as a graph
+with sliders feeding a CodeBlock and a Watch. `PanelLayoutAudit` also exports as a working graph.
+Exported packages and graphs have no Paracore runtime dependency.
+
+Everything else in this release makes authoring independent of Revit: Roslyn completion,
+diagnostics, hover, gallery metadata and parameters are answered locally through **one shared
+sidecar** installed with the add-in. Writing code, browsing the gallery and getting IntelliSense
+work with Revit closed; execution still needs Revit and the add-in. Category names inside
+`GetElements("…")` and that category's real Revit parameter names inside `.WhereParam("…")` are
+now suggested as you type. The Analytics table is cleared on each Run, so undoing a parameter
+change in Revit is reflected the next time the table renders. The desktop installer is now
+33 MB, down from 45.7 MB in the previous release; the add-in installer is unchanged.
+
+> **Only two new assets in 4.9.0:** `Paracore_Addin_v4.9.0.exe` and `Paracore_4.9.0_x64.msi`.
+> The VS Code extension and Paracore-Gen keep their previously published versions; MCP/agent
+> safety behaviour belongs to Paracore-Gen, not to the add-in.
+
+---
+
 ## Paracore v4.8.4 — exact categories, exact numbers, honest errors, self-hosted UI
 
 Full notes: [Release-Notes-4.8.4.md](Release-Notes-4.8.4.md) ·

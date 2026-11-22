@@ -6,20 +6,12 @@ load_dotenv() # Load environment variables from .env file
 
 # --- Function to read the public key ---
 def load_public_key():
-    # 1. Try Remote Fetch from Auth Server first — guarantees the key matches
-    #    the deployed auth server that actually signed the JWT.
-    auth_url = os.getenv("AUTH_SERVER_URL", "https://rap-auth-server-production.up.railway.app")
-    try:
-        print(f"--- Attempting to fetch public key from {auth_url}/auth/public-key...")
-        with httpx.Client(timeout=5.0) as client:
-            response = client.get(f"{auth_url}/auth/public-key")
-            if response.status_code == 200:
-                print("--- Successfully fetched public key from remote auth server.")
-                return response.json().get("public_key")
-    except Exception as e:
-        print(f"--- Remote public key fetch failed: {e}")
-
-    # 2. Fallback: Try Local File System
+    # 1. LOCAL FIRST. The installer bundles the same key the build verified
+    #    against the auth server (scripts/check-jwt-key.py fails the build on a
+    #    mismatch), and import happens BEFORE Uvicorn can listen. A remote fetch
+    #    here added ~4 s to every app start — measured 2026-11-21 — during which
+    #    the gallery had no server to answer it. Offline starts must not wait on
+    #    the network either. Remote is kept as a fallback for a missing bundle.
     #
     # ⚠⚠ TWO SHAPES, deliberately. The key is TRACKED at `server/keys/jwt_public.pem`
     # (beside this file), which is the shape dev and every fresh clone have. The legacy
@@ -56,6 +48,18 @@ def load_public_key():
                 return f.read()
     except Exception as e:
         print(f"--- Local key load failed: {e}")
+
+    # 2. Remote fallback only when the bundle has no key at all.
+    auth_url = os.getenv("AUTH_SERVER_URL", "https://rap-auth-server-production.up.railway.app")
+    try:
+        print(f"--- Attempting to fetch public key from {auth_url}/auth/public-key...")
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(f"{auth_url}/auth/public-key")
+            if response.status_code == 200:
+                print("--- Successfully fetched public key from remote auth server.")
+                return response.json().get("public_key")
+    except Exception as e:
+        print(f"--- Remote public key fetch failed: {e}")
 
     print("!!! WARNING: JWT Public Key NOT LOADED. Authentication will fail.")
     return None

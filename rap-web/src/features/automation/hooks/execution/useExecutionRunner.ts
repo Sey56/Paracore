@@ -55,7 +55,7 @@ export const useExecutionRunner = (
         path: script.absolutePath,
         parameters: JSON.stringify(parameters),
         thread_id: threadId,
-        language: script.language || "csharp",
+        language: "csharp",
         license_tier: isEnterprise ? "enterprise" : "free"
       });
       const elapsedMs = performance.now() - startedAt;
@@ -65,7 +65,10 @@ export const useExecutionRunner = (
         output: result.output || "",
         isSuccess: result.is_success,
         error: result.error_message,
-        structuredOutput: result.structured_output || [],
+        // A backend may return a metrics object here instead of the analytics
+        // array. Never trust the shape: a non-array crashed OutputPanel.tsx
+        // with "a?.structuredOutput?.some is not a function" (21 Nov).
+        structuredOutput: Array.isArray(result.structured_output) ? result.structured_output : [],
         internalData: result.internal_data,
         timestamp: Date.now(),
         scriptName: script.metadata?.displayName || script.name,

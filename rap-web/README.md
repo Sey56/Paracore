@@ -1,12 +1,12 @@
 # rap-web (Paracore UI)
 
-**rap-web** is the desktop user interface for **Paracore**, a dynamic C# scripting platform for Autodesk Revit. Built with React and Tauri, it provides a high-performance environment for manual automation, AI script generation, and agentic orchestration.
+**rap-web** is the desktop user interface for **Paracore**, a dynamic C# scripting platform for Autodesk Revit. Built with React and Tauri, it provides a high-performance environment for manual automation and script authoring.
 
 ## Architecture
 
 `rap-web` is a local-first application that talks to:
 
-- **Local backend (`rap-server`)**: a Python FastAPI process for script discovery, persistence, REPL services and **host-neutral Python/IFC execution**. IFC support uses `ifcopenshell`; it needs no Revit host.
+- **Local backend (`rap-server`)**: a Python FastAPI process for script discovery, persistence, REPL services and local export helpers. No Revit host is needed for these services.
 - **Shared sidecar (`Paracore.Server.exe`)**: ONE C# gRPC process on `localhost:50051`. It is installed with the **Revit add-in**, not with the desktop app. At boot the desktop app starts it from the add-in folder if necessary, or adopts it if Revit already started it. It answers Roslyn IntelliSense, diagnostics, hover, gallery metadata and script parameters with no Revit process.
 - **Revit add-in (`Paracore.Addin`)**: the host that actually executes C# inside Revit. The ribbon toggle opens and closes Revit's subscription to the shared sidecar; it does not own the process.
 
