@@ -230,6 +230,24 @@ namespace CoreScript.Engine.Core
 
             foreach (MemberDeclarationSyntax member in paramsClass.Members)
             {
+                string trivia = member.GetLeadingTrivia()
+                    .Select(t => t.ToString())
+                    .Aggregate("", (a, b) => a + b);
+
+                // Same rule as the Gallery's parameter descriptions: <summary> when present,
+                // otherwise a one-line /// comment. Read the member's OWN trivia so a comment
+                // directly above a property becomes that graph input's label.
+                string summary = Parsers.XmlDocParser.ExtractDescription(member.GetLeadingTrivia());
+
+                string unit = "";
+                int u = trivia.IndexOf("[Unit(\"");
+                if (u >= 0)
+                {
+                    int q1 = trivia.IndexOf('"', u) + 1;
+                    int q2 = trivia.IndexOf('"', q1);
+                    if (q2 > q1) unit = trivia.Substring(q1, q2 - q1);
+                }
+
                 if (member is PropertyDeclarationSyntax prop &&
                     prop.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)) &&
                     prop.AccessorList != null &&
@@ -239,12 +257,32 @@ namespace CoreScript.Engine.Core
                     string type = prop.Type.ToString();
                     string name = prop.Identifier.Text;
 
+                    // [Unit("mm")] is an attribute on the property, not leading trivia.
+                    string attributeUnit = "";
+                    foreach (AttributeListSyntax list in prop.AttributeLists)
+                    {
+                        foreach (AttributeSyntax attr in list.Attributes)
+                        {
+                            if (!attr.Name.ToString().EndsWith("Unit", StringComparison.Ordinal) ||
+                                attr.ArgumentList == null) continue;
+                            foreach (AttributeArgumentSyntax arg in attr.ArgumentList.Arguments)
+                            {
+                                string text = arg.ToString().Trim();
+                                if (text.Length >= 2 && text.StartsWith("\"") && text.EndsWith("\""))
+                                    attributeUnit = text.Substring(1, text.Length - 2);
+                            }
+                        }
+                    }
+                    string effectiveUnit = !string.IsNullOrWhiteSpace(attributeUnit)
+                        ? attributeUnit
+                        : (!string.IsNullOrWhiteSpace(unit) ? unit : pendingUnit);
+
                     var p = new GraphScriptModel.Param
                     {
                         Name = name,
                         Type = type,
-                        Summary = pendingSummary,
-                        Unit = pendingUnit
+                        Summary = string.IsNullOrWhiteSpace(summary) ? pendingSummary : summary,
+                        Unit = effectiveUnit
                     };
 
                     if (prop.Initializer != null)
@@ -259,21 +297,9 @@ namespace CoreScript.Engine.Core
                     continue;
                 }
 
-                string trivia = member.GetLeadingTrivia()
-                    .Select(t => t.ToString())
-                    .Aggregate("", (a, b) => a + b);
-
-                int a = trivia.IndexOf("<summary>");
-                int b = trivia.IndexOf("</summary>");
-                if (a >= 0 && b > a) pendingSummary = trivia.Substring(a + 9, b - a - 9).Trim();
-
-                int u = trivia.IndexOf("[Unit(\"");
-                if (u >= 0)
-                {
-                    int q1 = trivia.IndexOf('"', u) + 1;
-                    int q2 = trivia.IndexOf('"', q1);
-                    if (q2 > q1) pendingUnit = trivia.Substring(q1, q2 - q1);
-                }
+                // A comment on a non-property member still carries to the next property.
+                if (!string.IsNullOrWhiteSpace(summary)) pendingSummary = summary;
+                if (!string.IsNullOrWhiteSpace(unit)) pendingUnit = unit;
             }
         }
 
